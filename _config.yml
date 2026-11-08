@@ -1,0 +1,17 @@
+# GitHub Pages site (Settings -> Pages -> Deploy from a branch -> main, / (root)).
+# Pages turns the Markdown files into a small site:
+#   README.md  -> https://josh345rtfvqw.github.io/detour/
+#   PRIVACY.md -> https://josh345rtfvqw.github.io/detour/PRIVACY.html
+#   SUPPORT.md -> https://josh345rtfvqw.github.io/detour/SUPPORT.html
+title: Detour
+description: Watch YouTube videos on Nebula and Floatplane instead.
+theme: jekyll-theme-minimal
+exclude:
+  - node_modules
+  - test
+  - scripts
+  - dist
+  - store
+  - package.json
+  - package-lock.json
+  - "*.zip"

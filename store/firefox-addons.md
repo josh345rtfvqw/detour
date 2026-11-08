@@ -89,7 +89,7 @@ youtube, nebula, floatplane, video, redirect, creators
 ### Support
 
 - **Support email:** leave blank, or use an address you're happy to publish.
-- **Support website:** `https://github.com/josh345rtfvqw/detour/issues`
+- **Support website:** `https://josh345rtfvqw.github.io/detour/SUPPORT.html`
 
 ### License
 

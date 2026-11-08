@@ -87,8 +87,8 @@ PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 node store/assets/make-store-ima
 
 ### Additional fields
 
-- **Official URL / Homepage:** `https://github.com/josh345rtfvqw/detour`
-- **Support URL:** `https://github.com/josh345rtfvqw/detour/issues`
+- **Official URL / Homepage:** `https://josh345rtfvqw.github.io/detour/`
+- **Support URL:** `https://josh345rtfvqw.github.io/detour/SUPPORT.html`
 - **Mature content:** No
 
 ---
@@ -164,7 +164,7 @@ The "approved use case" here is sending the video title and creator requests to 
 ### Privacy policy URL
 
 ```
-https://github.com/josh345rtfvqw/detour/blob/main/PRIVACY.md
+https://josh345rtfvqw.github.io/detour/PRIVACY.html
 ```
 
 ---
@@ -189,5 +189,5 @@ No account needed. 1) Click the Detour toolbar icon, turn on "Nebula", choose "S
 - [ ] Pay the one-time $5 developer registration fee, if you haven't already.
 - [ ] Upload the release zip (for example `detour-0.3.9.zip` from GitHub Releases).
 - [ ] Upload the five screenshots and the promo tiles from `store/assets/`.
-- [ ] Check that the privacy policy URL opens publicly. The repository must be public.
+- [ ] Enable GitHub Pages (Settings → Pages → Deploy from a branch → `main`, `/ (root)`), then check that the homepage, privacy and support URLs open in a private window.
 - [ ] Expect review to take a few days. Host permissions on youtube.com can mean a closer manual review.

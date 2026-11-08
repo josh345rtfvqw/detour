@@ -50,7 +50,7 @@ Each video redirects at most once per tab, so pressing Back keeps you on YouTube
 
 Detour has no server and collects no analytics. To find matches, it sends requests directly to Nebula and Floatplane.
 For creators who are on those platforms, that includes the YouTube video's title.
-Details are in [PRIVACY.md](PRIVACY.md).
+Details are in [PRIVACY.md](PRIVACY.md). For help, see [SUPPORT.md](SUPPORT.md).
 
 ## Development
 
