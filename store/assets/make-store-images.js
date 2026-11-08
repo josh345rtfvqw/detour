@@ -148,7 +148,12 @@ p{margin:-22px 0 0;font-size:20px;color:#c9cbe0;text-align:center}
   const extId = sw.url().split('/')[2];
   const settings = s => sw.evaluate(v => chrome.storage.sync.set(v), s);
   const shots = {};
-  const shoot = async (page, name, clip) => { const f = path.join(TMP, `${name}.png`); await page.screenshot({ path: f, clip }); shots[name] = 'data:image/png;base64,' + fs.readFileSync(f).toString('base64'); };
+  // Each capture is also saved uncaptioned as store/assets/ui-<name>.png, for the website.
+  const shoot = async (page, name, clip) => {
+    const f = path.join(OUT, `ui-${name}.png`);
+    await page.screenshot({ path: f, clip });
+    shots[name] = 'data:image/png;base64,' + fs.readFileSync(f).toString('base64');
+  };
 
   // 1. Video page, button mode, subscribed to Nebula
   await settings({ nebulaSubscribed: true, autoRedirect: false, floatplaneCreators: ['exlabs'] });

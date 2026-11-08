@@ -1,17 +1,36 @@
 # GitHub Pages site (Settings -> Pages -> Deploy from a branch -> main, / (root)).
-# Pages turns the Markdown files into a small site:
-#   README.md  -> https://josh345rtfvqw.github.io/detour/
+#   index.html -> https://josh345rtfvqw.github.io/detour/
 #   PRIVACY.md -> https://josh345rtfvqw.github.io/detour/PRIVACY.html
 #   SUPPORT.md -> https://josh345rtfvqw.github.io/detour/SUPPORT.html
+# Custom design: _layouts/default.html + assets/site.css (no theme).
 title: Detour
-description: Watch YouTube videos on Nebula and Floatplane instead.
-theme: jekyll-theme-minimal
+description: See when a YouTube video is also on Nebula or Floatplane, and go straight there.
+repo_url: https://github.com/josh345rtfvqw/detour
+
+# Store listings: leave empty until each listing is live. The site then shows a
+# "coming soon" note instead of a broken link.
+chrome_url: ""
+firefox_url: ""
+
 exclude:
   - node_modules
   - test
   - scripts
   - dist
-  - store
+  - README.md
   - package.json
   - package-lock.json
+  - store/chrome-web-store.md
+  - store/firefox-addons.md
+  - store/assets/make-store-images.js
   - "*.zip"
+  # The extension's own files aren't part of the site.
+  - manifest.json
+  - background.js
+  - content.js
+  - content.css
+  - page.js
+  - match.js
+  - floatplane-defaults.js
+  - options.html
+  - options.js

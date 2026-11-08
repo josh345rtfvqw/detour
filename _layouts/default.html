@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% if page.title and page.title != site.title %}{% assign full_title = page.title | append: " · " | append: site.title %}{% else %}{% assign full_title = site.title | append: ": YouTube videos on Nebula & Floatplane" %}{% endif %}
+<title>{{ full_title }}</title>
+<meta name="description" content="{{ page.description | default: site.description }}">
+<meta property="og:title" content="{{ full_title }}">
+<meta property="og:description" content="{{ page.description | default: site.description }}">
+<meta property="og:image" content="{{ '/store/assets/promo-marquee-1400x560.png' | absolute_url }}">
+<meta name="theme-color" content="#0d0d14">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ '/icons/icon32.png' | relative_url }}">
+<link rel="icon" type="image/png" sizes="128x128" href="{{ '/icons/icon128.png' | relative_url }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
+</head>
+<body class="{% if page.landing %}landing{% else %}doc{% endif %}">
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="{{ '/' | relative_url }}"><img src="{{ '/icons/icon128.png' | relative_url }}" alt="" width="32" height="32">Detour</a>
+    <nav aria-label="Main">
+      <a href="{{ '/PRIVACY.html' | relative_url }}"{% if page.path == "PRIVACY.md" %} aria-current="page"{% endif %}>Privacy</a>
+      <a href="{{ '/SUPPORT.html' | relative_url }}"{% if page.path == "SUPPORT.md" %} aria-current="page"{% endif %}>Support</a>
+      <a href="{{ site.repo_url }}">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+{% if page.landing %}
+{{ content }}
+{% else %}
+  <article class="wrap prose">
+{{ content }}
+  </article>
+{% endif %}
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <span class="foot-brand"><img src="{{ '/icons/icon128.png' | relative_url }}" alt="" width="20" height="20">Detour</span>
+    <span>Open source, no server, no analytics.</span>
+    <span class="foot-links"><a href="{{ '/PRIVACY.html' | relative_url }}">Privacy</a><a href="{{ '/SUPPORT.html' | relative_url }}">Support</a><a href="{{ site.repo_url }}">GitHub</a></span>
+  </div>
+  <p class="wrap disclaimer">Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula or Floatplane.</p>
+</footer>
+</body>
+</html>
