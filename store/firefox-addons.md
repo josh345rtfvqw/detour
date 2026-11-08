@@ -8,7 +8,7 @@ Fields for [addons.mozilla.org/developers](https://addons.mozilla.org/developers
 
 - **Where to host:** On this site (listed on addons.mozilla.org).
 - **Platforms:** Firefox and Firefox for Android. The extension works on YouTube's mobile site, with simpler placement.
-- **File:** the release zip from GitHub Releases, for example `detour-0.3.10.zip`. The same package works for Chrome and Firefox. Firefox ignores the Chrome-only `background.service_worker` key and uses `background.scripts`.
+- **File:** the release zip from GitHub Releases, for example `detour-0.4.0.zip`. The same package works for Chrome and Firefox. Firefox ignores the Chrome-only `background.service_worker` key and uses `background.scripts`.
 
 ### Source code question
 
@@ -161,14 +161,14 @@ AMO has no promo tiles.
 
 ---
 
-## 5. Version notes (for v0.3.10)
+## 5. Version notes (for v0.4.0)
 
 ```
-First public release.
-• "Watch on Nebula / Floatplane" button next to the video title, or automatic redirect for subscribers
-• Banner on channel pages
-• Built-in list of known Floatplane creators, merged with the live list when logged in
-• Requests identify the extension in their User-Agent, as Floatplane asks
+• Known-videos list: thousands of YouTube videos already matched to their Nebula and Floatplane versions, updated daily, so most matches are instant and need no requests to Nebula or Floatplane
+• Full video catalogues for Nebula and Floatplane creators, downloaded only for the creators you watch, so older videos match too
+• All 20 Floatplane creators matched to their YouTube channels
+• Confirmed matches are remembered for 30 days
+• Simpler settings: title matching is now automatic
 ```
 
 ---
