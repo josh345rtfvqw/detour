@@ -101,6 +101,13 @@ async function loadCreators() {
     return;
   }
   renderCreators(resp.creators);
+  // Only the built-in list loaded: say so, and how to get the full one.
+  if (resp.creators.length && resp.creators.every(c => c.builtin)) {
+    const note = document.createElement('div');
+    note.className = 'empty';
+    note.innerHTML = 'Showing known creators. <a href="https://www.floatplane.com" target="_blank" rel="noopener">Log in to Floatplane</a> to see everyone.';
+    $('fpList').append(note);
+  }
 }
 
 $('fpFilter').addEventListener('input', applyFilter);

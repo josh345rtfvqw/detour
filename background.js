@@ -1,6 +1,6 @@
 // Background: looks up whether a YouTube video exists on Nebula / Floatplane.
 // Chrome runs this as a service worker (needs importScripts); Firefox loads match.js first.
-if (typeof importScripts === 'function' && typeof bestMatch === 'undefined') importScripts('match.js');
+if (typeof importScripts === 'function' && typeof bestMatch === 'undefined') importScripts('match.js', 'floatplane-defaults.js');
 
 const DEFAULTS = {
   autoRedirect: true,
@@ -130,16 +130,34 @@ async function lookupNebula(info, settings) {
 // ---------------------------------------------------------------- Floatplane
 // Uses the user's own floatplane.com login cookies (credentials: 'include').
 
-function loadFloatplaneCreators() {
-  return cached('fpCreators', DAY, async () => {
-    const list = await getJSON(`${FP}/api/v3/creator/list?search=`, { credentials: 'include' });
-    return list.map(c => ({
-      id: c.id, title: c.title, urlname: c.urlname,
-      icon: c.icon?.path || '',
-      links: Object.values(c.socialLinks || {}),
-      channels: (c.channels || []).map(ch => ({ id: ch.id, title: ch.title, urlname: ch.urlname, links: Object.values(ch.socialLinks || {}) })),
-    }));
-  });
+// Floatplane's live creator list, merged with the built-in defaults (floatplane-defaults.js).
+// If the live list can't be loaded, the defaults alone are used.
+async function loadFloatplaneCreators() {
+  let live = [];
+  try {
+    live = await cached('fpCreators', DAY, async () => {
+      const list = await getJSON(`${FP}/api/v3/creator/list?search=`, { credentials: 'include' });
+      return list.map(c => ({
+        id: c.id, title: c.title, urlname: c.urlname,
+        icon: c.icon?.path || '',
+        links: Object.values(c.socialLinks || {}),
+        channels: (c.channels || []).map(ch => ({ id: ch.id, title: ch.title, urlname: ch.urlname, links: Object.values(ch.socialLinks || {}) })),
+      }));
+    });
+  } catch (e) { console.warn('[detour] using built-in Floatplane creators', e); }
+  const byId = new Map(live.map(c => [c.id, c]));
+  for (const d of FLOATPLANE_DEFAULTS) {
+    const c = byId.get(d.id);
+    if (!c) { byId.set(d.id, d); continue; }
+    // Live data wins, but keep the defaults' YouTube links and channels where live has none.
+    if (!c.links.some(l => /youtube/.test(l))) c.links = [...c.links, ...d.links];
+    for (const dch of d.channels) {
+      const ch = c.channels.find(x => x.id === dch.id);
+      if (!ch) c.channels.push(dch);
+      else if (!ch.links.some(l => /youtube/.test(l))) ch.links = [...ch.links, ...dch.links];
+    }
+  }
+  return [...byId.values()];
 }
 
 // Turn a YouTube URL into comparable identifiers: channel ID, @handle, /user/ or /c/ name.

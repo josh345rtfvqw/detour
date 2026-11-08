@@ -6,5 +6,5 @@ version=$(node -p "require('./manifest.json').version")
 mkdir -p dist
 out="dist/detour-${version}.zip"
 rm -f "$out"
-zip -q -r "$out" manifest.json background.js match.js content.js content.css page.js options.html options.js icons LICENSE README.md
+zip -q -r "$out" manifest.json background.js match.js floatplane-defaults.js content.js content.css page.js options.html options.js icons LICENSE README.md
 echo "$out"

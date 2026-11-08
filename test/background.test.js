@@ -25,6 +25,7 @@ function makeEnv(sync, routes) {
   };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(root, 'match.js'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(path.join(root, 'floatplane-defaults.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(root, 'background.js'), 'utf8'), ctx);
   const send = msg => new Promise(r => listener(msg, {}, r));
   return { send, calls };
@@ -90,5 +91,21 @@ const fpRoutes = [
   r = await env.send({ type: 'lookup', info: { videoId: 'e', title: 'x', channelId: 'UCnope', author: 'Someone Else' } });
   assert.equal(r.results.length, 0);
   console.log('ok  unrelated channel -> nothing shown');
+  // 7. Floatplane creator list unavailable (not logged in) -> built-in list still matches
+  //    TechLinked by its @handle and links to the right Floatplane sub-channel.
+  env = makeEnv({ floatplaneCreators: ['59f94c0bdd241b70349eb72b'] }, [[/nebula|githubusercontent/, new Error()], [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookupChannel', info: { channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' } });
+  assert.equal(r.results[0].platform, 'floatplane');
+  assert.equal(r.results[0].url, 'https://www.floatplane.com/channel/linustechtips/home/techlinked');
+  assert.ok(r.results[0].subscribed);
+  const fpList = await env.send({ type: 'fpCreators' });
+  assert.ok(fpList.creators.length >= 3 && fpList.creators.every(c => c.builtin));
+  console.log('ok  built-in Floatplane list used when the live list fails');
+
+  // 8. Live list loads -> it wins, and built-in creators missing from it are still added
+  env = makeEnv({}, [[/nebula|githubusercontent/, new Error()], [/creator\/list/, [{ id: 'new1', title: 'Someone New', urlname: 'someonenew', socialLinks: {}, channels: [] }]]]);
+  const merged = (await env.send({ type: 'fpCreators' })).creators;
+  assert.ok(merged.some(c => c.id === 'new1' && !c.builtin) && merged.some(c => c.urlname === 'linustechtips'));
+  console.log('ok  live list merged with built-in creators');
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

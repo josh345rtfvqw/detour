@@ -18,6 +18,7 @@
     "service_worker": "background.js",
     "scripts": [
       "match.js",
+      "floatplane-defaults.js",
       "background.js"
     ]
   },
