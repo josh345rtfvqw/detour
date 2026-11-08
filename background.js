@@ -195,6 +195,35 @@ async function lookupFloatplane(info, settings) {
   return { ...base, kind: 'channel', url: `${FP}/channel/${c.urlname}/home${chPath}`, confidence: 0 };
 }
 
+// ---------------------------------------------------------------- channel pages
+// Only needs the channel mapping: no per-video lookups.
+
+async function channelOnNebula(info, settings) {
+  const creators = await loadNebulaCreators();
+  const author = normalizeName(info.author);
+  const c = creators.find(c => (info.channelId && c.ytId === info.channelId)) ||
+    creators.find(c => author && normalizeName(c.name) === author);
+  if (!c) return null;
+  return { platform: 'nebula', kind: 'channel', url: `https://nebula.tv/${c.slug || c.alt}`, creator: c.name, subscribed: settings.nebulaSubscribed, confidence: 0 };
+}
+
+async function channelOnFloatplane(info, settings) {
+  const [hit] = floatplaneMatches(await loadFloatplaneCreators(), info);
+  if (!hit) return null;
+  const c = hit.creator;
+  const chPath = hit.channel && hit.channel.urlname !== c.urlname ? `/${hit.channel.urlname}` : '';
+  return { platform: 'floatplane', kind: 'channel', url: `${FP}/channel/${c.urlname}/home${chPath}`, creator: c.title, subscribed: settings.floatplaneCreators.includes(c.id), confidence: 0 };
+}
+
+async function lookupChannel(info) {
+  const settings = await getSettings();
+  const results = (await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings)]))
+    .map(r => (r.status === 'fulfilled' ? r.value : null))
+    .filter(Boolean);
+  results.sort((a, b) => (b.subscribed - a.subscribed) || ((b.platform === settings.preferred) - (a.platform === settings.preferred)));
+  return results;
+}
+
 // ---------------------------------------------------------------- messages
 
 const recent = new Map(); // videoId -> results, for this worker's lifetime
@@ -215,6 +244,7 @@ async function lookup(info) {
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   const handle = async () => {
     if (msg.type === 'lookup') return { results: await lookup(msg.info), settings: await getSettings() };
+    if (msg.type === 'lookupChannel') return { results: await lookupChannel(msg.info), settings: await getSettings() };
     if (msg.type === 'fpCreators') return { creators: await loadFloatplaneCreators() };
     if (msg.type === 'clearCache') { recent.clear(); await chrome.storage.local.clear(); return { ok: true }; }
   };

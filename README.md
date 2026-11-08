@@ -6,7 +6,10 @@ A Chrome/Firefox extension. On a YouTube video page it checks whether the same v
 is on **Nebula** or **Floatplane**. Then it either:
 
 - **redirects automatically**, if you've said you subscribe there (3-second countdown with a "Stay on YouTube" option), or
-- **shows a "Watch on Nebula / Floatplane" button** under the video, next to the channel name.
+- **shows a "Watch on Nebula / Floatplane" badge** in the corner of the player. It shrinks to a small icon while the video plays and expands again on hover.
+
+On **channel pages** it shows a banner above the tabs when the channel is on Nebula or Floatplane.
+You can dismiss the banner for each channel. Colours follow the platform and YouTube's light or dark theme.
 
 You pick which in the settings. If the video itself can't be matched, but the channel is on
 the platform, you get a link to the channel instead. Channel-only matches never auto-redirect.
