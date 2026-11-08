@@ -65,7 +65,7 @@ English
 
 | Asset | Required | Size | File |
 |---|---|---|---|
-| Store icon | Yes | 128×128 PNG | `icons/icon128.png` |
+| Store icon | Yes | 128×128 PNG (96×96 artwork + 16 px transparent padding, per Google's guidelines) | `store/assets/chrome-store-icon-128.png` |
 | Screenshots | At least 1, up to 5 | 1280×800 | `store/assets/screenshot-1-video.png` … `screenshot-5-settings.png` |
 | Small promo tile | Optional (needed for featuring) | 440×280 | `store/assets/promo-small-440x280.png` |
 | Marquee promo tile | Optional | 1400×560 | `store/assets/promo-marquee-1400x560.png` |
