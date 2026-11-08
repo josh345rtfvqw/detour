@@ -8,7 +8,7 @@ Fields for [addons.mozilla.org/developers](https://addons.mozilla.org/developers
 
 - **Where to host:** On this site (listed on addons.mozilla.org).
 - **Platforms:** Firefox and Firefox for Android. The extension works on YouTube's mobile site, with simpler placement.
-- **File:** the release zip from GitHub Releases, for example `detour-0.3.9.zip`. The same package works for Chrome and Firefox. Firefox ignores the Chrome-only `background.service_worker` key and uses `background.scripts`.
+- **File:** the release zip from GitHub Releases, for example `detour-0.3.10.zip`. The same package works for Chrome and Firefox. Firefox ignores the Chrome-only `background.service_worker` key and uses `background.scripts`.
 
 ### Source code question
 
@@ -159,7 +159,7 @@ AMO has no promo tiles.
 
 ---
 
-## 5. Version notes (for v0.3.9)
+## 5. Version notes (for v0.3.10)
 
 ```
 First public release.
@@ -174,6 +174,6 @@ First public release.
 ## Before submitting
 
 - [ ] Create or sign in to your Firefox account on addons.mozilla.org/developers and accept the developer agreement. There's no fee.
-- [ ] Decide on the minimum version. The manifest says Firefox **128**, but the data collection consent prompt only exists from **140**, so 128–139 install without it. AMO accepts this with a warning. If you'd rather everyone sees the prompt, raise `strict_min_version` to `140.0`. I can make that change.
+- [x] Minimum version is Firefox **140** (Firefox for Android **142**), so everyone who installs sees the data collection consent prompt.
 - [ ] Review usually takes from a few hours to a few days. Because of the youtube.com host permission and the network requests, expect a human to read the code. The reviewer notes above are written for that.
 - [ ] After approval, Firefox users get updates automatically when you upload new versions on AMO.

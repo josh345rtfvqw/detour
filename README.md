@@ -20,7 +20,7 @@ the platform, you get a link to the channel instead. Channel-only matches never 
 1. Go to `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and pick this folder.
 
-**Firefox (128+)**
+**Firefox (140+)**
 1. Go to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on…** and pick `manifest.json`. Temporary add-ons are removed
    when Firefox restarts. For a permanent install, sign the add-on through addons.mozilla.org.

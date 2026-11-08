@@ -1,13 +1,13 @@
 {
   "name": "detour",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "private": true,
   "description": "Watch YouTube videos on Nebula or Floatplane instead.",
   "license": "MIT",
   "scripts": {
     "test": "node test/background.test.js",
     "test:e2e": "node test/e2e.js",
-    "lint": "web-ext lint --self-hosted --ignore-files 'test/**' 'scripts/**' 'dist/**' 'package*.json' 'node_modules/**'",
+    "lint": "web-ext lint --self-hosted --ignore-files 'test/**' 'scripts/**' 'dist/**' 'store/**' 'package*.json' 'node_modules/**'",
     "build": "bash scripts/build.sh"
   },
   "devDependencies": {
