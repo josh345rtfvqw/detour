@@ -104,51 +104,60 @@ const MASTER_URL = `${DATA_BASE}/known.json`;
 const FP_POST_ID = /^\w{1,64}$/;
 const YT_VIDEO_ID = /^[\w-]{11}$/;
 
-function sanitizeVideoMap(map) {
-  const out = {};
-  if (map && typeof map === 'object') {
-    for (const [id, url] of Object.entries(map)) if (YT_VIDEO_ID.test(id) && safeUrl(url)) out[id] = safeUrl(url);
+const YT_CHANNEL_ID = /^UC[\w-]{22}$/;
+const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+const str = v => (typeof v === 'string' ? v : '');
+
+// Master list, version 3. Keyed by YouTube, the anchor for every lookup:
+//   videos   { "<YouTube video ID>":   { nebula: "<video slug>", floatplane: "<post id>" } }
+//   channels { "<YouTube channel ID>": { name, nebula: "<slug>", floatplane: "<creator id>[/<channel id>]" } }
+//   nebula.creators { "<slug>": { name, alt?, catalog } }
+//   floatplane.creators { "<creator id>": { name, urlname, channels: { "<id>": { name, urlname } }, catalog } }
+// It holds IDs only. Links are built here, and every ID is validated before use. The result
+// uses the same shapes the lookups already work with:
+//   nebula / floatplane: { videos: { yt: url }, creators: [...], catalogs: [...] }
+function parseMasterV3(d) {
+  const videos = { nebula: {}, floatplane: {} };
+  for (const [id, row] of Object.entries(isObj(d.videos) ? d.videos : {})) {
+    if (!YT_VIDEO_ID.test(id) || !isObj(row)) continue;
+    if (SLUG.test(str(row.nebula))) videos.nebula[id] = `https://nebula.tv/videos/${row.nebula}`;
+    if (FP_POST_ID.test(str(row.floatplane))) videos.floatplane[id] = `${FP}/post/${row.floatplane}`;
   }
-  return out;
+
+  // channels table: YouTube channel ID per Nebula slug / Floatplane creator or sub-channel.
+  const nebYt = {}, fpYt = {};
+  for (const [uc, row] of Object.entries(isObj(d.channels) ? d.channels : {})) {
+    if (!YT_CHANNEL_ID.test(uc) || !isObj(row)) continue;
+    if (SLUG.test(str(row.nebula))) nebYt[row.nebula] = uc;
+    if (/^\w{1,64}(\/\w{1,64})?$/.test(str(row.floatplane))) (fpYt[row.floatplane] ||= []).push(`https://www.youtube.com/channel/${uc}`);
+  }
+
+  const nebCreators = Object.entries(isObj(d.nebula?.creators) ? d.nebula.creators : {})
+    .filter(([slug, c]) => SLUG.test(slug) && isObj(c) && typeof c.name === 'string')
+    .map(([slug, c]) => ({ name: c.name, slug, alt: SLUG.test(str(c.alt)) ? c.alt : null, ytId: nebYt[slug] || null, catalog: c.catalog === true }));
+
+  const fpCreators = Object.entries(isObj(d.floatplane?.creators) ? d.floatplane.creators : {})
+    .filter(([id, c]) => FP_POST_ID.test(id) && isObj(c) && typeof c.name === 'string')
+    .map(([id, c]) => ({
+      id, title: c.name, urlname: str(c.urlname) || null, icon: '', builtin: true, catalog: c.catalog === true, links: fpYt[id] || [],
+      channels: Object.entries(isObj(c.channels) ? c.channels : {}).filter(([chId, ch]) => FP_POST_ID.test(chId) && isObj(ch))
+        .map(([chId, ch]) => ({ id: chId, title: str(ch.name) || c.name, urlname: str(ch.urlname) || null, links: fpYt[`${id}/${chId}`] || [] })),
+    }));
+
+  return {
+    nebula: { videos: videos.nebula, creators: nebCreators, catalogs: nebCreators.filter(c => c.catalog).flatMap(c => [c.slug, c.alt].filter(Boolean)) },
+    floatplane: { videos: videos.floatplane, creators: fpCreators, catalogs: fpCreators.filter(c => c.catalog).map(c => c.id) },
+  };
 }
 
-function sanitizeCreators(list) {
-  if (!Array.isArray(list)) return null;
-  const str = v => (typeof v === 'string' ? v : '');
-  const links = v => (Array.isArray(v) ? v.filter(l => typeof l === 'string') : []);
-  return list.filter(c => c && typeof c.title === 'string' && c.title).map(c => ({
-    id: str(c.id) || fpNameKey(c.title), title: c.title, urlname: str(c.urlname) || null, icon: '', builtin: true, catalog: c.catalog === true, links: links(c.links),
-    channels: (Array.isArray(c.channels) ? c.channels : []).filter(ch => ch && typeof ch.title === 'string')
-      .map(ch => ({ id: str(ch.id), title: ch.title, urlname: str(ch.urlname) || null, links: links(ch.links) })),
-  }));
-}
-
-function sanitizeNebulaCreators(list) {
-  if (!Array.isArray(list)) return null;
-  return list.filter(c => c && typeof c.name === 'string' && SLUG.test(c.slug || '')).map(c => ({
-    name: c.name, slug: c.slug, alt: SLUG.test(c.alt || '') ? c.alt : null,
-    ytId: /^UC[\w-]{22}$/.test(c.youtube || '') ? c.youtube : null, catalog: c.catalog === true,
-  }));
-}
-
-// Master list, version 2: { nebula: { videos, creators }, floatplane: { videos, creators } }.
 function loadMaster() {
-  return cached('masterList2', 12 * 3600 * 1000, async () => {
+  return cached('masterList3', 12 * 3600 * 1000, async () => {
     // Plain fetch (no custom headers) so the cross-origin request needs no preflight.
     const res = await fetch(MASTER_URL, { credentials: 'omit', cache: 'no-cache' });
     if (!res.ok) throw new Error(`master list ${res.status}`);
     const d = await res.json();
-    if (!d || d.version !== 2) throw new Error('unsupported master list version');
-    const nebCreators = sanitizeNebulaCreators(d.nebula?.creators);
-    const fpCreators = sanitizeCreators(d.floatplane?.creators);
-    const flagged = (list, names) => (list || []).filter(c => c.catalog).flatMap(names);
-    return {
-      nebula: { videos: sanitizeVideoMap(d.nebula?.videos), creators: nebCreators, catalogs: flagged(nebCreators, c => [c.slug, c.alt].filter(Boolean)) },
-      floatplane: {
-        videos: sanitizeVideoMap(d.floatplane?.videos), creators: fpCreators,
-        catalogs: flagged(fpCreators, c => (FP_POST_ID.test(c.id) ? [c.id] : [])),
-      },
-    };
+    if (!isObj(d) || d.version !== 3) throw new Error('unsupported master list version');
+    return parseMasterV3(d);
   });
 }
 const EMPTY_MASTER = { nebula: { videos: {}, creators: null, catalogs: [] }, floatplane: { videos: {}, creators: null, catalogs: [] } };
@@ -303,8 +312,11 @@ async function loadFloatplaneCreators() {
   } catch (e) { console.warn('[detour] using built-in Floatplane creators', e); }
   const byId = new Map(live.map(c => [c.id, c]));
   const byName = new Map(live.map(c => [fpNameKey(c.title), c]));
-  // Known creators: the master list's (updated without a release), else the built-in list.
-  const known = (await masterOrEmpty()).floatplane.creators || FLOATPLANE_DEFAULTS;
+  // Known creators: the master list's (updated without a release) plus any built-in ones it
+  // doesn't have yet (e.g. creators whose Floatplane ID isn't known).
+  const fromMaster = (await masterOrEmpty()).floatplane.creators || [];
+  const known = [...fromMaster, ...FLOATPLANE_DEFAULTS.filter(d =>
+    !fromMaster.some(m => m.id === d.id || fpNameKey(m.title) === fpNameKey(d.title)))];
   for (const d of known) {
     // Same creator if the ID matches, or (for defaults without a known ID) the name does.
     const c = byId.get(d.id) || byName.get(fpNameKey(d.title));

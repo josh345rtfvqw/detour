@@ -42,13 +42,31 @@ Requests to Nebula and Floatplane identify the extension. Floatplane asks API cl
 They use the browser's normal User-Agent with `Detour/<version> (+https://github.com/josh345rtfvqw/detour)` added on the end.
 In Chrome, a header rule applies it to the extension's own requests only. Your own browsing of those sites isn't changed.
 
-**Known-videos list.** Detour also downloads a master list from this repo's GitHub Pages site, [`data/known.json`](data/known.json), about twice a day. The list can be updated without releasing a new extension version, and it holds:
-- **Nebula videos:** YouTube video ID → Nebula link. A [daily GitHub Action](.github/workflows/update-list.yml) builds these by matching each Nebula creator's latest YouTube uploads (from YouTube's public RSS feeds) to their Nebula videos.
-- **Creator catalogues:** every video of every Nebula channel (`data/nebula/`) and every video post of every Floatplane creator (`data/floatplane/`). The first run pulls each creator's whole history, and the daily run only adds newer videos. The extension downloads a creator's catalogue when you watch them and matches locally, without contacting Nebula or Floatplane.
-- **Floatplane creators:** from [`data/floatplane-creators.json`](data/floatplane-creators.json).
-- **Manual corrections:** from [`data/overrides.json`](data/overrides.json).
+**Known-videos list.** Detour also downloads a master list from this repo's GitHub Pages site, [`data/known.json`](data/known.json), about twice a day. The list can be updated without releasing a new extension version. A [daily GitHub Action](.github/workflows/update-list.yml) builds it, and it's keyed by YouTube, the starting point for every lookup:
 
-To add a Floatplane creator or fix a wrong match, edit those files on `main`. The Action rebuilds the list straight away. Confirmed matches are also remembered in the browser for 30 days, so revisits need no network requests.
+```json
+{
+  "version": 3,
+  "videos":   { "<YouTube video ID>":   { "nebula": "<video slug>", "floatplane": "<post id>" } },
+  "channels": { "<YouTube channel ID>": { "name": "…", "nebula": "<slug>", "floatplane": "<creator id>/<channel id>" } },
+  "nebula":     { "creators": { "<slug>": { "name": "…", "catalog": true } } },
+  "floatplane": { "creators": { "<creator id>": { "name": "…", "urlname": "…", "channels": { … }, "catalog": true } } }
+}
+```
+
+- **`videos` and `channels`** have one column per platform. A column is missing when there's no match. The list holds IDs only, and the extension builds the links.
+- **Creator catalogues** hold every video of every Nebula channel (`data/nebula/<slug>.json`) and every video post of every Floatplane creator (`data/floatplane/<id>.json`). The first run pulls each creator's whole history, and the daily run only adds newer videos. The extension downloads a creator's catalogue when you watch them and matches locally, without contacting Nebula or Floatplane.
+- **Matching** works the same way for both platforms. Each creator's latest YouTube uploads, from YouTube's public RSS feeds, are matched by title and date against their catalogue. Floatplane's YouTube links (`@handles`, `/user/…`) are resolved to channel IDs once and remembered in [`data/youtube-channels.json`](data/youtube-channels.json).
+- **Hand-edited inputs:** [`data/floatplane-creators.json`](data/floatplane-creators.json) and [`data/overrides.json`](data/overrides.json), which can set or remove (`null`) a platform column for a YouTube video. Saving either file on `main` rebuilds the list straight away.
+
+**Floatplane in the list (optional).** Floatplane's API requires a login, so without one the Action skips Floatplane, and matching stays live in each user's browser. To include it:
+1. Create a **separate, free** Floatplane account for this. Don't use your own.
+2. Log in with it at floatplane.com. Open the browser's developer tools (Application → Cookies) and copy the `sails.sid` cookie's value.
+3. In the repo, go to **Settings → Secrets and variables → Actions → New repository secret**. Name it `FLOATPLANE_COOKIE` and set the value to `sails.sid=<the value>`.
+
+The Action sends that cookie to www.floatplane.com only. Session cookies expire, so if the log shows Floatplane refusing again, repeat step 2.
+
+Confirmed matches are also remembered in the browser for 30 days, so revisits need no network requests.
 
 Videos are matched by title similarity, with a boost when release dates are within about a week.
 Auto-redirect only happens above the confidence threshold set in the settings (default 0.75).

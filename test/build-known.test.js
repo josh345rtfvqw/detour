@@ -1,135 +1,157 @@
-// Tests scripts/build-known.js against mocked Nebula / YouTube responses.
+// Tests scripts/build-known.js (known.json version 3) against mocked Nebula / YouTube / Floatplane.
 const fs = require('fs'), os = require('os'), path = require('path'), assert = require('assert');
-const { build, parseYouTubeFeed } = require('../scripts/build-known.js');
+const { build, parseYouTubeFeed, youtubeLinkKey, channelIdFromPage } = require('../scripts/build-known.js');
 
-const wall = `<div class="youtube-creator" data-video="UCR1IuLEqb6UEA_zQ81kwXfg"><img alt="Real Engineering"><h3><a href="https://talent.nebula.tv/realengineering/">Real Engineering</a></h3><a class="link nebula" href="https://nebula.tv/realengineering">Nebula</a></div>`;
-const feed = `<feed><entry><yt:videoId>ytvideo0001</yt:videoId><title>Why Planes Don&#39;t Fly Faster</title><published>2026-11-03T10:00:00+00:00</published></entry>
-<entry><yt:videoId>ytvideo0002</yt:videoId><title>Totally Different Vlog</title><published>2026-11-01T10:00:00+00:00</published></entry></feed>`;
-const episodes = { results: [{ title: 'Why Planes Don’t Fly Faster', published_at: '2026-11-02', share_url: 'https://nebula.tv/videos/realengineering-why-planes' },
-  { title: 'Bridges', published_at: '2026-10-01', share_url: 'javascript:alert(1)' }] };
+const RE_UC = 'UCR1IuLEqb6UEA_zQ81kwXfg';
+const TL_UC = 'UCeeFfhMcJa1kjtfZAGskOCA';
+const LTT_UC = 'UCXuqSBlHAE6Xw-yeJA0Tunw';
+const log = () => {};
+const opts = (dir, extra = {}) => ({ dataDir: dir, log, delayMs: 0, retryBaseMs: 1, floatplaneCookie: '', ...extra });
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'known-'));
+const readJ = (dir, f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+const ok = b => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => b, text: async () => (typeof b === 'string' ? b : JSON.stringify(b)) });
+const notFound = { ok: false, status: 404, headers: { get: () => null }, text: async () => '' };
 
-function mockFetch(calls) {
-  return async (url, init) => {
-    calls.push({ url, init });
-    const ok = b => ({ ok: true, status: 200, json: async () => b, text: async () => (typeof b === 'string' ? b : JSON.stringify(b)) });
+const wall = `<div class="youtube-creator" data-video="${RE_UC}"><img alt="Real Engineering"><h3><a href="https://talent.nebula.tv/realengineering/">Real Engineering</a></h3><a class="link nebula" href="https://nebula.tv/realengineering">Nebula</a></div>`;
+const feed = (entries) => `<feed>${entries.map(([id, title, date]) => `<entry><yt:videoId>${id}</yt:videoId><title>${title}</title><published>${date}T10:00:00+00:00</published></entry>`).join('')}</feed>`;
+
+// A small fake internet. `state` lets a test change what the sites return between runs.
+function makeNet(state) {
+  const calls = [];
+  const fetchFn = async (url, init) => {
+    calls.push({ url, headers: init.headers });
     if (url.includes('talent.nebula.tv/creators')) return ok(wall);
-    if (url.includes('youtube.com/feeds/videos.xml?channel_id=UCR1IuLEqb6UEA_zQ81kwXfg')) return ok(feed);
     if (url.endsWith('/content/realengineering/')) return ok({ id: 'chan-1' });
-    if (url.includes('video_channels/chan-1/video_episodes')) return ok(episodes);
-    return { ok: false, status: 404 };
+    if (url.includes('video_channels/chan-1/video_episodes')) return ok({ results: state.nebEpisodes, next: null });
+    const yf = url.match(/feeds\/videos\.xml\?channel_id=(UC[\w-]{22})/);
+    if (yf) return state.feeds[yf[1]] ? ok(feed(state.feeds[yf[1]])) : notFound;
+    if (url === 'https://www.youtube.com/@techlinked') return ok(`<html><link rel="canonical" href="https://www.youtube.com/channel/${TL_UC}"></html>`);
+    if (url === 'https://www.youtube.com/user/linustechtips') return ok(`<script>{"externalId":"${LTT_UC}"}</script>`);
+    if (url.includes('www.floatplane.com')) {
+      if (state.fpRefuse) return { ok: false, status: 403, headers: { get: k => (k === 'server' ? 'cloudflare' : null) }, text: async () => '{"message":"You must be logged-in to access this resource."}' };
+      if (url.includes('/api/v3/creator/list')) return ok(state.fpCreators);
+      const m = url.match(/content\/creator\?id=(\w+)&limit=20&hasVideo=true&sort=DESC&fetchAfter=(\d+)/);
+      if (m) return ok((state.fpPosts[m[1]] || []).slice(+m[2], +m[2] + 20));
+    }
+    return notFound;
   };
+  return { fetchFn, calls };
 }
 
+const baseState = () => ({
+  nebEpisodes: [
+    { title: 'Why Planes Don’t Fly Faster', published_at: '2026-11-02', share_url: 'https://nebula.tv/videos/realengineering-why-planes' },
+    { title: 'Bridges', published_at: '2026-10-01', share_url: 'javascript:alert(1)' }],
+  feeds: {
+    [RE_UC]: [['ytvideo0001', 'Why Planes Don&#39;t Fly Faster', '2026-11-03'], ['ytvideo0002', 'Totally Different Vlog', '2026-11-01']],
+    [TL_UC]: [['tlvideo0001', 'Nvidia did WHAT?', '2026-11-04']],
+  },
+  fpCreators: [{ id: 'ltt', title: 'LinusTechTips', urlname: 'linustechtips', socialLinks: { youtube: 'https://www.youtube.com/user/LinusTechTips' },
+    channels: [{ id: 'chTL', title: 'TechLinked', urlname: 'techlinked', socialLinks: { youtube: 'https://www.youtube.com/@TechLinked' } }] }],
+  fpPosts: { ltt: [
+    { id: 'p2', title: 'Nvidia did WHAT? - TechLinked', releaseDate: '2026-11-03T10:00:00Z', channel: { id: 'chTL' } },
+    { id: 'p1', title: 'Some Main Channel Video', releaseDate: '2026-11-01T10:00:00Z', channel: 'chMain' }] },
+  fpRefuse: false,
+});
+
 (async () => {
-  assert.deepEqual(parseYouTubeFeed(feed).map(v => v.videoId), ['ytvideo0001', 'ytvideo0002']);
-  assert.equal(parseYouTubeFeed(feed)[0].title, "Why Planes Don't Fly Faster");
-  console.log('ok  YouTube feed parsed (entities decoded)');
+  // ---- helpers ----
+  assert.deepEqual(parseYouTubeFeed(feed([['abcdefghijk', 'It&#39;s here', '2026-01-01']])).map(v => v.title), ["It's here"]);
+  assert.equal(youtubeLinkKey('https://www.youtube.com/@TechLinked'), '@techlinked');
+  assert.equal(youtubeLinkKey('https://www.youtube.com/user/LinusTechTips'), 'user:linustechtips');
+  assert.equal(youtubeLinkKey(`https://www.youtube.com/channel/${RE_UC}`), `channel:${RE_UC}`);
+  assert.equal(youtubeLinkKey('https://evil.example/@x'), null);
+  assert.equal(channelIdFromPage(`<link rel="canonical" href="https://www.youtube.com/channel/${TL_UC}">`), TL_UC);
+  console.log('ok  feed parsing, YouTube link keys, channel ID from page');
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'known-'));
-  fs.writeFileSync(path.join(dir, 'floatplane-creators.json'), JSON.stringify([{ id: 'c1', title: 'Creator One', urlname: 'one', links: [], channels: [] }]));
-  fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ nebula: { manualvid01: 'https://nebula.tv/videos/manual', badvid00001: 'https://evil.example/x', 'not-an-id': 'https://nebula.tv/x' }, floatplane: { fpvideo0001: 'https://www.floatplane.com/post/p1' } }));
-  const calls = [];
-  const log = () => {};
-  let r = await build({ fetchFn: mockFetch(calls), dataDir: dir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  const known = JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8'));
-  assert.equal(known.version, 2);
-  assert.equal(known.nebula.videos.ytvideo0001, 'https://nebula.tv/videos/realengineering-why-planes');
-  assert.ok(!('ytvideo0002' in known.nebula.videos), 'unrelated video not matched');
-  assert.equal(known.nebula.videos.manualvid01, 'https://nebula.tv/videos/manual');
-  assert.ok(!('badvid00001' in known.nebula.videos) && !('not-an-id' in known.nebula.videos), 'invalid overrides ignored');
-  assert.equal(known.floatplane.videos.fpvideo0001, 'https://www.floatplane.com/post/p1');
-  assert.equal(known.floatplane.creators[0].title, 'Creator One');
-  assert.ok(calls.every(c => /^DetourListBuilder\/1\.0 /.test(c.init.headers['User-Agent'])), 'identifies itself');
-  console.log('ok  list built: auto match, overrides, Floatplane creators, User-Agent');
+  // ---- full build ----
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'floatplane-creators.json'), JSON.stringify([{ id: null, title: 'Level1Techs', urlname: null, links: [], channels: [] }]));
+  fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ videos: {
+    manualvid01: { nebula: 'manual-slug' }, badvid00001: { nebula: '../evil' }, 'not-an-id': { nebula: 'x' }, fpmanual001: { floatplane: 'post9' } } }));
+  const state = baseState();
+  let net = makeNet(state);
+  let r = await build({ ...opts(dir), fetchFn: net.fetchFn, now: new Date('2026-11-08T00:00:00Z') });
+  let k = readJ(dir, 'known.json');
+  assert.equal(k.version, 3);
+  // videos: YouTube-keyed, one column per platform, IDs only
+  assert.deepEqual(k.videos.ytvideo0001, { nebula: 'realengineering-why-planes' });
+  assert.ok(!k.videos.ytvideo0002, 'unrelated YouTube video not matched');
+  assert.deepEqual(k.videos.tlvideo0001, { floatplane: 'p2' }, 'Floatplane pre-matched against the TechLinked sub-channel only');
+  assert.deepEqual(k.videos.manualvid01, { nebula: 'manual-slug' });
+  assert.deepEqual(k.videos.fpmanual001, { floatplane: 'post9' });
+  assert.ok(!k.videos.badvid00001 && !k.videos['not-an-id'], 'invalid overrides ignored');
+  // channels: YouTube channel IDs only, handles resolved
+  assert.deepEqual(k.channels[RE_UC], { name: 'Real Engineering', nebula: 'realengineering' });
+  assert.deepEqual(k.channels[TL_UC], { name: 'TechLinked', floatplane: 'ltt/chTL' });
+  assert.deepEqual(k.channels[LTT_UC], { name: 'LinusTechTips', floatplane: 'ltt' });
+  assert.ok(Object.keys(k.channels).every(id => /^UC[\w-]{22}$/.test(id)), 'channels keyed by YouTube channel ID only');
+  // reference tables
+  assert.deepEqual(k.nebula.creators.realengineering, { name: 'Real Engineering', catalog: true });
+  assert.deepEqual(k.floatplane.creators.ltt, { name: 'LinusTechTips', urlname: 'linustechtips', channels: { chTL: { name: 'TechLinked', urlname: 'techlinked' } }, catalog: true });
+  // handles remembered
+  assert.deepEqual(readJ(dir, 'youtube-channels.json'), { '@techlinked': TL_UC, 'user:linustechtips': LTT_UC });
+  // catalogues
+  assert.deepEqual(readJ(dir, 'nebula/realengineering.json'), [{ s: 'realengineering-why-planes', t: 'Why Planes Don’t Fly Faster', d: '2026-11-02' }]);
+  assert.deepEqual(readJ(dir, 'floatplane/ltt.json').map(p => p.i), ['p2', 'p1']);
+  assert.ok(net.calls.every(c => /^DetourListBuilder\/1\.0 /.test(c.headers['User-Agent'])), 'identifies itself');
+  console.log('ok  version 3: YouTube-keyed videos and channels, IDs only, both platforms pre-matched');
 
-  // Second run with nothing new: no change, "generated" kept, and no Nebula requests for known videos.
-  const calls2 = [];
-  r = await build({ fetchFn: mockFetch(calls2), dataDir: dir, now: new Date('2026-11-09T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
+  // ---- second run: nothing new -> unchanged, handles not re-fetched, catalogues incremental ----
+  net = makeNet(state);
+  r = await build({ ...opts(dir), fetchFn: net.fetchFn, now: new Date('2026-11-09T00:00:00Z') });
   assert.equal(r.changed, false);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8')).generated, '2026-11-08T00:00:00.000Z');
-  console.log('ok  unchanged run keeps the file identical (no commit)');
+  assert.equal(readJ(dir, 'known.json').generated, '2026-11-08T00:00:00.000Z');
+  assert.ok(!net.calls.some(c => c.url === 'https://www.youtube.com/@techlinked'), 'resolved handles are remembered');
+  console.log('ok  quiet day: index unchanged, handles not looked up again');
 
-  // A null override removes a wrong automatic match.
-  fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ nebula: { ytvideo0001: null } }));
-  r = await build({ fetchFn: mockFetch([]), dataDir: dir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  assert.ok(r.changed && !('ytvideo0001' in r.data.nebula.videos));
-  console.log('ok  null override removes an entry');
-
-  // Network down: existing entries are kept, nothing breaks.
-  fs.writeFileSync(path.join(dir, 'overrides.json'), '{}');
-  const down = async () => { throw new Error('offline'); };
-  r = await build({ fetchFn: down, dataDir: dir, now: new Date('2026-11-11T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  assert.equal(r.data.floatplane.creators[0].title, 'Creator One');
-  console.log('ok  survives the network being down');
-  // Nebula catalogue written per channel (javascript: link from the API skipped).
-  const nebCat = JSON.parse(fs.readFileSync(path.join(dir, 'nebula', 'realengineering.json'), 'utf8'));
-  assert.deepEqual(nebCat, [{ s: 'realengineering-why-planes', t: 'Why Planes Don’t Fly Faster', d: '2026-11-02' }]);
-  const nc = JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8')).nebula.creators;
-  assert.deepEqual(nc, [{ name: 'Real Engineering', slug: 'realengineering', youtube: 'UCR1IuLEqb6UEA_zQ81kwXfg', catalog: true }]);
-  console.log('ok  Nebula catalogue file written and indexed');
-
-  // ---- Floatplane: creator list + full catalogue per creator, incremental, no login ----
-  const fpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'known-fp-'));
-  fs.writeFileSync(path.join(fpDir, 'floatplane-creators.json'), JSON.stringify([
-    { id: null, title: 'Level1Techs', urlname: null, links: [], channels: [] },               // name-only, filled in from the live list
-    { id: 'ltt', title: 'LinusTechTips', urlname: 'linustechtips', links: ['https://www.youtube.com/user/LinusTechTips'], channels: [] }]));
-  const mkPosts = (prefix, from, n, ch) => Array.from({ length: n }, (_, i) => ({ id: `${prefix}${from + i}`, title: `${prefix} video ${from + i}`, releaseDate: '2026-11-0' + (1 + ((from + i) % 8)) + 'T10:00:00Z', channel: ch }));
-  let lttPosts = mkPosts('ltt', 0, 130, { id: 'chTL', title: 'TechLinked' });   // newest first
-  const fpCalls = [];
-  const fpFetch = async url => {
-    fpCalls.push(url);
-    const ok = b => ({ ok: true, status: 200, json: async () => b, text: async () => JSON.stringify(b) });
-    if (url.includes('/api/v3/creator/list')) return ok([
-      { id: 'ltt', title: 'LinusTechTips', urlname: 'linustechtips', socialLinks: {}, channels: [{ id: 'chTL', title: 'TechLinked', urlname: 'techlinked', socialLinks: { youtube: 'https://www.youtube.com/@TechLinked' } }] },
-      { id: 'l1t', title: 'Level1Techs', urlname: 'level1techs', socialLinks: { youtube: 'https://www.youtube.com/@Level1Techs' }, channels: [] },
-      { id: 'newc', title: 'Brand New Creator', urlname: 'brandnew', socialLinks: {}, channels: [] }]);
-    const m = url.match(/content\/creator\?id=(\w+)&limit=20&hasVideo=true&sort=DESC&fetchAfter=(\d+)/);
-    if (m) {
-      const all = { ltt: lttPosts, l1t: mkPosts('l1t', 0, 25, 'chL1'), newc: [] }[m[1]] || [];
-      return ok(all.slice(+m[2], +m[2] + 20));
-    }
-    return { ok: false, status: 404 };
-  };
-  const readCat = id => JSON.parse(fs.readFileSync(path.join(fpDir, 'floatplane', `${id}.json`), 'utf8'));
-  r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  const fpc = r.data.floatplane.creators;
-  assert.equal(fpc.find(c => c.title === 'Level1Techs').id, 'l1t', 'name-only creator gets its real ID');
-  assert.equal(fpc.find(c => c.title === 'Level1Techs').urlname, 'level1techs');
-  assert.ok(fpc.find(c => c.id === 'ltt').links.includes('https://www.youtube.com/user/LinusTechTips'), 'hand-entered YouTube link kept');
-  assert.ok(fpc.find(c => c.id === 'ltt').channels.some(ch => ch.id === 'chTL'), 'sub-channels added');
-  assert.ok(fpc.some(c => c.id === 'newc'), 'new creators added');
-  assert.equal(readCat('ltt').length, 130, 'first run pulls the whole history');
-  assert.deepEqual(readCat('ltt')[0], { i: 'ltt0', t: 'ltt video 0', d: '2026-11-01', c: 'chTL' }, 'compact post, channel id from object');
-  assert.equal(readCat('l1t')[0].c, 'chL1', 'channel id from string');
-  assert.equal(fpCalls.filter(u => u.includes('id=ltt&')).length, 7, '130 posts = 7 pages of 20');
-  assert.deepEqual(fpc.filter(c => c.catalog).map(c => c.id).sort(), ['l1t', 'ltt'], 'empty catalogues not flagged');
-  console.log('ok  Floatplane: creators filled in, full history pulled on the first run');
-
-  // Next day: two new posts. Only the first page is fetched, and the new posts go on top.
-  lttPosts = [...mkPosts('new', 0, 2, 'chTL'), ...lttPosts];
-  fpCalls.length = 0;
-  r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-09T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  assert.equal(fpCalls.filter(u => u.includes('id=ltt&')).length, 1, 'stops at the first known post');
-  assert.equal(readCat('ltt').length, 132);
-  assert.equal(readCat('ltt')[0].i, 'new0');
-  assert.equal(r.fpNew, 2);
+  // ---- new Floatplane posts: only the newest page fetched ----
+  state.fpPosts.ltt = [{ id: 'p3', title: 'Brand New', releaseDate: '2026-11-09T10:00:00Z', channel: 'chMain' }, ...state.fpPosts.ltt];
+  net = makeNet(state);
+  r = await build({ ...opts(dir), fetchFn: net.fetchFn, now: new Date('2026-11-10T00:00:00Z') });
+  assert.equal(r.fpNew, 1);
+  assert.deepEqual(readJ(dir, 'floatplane/ltt.json').map(p => p.i), ['p3', 'p2', 'p1']);
+  assert.equal(net.calls.filter(c => c.url.includes('content/creator?id=ltt')).length, 1, 'stops at the first known post');
   console.log('ok  daily run fetches only the newest posts');
 
-  // Floatplane asks for a login: skipped, existing catalogues untouched, nothing else breaks.
-  const authFetch = async url => (url.includes('floatplane.com') ? { ok: false, status: 401 } : fpFetch(url));
-  r = await build({ fetchFn: authFetch, dataDir: fpDir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  assert.equal(readCat('ltt').length, 132, 'catalogue kept when Floatplane refuses');
-  assert.deepEqual(r.data.floatplane.creators.filter(c => c.catalog).map(c => c.id).sort(), ['l1t', 'ltt']);
-  console.log('ok  Floatplane login required: skipped, catalogues kept');
-  // Rate limiting: a 429 is retried (and then succeeds) instead of failing the creator.
-  const rlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'known-rl-'));
+  // ---- null override removes a wrong match ----
+  fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ videos: { tlvideo0001: { floatplane: null } } }));
+  r = await build({ ...opts(dir), fetchFn: makeNet(state).fetchFn, now: new Date('2026-11-11T00:00:00Z') });
+  assert.ok(!r.data.videos.tlvideo0001, 'null override removes the Floatplane match');
+  console.log('ok  null override removes a match');
+
+  // ---- Floatplane refuses: creators, channels and catalogues kept ----
+  state.fpRefuse = true;
+  net = makeNet(state);
+  r = await build({ ...opts(dir), fetchFn: net.fetchFn, now: new Date('2026-11-12T00:00:00Z') });
+  assert.ok(r.data.floatplane.creators.ltt && r.data.floatplane.creators.ltt.catalog, 'Floatplane creators kept');
+  assert.equal(r.data.channels[TL_UC].floatplane, 'ltt/chTL', 'Floatplane channels kept');
+  assert.equal(readJ(dir, 'floatplane/ltt.json').length, 3);
+  console.log('ok  Floatplane refusal: previous creators, channels and catalogues kept');
+
+  // ---- Floatplane cookie: sent to Floatplane only ----
+  state.fpRefuse = false;
+  net = makeNet(state);
+  await build({ ...opts(tmp()), fetchFn: net.fetchFn, floatplaneCookie: 'sails.sid=secret' });
+  const withCookie = net.calls.filter(c => c.headers.Cookie);
+  assert.ok(withCookie.length > 0 && withCookie.every(c => c.url.startsWith('https://www.floatplane.com/')), 'cookie only sent to www.floatplane.com');
+  console.log('ok  Floatplane cookie sent only to floatplane.com');
+
+  // ---- rate limiting retried; network down survived ----
+  const rlDir = tmp();
   let hits = 0;
-  const rlFetch = async (url, init) => {
-    if (url.includes('video_episodes') && hits++ < 2) return { ok: false, status: 429, headers: { get: () => null } };
-    return mockFetch([])(url, init);
-  };
-  r = await build({ fetchFn: rlFetch, dataDir: rlDir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  assert.equal(r.nebNew, 1, '429 retried, catalogue still fetched');
-  console.log('ok  rate-limited requests are retried');
+  const rl = makeNet(baseState());
+  r = await build({ ...opts(rlDir), fetchFn: async (u, i) => (u.includes('video_episodes') && hits++ < 2 ? { ok: false, status: 429, headers: { get: () => null } } : rl.fetchFn(u, i)) });
+  assert.equal(r.nebNew, 1, '429 retried');
+  r = await build({ ...opts(rlDir), fetchFn: async () => { throw new Error('offline'); } });
+  assert.deepEqual(r.data.channels[RE_UC], { name: 'Real Engineering', nebula: 'realengineering' }, 'previous creators kept when offline');
+  console.log('ok  rate limits retried, network outage survived');
+
+  // ---- reads an older version-2 index ----
+  const v2 = tmp();
+  fs.writeFileSync(path.join(v2, 'known.json'), JSON.stringify({ version: 2, nebula: { videos: { oldvideo001: 'https://nebula.tv/videos/old-slug' } }, floatplane: { videos: {} } }));
+  r = await build({ ...opts(v2), fetchFn: async () => notFound });
+  assert.deepEqual(r.data.videos.oldvideo001, { nebula: 'old-slug' });
+  console.log('ok  migrates a version-2 index');
   console.log('\nall build-known tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

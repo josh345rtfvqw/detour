@@ -232,7 +232,8 @@ const fpRoutes = [
   const MASTER = /josh345rtfvqw\.github\.io\/detour\/data\/known\.json/;
 
   // 19. Master list hit: Nebula link comes from the list, no request to Nebula at all.
-  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, { version: 2, nebula: { videos: { 'aaaaaaaaaaa': 'https://nebula.tv/videos/known' }, creators: [] }, floatplane: { videos: {}, creators: [] } }],
+  const v3 = (extra) => ({ version: 3, videos: {}, channels: {}, nebula: { creators: {} }, floatplane: { creators: {} }, ...extra });
+  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, v3({ videos: { aaaaaaaaaaa: { nebula: 'known' } } })],
     [/nebula|talent/, new Error()], [/floatplane/, new Error()]]);
   r = await env.send({ type: 'lookup', info: { videoId: 'aaaaaaaaaaa', title: 'Anything', author: 'Someone' } });
   assert.equal(r.results[0].url, 'https://nebula.tv/videos/known');
@@ -241,24 +242,29 @@ const fpRoutes = [
   console.log('ok  master list hit needs no Nebula requests');
 
   // 20. A tampered master list can't inject links: bad URLs are dropped, live lookup used instead.
-  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, { version: 2, nebula: { videos: { 'x2xxxxxxxxx': 'javascript:alert(1)', 'bad': 'https://nebula.tv/videos/y' }, creators: [{ name: 'X', slug: '../evil' }] }, floatplane: { creators: [{ title: 'Evil', urlname: 'e', links: ['javascript:x'], channels: 'nope' }] } }],
+  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, v3({
+    videos: { x2xxxxxxxxx: { nebula: '../evil', floatplane: 'javascript:alert(1)' }, bad: { nebula: 'y' } },
+    channels: { notachannel: { nebula: 'x' }, UCR1IuLEqb6UEA_zQ81kwXfg: { nebula: '../evil' } },
+    nebula: { creators: { '../evil': { name: 'X' } } }, floatplane: { creators: { 'bad id!': { name: 'Evil' }, ok1: { name: 42 } } } })],
     ...nebulaRoutes, [/floatplane/, new Error()]]);
   r = await env.send({ type: 'lookup', info: { videoId: 'x2xxxxxxxxx', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
   assert.equal(r.results[0].url, 'https://nebula.tv/videos/realengineering-why-planes');
   console.log('ok  invalid master list entries are ignored');
 
-  // 21. Master list Floatplane creators replace the built-in list (new creator, no release needed),
-  //     and a master Floatplane video link is used without searching posts.
+  // 21. Master list Floatplane creators are added to the built-in list (new creator, no release
+  //     needed), matched via the YouTube-keyed channels table, and a master Floatplane video is
+  //     used without searching posts.
+  const NEW_UC = 'UCnewcreator0000000000aa';
   env = makeEnv({ floatplaneCreators: ['newcreator1'] }, [[/nebula|talent/, new Error()],
-    [MASTER, { version: 2, nebula: { videos: {}, creators: [] }, floatplane: { videos: { 'fpvideo0001': 'https://www.floatplane.com/post/abc' },
-      creators: [{ id: 'newcreator1', title: 'New Creator', urlname: 'newcreator', links: ['https://www.youtube.com/@NewCreator'], channels: [] }] } }],
+    [MASTER, v3({ videos: { fpvideo0001: { floatplane: 'abc' } }, channels: { [NEW_UC]: { name: 'New Creator', floatplane: 'newcreator1' } },
+      floatplane: { creators: { newcreator1: { name: 'New Creator', urlname: 'newcreator', channels: {}, catalog: false } } } })],
     [/floatplane\.com\/api\/v3\/creator\/list/, new Error()], [/content\/creator/, new Error()]]);
-  r = await env.send({ type: 'lookup', info: { videoId: 'fpvideo0001', title: 'x', author: 'New Creator', profileUrl: 'http://www.youtube.com/@NewCreator' } });
+  r = await env.send({ type: 'lookup', info: { videoId: 'fpvideo0001', title: 'x', author: 'Someone Else', channelId: NEW_UC } });
   assert.equal(r.results[0].url, 'https://www.floatplane.com/post/abc');
   assert.ok(r.results[0].subscribed);
   assert.ok(!env.calls.some(c => c.url.includes('content/creator')), 'no post search for a known video');
   const fpl = (await env.send({ type: 'fpCreators' })).creators;
-  assert.ok(fpl.some(c => c.title === 'New Creator') && !fpl.some(c => c.title === 'EposVox'), 'master creators replace built-in');
+  assert.ok(fpl.some(c => c.title === 'New Creator') && fpl.some(c => c.title === 'EposVox'), 'master creators added to the built-in ones');
   console.log('ok  master list Floatplane creators and videos used');
 
   // 22. Local match cache: a live match is remembered; later, with Nebula unreachable, it still works.
@@ -275,7 +281,7 @@ const fpRoutes = [
   console.log('ok  confirmed matches are remembered locally');
   // 23. Nebula full catalogue: matched locally, no Nebula episode or search requests.
   env = makeEnv({ nebulaSubscribed: true }, [
-    [MASTER, { version: 2, nebula: { videos: {}, creators: [{ name: 'Real Engineering', slug: 'realengineering', youtube: 'UCR1IuLEqb6UEA_zQ81kwXfg', catalog: true }] }, floatplane: { videos: {}, creators: null } }],
+    [MASTER, v3({ channels: { UCR1IuLEqb6UEA_zQ81kwXfg: { name: 'Real Engineering', nebula: 'realengineering' } }, nebula: { creators: { realengineering: { name: 'Real Engineering', catalog: true } } } })],
     [/detour\/data\/nebula\/realengineering\.json/, [{ s: 'realengineering-old-video', t: 'A Very Old Video About Dams', d: '2019-03-01' }, { s: '../evil', t: 'x' }, { s: 'ok', t: 42 }]],
     [/talent\.nebula\.tv/, new Error()], [/content\.api\.nebula\.app/, new Error()], [/floatplane/, new Error()]]);
   r = await env.send({ type: 'lookup', info: { videoId: 'catneb00001', title: 'A Very Old Video About Dams', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
@@ -285,19 +291,20 @@ const fpRoutes = [
 
   // 24. Floatplane full catalogue, filtered to the matched sub-channel; no post search.
   env = makeEnv({ floatplaneCreators: ['ltt'] }, [[/nebula|talent/, new Error()],
-    [MASTER, { version: 2, nebula: { videos: {}, creators: [] }, floatplane: { videos: {}, creators: [{ id: 'ltt', title: 'Linus Tech Tips', urlname: 'linustechtips', links: ['https://www.youtube.com/user/LinusTechTips'], channels: [{ id: 'ch-tl', title: 'TechLinked', urlname: 'techlinked', links: ['https://www.youtube.com/@techlinked'] }], catalog: true }] } }],
+    [MASTER, v3({ channels: { UCeeFfhMcJa1kjtfZAGskOCA: { name: 'TechLinked', floatplane: 'ltt/chtl' } },
+      floatplane: { creators: { ltt: { name: 'Linus Tech Tips', urlname: 'linustechtips', channels: { chtl: { name: 'TechLinked', urlname: 'techlinked' } }, catalog: true } } } })],
     [/detour\/data\/floatplane\/ltt\.json/, [
       { i: 'wrongch', t: 'Nvidia did WHAT?', d: '2024-05-02', c: 'chOther' },
-      { i: 'rightch', t: 'Nvidia did WHAT? - TechLinked', d: '2024-05-02', c: 'ch-tl' }]],
-    fpRoutes[0], [/content\/creator/, new Error()]]);
-  r = await env.send({ type: 'lookup', info: { videoId: 'catfp000001', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked', publishDate: '2024-05-03' } });
+      { i: 'rightch', t: 'Nvidia did WHAT? - TechLinked', d: '2024-05-02', c: 'chtl' }]],
+    [/creator\/list/, new Error()], [/content\/creator/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'catfp000001', title: 'Nvidia did WHAT?', author: 'TechLinked', channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', publishDate: '2024-05-03' } });
   assert.equal(r.results[0].url, 'https://www.floatplane.com/post/rightch', 'only the TechLinked sub-channel is considered');
   assert.ok(!env.calls.some(c => c.url.includes('content/creator')), 'no Floatplane post search with a full catalogue');
   console.log('ok  Floatplane catalogue matched locally, filtered by sub-channel');
-  // 25. An old version-1 master list is ignored (falls back to live lookups), not misread.
-  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, { version: 1, nebula: { 'v1video0001': 'https://nebula.tv/videos/old' } }], ...nebulaRoutes, [/floatplane/, new Error()]]);
+  // 25. An older-version master list is ignored (falls back to live lookups), not misread.
+  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, { version: 2, nebula: { videos: { v1video0001: 'https://nebula.tv/videos/old' } } }], ...nebulaRoutes, [/floatplane/, new Error()]]);
   r = await env.send({ type: 'lookup', info: { videoId: 'v1video0001', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
   assert.equal(r.results[0].url, 'https://nebula.tv/videos/realengineering-why-planes');
-  console.log('ok  version-1 master list ignored safely');
+  console.log('ok  older master list versions ignored safely');
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
