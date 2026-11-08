@@ -95,14 +95,17 @@ function applyFilter() {
 }
 
 async function loadCreators() {
-  const resp = await chrome.runtime.sendMessage({ type: 'fpCreators' });
-  if (!resp || resp.error) {
-    $('fpList').innerHTML = '<div class="empty">Couldn’t load Floatplane creators. Log in at <a href="https://www.floatplane.com" target="_blank" rel="noopener">floatplane.com</a>, then reopen this page.</div>';
-    return;
-  }
-  renderCreators(resp.creators);
-  // Only the built-in list loaded: say so, and how to get the full one.
-  if (resp.creators.length && resp.creators.every(c => c.builtin)) {
+  let creators = null;
+  try {
+    const resp = await chrome.runtime.sendMessage({ type: 'fpCreators' });
+    if (resp && !resp.error) creators = resp.creators;
+    else console.warn('[detour] creator list:', resp?.error);
+  } catch (e) { console.warn('[detour] creator list:', e); }
+  // Whatever went wrong, fall back to the built-in list rather than showing nothing.
+  if (!creators?.length) creators = FLOATPLANE_DEFAULTS.map(c => ({ ...c }));
+  renderCreators(creators);
+  // Only the built-in list is showing: say so, and how to get the full one.
+  if (creators.every(c => c.builtin)) {
     const note = document.createElement('div');
     note.className = 'empty';
     note.innerHTML = 'Showing known creators. <a href="https://www.floatplane.com" target="_blank" rel="noopener">Log in to Floatplane</a> to see everyone.';
