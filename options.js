@@ -43,6 +43,8 @@ function bindRadios(name, toValue, fromValue) {
   });
 }
 
+const isSelected = c => settings.floatplaneCreators.includes(c.id) || settings.floatplaneCreators.includes(fpNameKey(c.title));
+
 function renderCreators(creators) {
   const list = $('fpList');
   list.textContent = '';
@@ -52,7 +54,7 @@ function renderCreators(creators) {
   }
   creators.sort((a, b) => a.title.localeCompare(b.title));
   // Selected creators first so they're easy to find.
-  creators.sort((a, b) => settings.floatplaneCreators.includes(b.id) - settings.floatplaneCreators.includes(a.id));
+  creators.sort((a, b) => isSelected(b) - isSelected(a));
   for (const c of creators) {
     const row = document.createElement('label');
     row.className = 'creator';
@@ -61,12 +63,13 @@ function renderCreators(creators) {
       : Object.assign(document.createElement('span'), { className: 'ph' });
     const name = Object.assign(document.createElement('span'), { className: 'name', textContent: c.title });
     const cb = Object.assign(document.createElement('input'), {
-      type: 'checkbox', className: 'switch floatplane', checked: settings.floatplaneCreators.includes(c.id),
+      type: 'checkbox', className: 'switch floatplane', checked: isSelected(c),
     });
     cb.setAttribute('role', 'switch');
     cb.setAttribute('aria-label', `I subscribe to ${c.title}`);
     cb.addEventListener('change', () => {
       const set = new Set(settings.floatplaneCreators);
+      set.delete(fpNameKey(c.title)); // drop any by-name entry; store the ID from now on
       cb.checked ? set.add(c.id) : set.delete(c.id);
       save({ floatplaneCreators: [...set] });
     });

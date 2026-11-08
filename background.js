@@ -146,8 +146,10 @@ async function loadFloatplaneCreators() {
     });
   } catch (e) { console.warn('[detour] using built-in Floatplane creators', e); }
   const byId = new Map(live.map(c => [c.id, c]));
+  const byName = new Map(live.map(c => [fpNameKey(c.title), c]));
   for (const d of FLOATPLANE_DEFAULTS) {
-    const c = byId.get(d.id);
+    // Same creator if the ID matches, or (for defaults without a known ID) the name does.
+    const c = byId.get(d.id) || byName.get(fpNameKey(d.title));
     if (!c) { byId.set(d.id, d); continue; }
     // Live data wins, but keep the defaults' YouTube links and channels where live has none.
     if (!c.links.some(l => /youtube/.test(l))) c.links = [...c.links, ...d.links];
@@ -185,6 +187,17 @@ function floatplaneMatches(creators, info) {
   return out;
 }
 
+// Subscribed if the user ticked this creator by its ID, or by name (built-in entries whose
+// Floatplane ID isn't known are remembered by name, and still count once the live list loads).
+const isFpSubscribed = (c, list) => list.includes(c.id) || list.includes(fpNameKey(c.title));
+const fpKnown = c => !!c.urlname && !String(c.id).startsWith('name:');
+
+function fpChannelUrl(c, ch) {
+  if (!fpKnown(c)) return `${FP}/`; // address not known yet: Floatplane's home page
+  const chPath = ch && ch.urlname && ch.urlname !== c.urlname ? `/${ch.urlname}` : '';
+  return `${FP}/channel/${c.urlname}/home${chPath}`;
+}
+
 async function floatplanePosts(creatorId, channelId, search) {
   const q = new URLSearchParams({ id: creatorId, limit: '20', hasVideo: 'true' });
   if (channelId) q.set('channel', channelId);
@@ -199,6 +212,7 @@ async function lookupFloatplane(info, settings) {
   let best = null, bestHit = hits[0];
   for (const hit of hits) {
     const cands = [];
+    if (!fpKnown(hit.creator)) continue; // can't search posts without the creator's ID
     for (const search of [info.title, '']) { // title search, then the newest posts
       try { cands.push(...await floatplanePosts(hit.creator.id, hit.channel?.id, search)); }
       catch (e) { console.warn('[detour] floatplane posts', e); }
@@ -207,10 +221,9 @@ async function lookupFloatplane(info, settings) {
     if (m && (!best || m.confidence > best.confidence)) { best = m; bestHit = hit; }
   }
   const c = bestHit.creator;
-  const base = { platform: 'floatplane', subscribed: settings.floatplaneCreators.includes(c.id), creator: c.title };
+  const base = { platform: 'floatplane', subscribed: isFpSubscribed(c, settings.floatplaneCreators), creator: c.title };
   if (best && best.confidence >= 0.45) return { ...base, kind: 'video', url: best.url, title: best.title, confidence: best.confidence };
-  const chPath = bestHit.channel && bestHit.channel.urlname !== c.urlname ? `/${bestHit.channel.urlname}` : '';
-  return { ...base, kind: 'channel', url: `${FP}/channel/${c.urlname}/home${chPath}`, confidence: 0 };
+  return { ...base, kind: 'channel', url: fpChannelUrl(c, bestHit.channel), confidence: 0 };
 }
 
 // ---------------------------------------------------------------- channel pages
@@ -229,8 +242,7 @@ async function channelOnFloatplane(info, settings) {
   const [hit] = floatplaneMatches(await loadFloatplaneCreators(), info);
   if (!hit) return null;
   const c = hit.creator;
-  const chPath = hit.channel && hit.channel.urlname !== c.urlname ? `/${hit.channel.urlname}` : '';
-  return { platform: 'floatplane', kind: 'channel', url: `${FP}/channel/${c.urlname}/home${chPath}`, creator: c.title, subscribed: settings.floatplaneCreators.includes(c.id), confidence: 0 };
+  return { platform: 'floatplane', kind: 'channel', url: fpChannelUrl(c, hit.channel), creator: c.title, subscribed: isFpSubscribed(c, settings.floatplaneCreators), confidence: 0 };
 }
 
 async function lookupChannel(info) {

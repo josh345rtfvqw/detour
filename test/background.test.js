@@ -99,7 +99,9 @@ const fpRoutes = [
   assert.equal(r.results[0].url, 'https://www.floatplane.com/channel/linustechtips/home/techlinked');
   assert.ok(r.results[0].subscribed);
   const fpList = await env.send({ type: 'fpCreators' });
-  assert.ok(fpList.creators.length >= 3 && fpList.creators.every(c => c.builtin));
+  assert.ok(fpList.creators.length >= 20 && fpList.creators.every(c => c.builtin));
+  assert.ok(!fpList.creators.some(c => c.title === 'Tech Deals'));
+  console.log('ok  built-in list has', fpList.creators.length, 'creators');
   console.log('ok  built-in Floatplane list used when the live list fails');
 
   // 8. Live list loads -> it wins, and built-in creators missing from it are still added
@@ -107,5 +109,24 @@ const fpRoutes = [
   const merged = (await env.send({ type: 'fpCreators' })).creators;
   assert.ok(merged.some(c => c.id === 'new1' && !c.builtin) && merged.some(c => c.urlname === 'linustechtips'));
   console.log('ok  live list merged with built-in creators');
+
+  // 9. Name-only built-in creator (Level1Techs): matched by channel name, ticked by name,
+  //    links to Floatplane's home page while its address is unknown.
+  env = makeEnv({ floatplaneCreators: ['name:level1techs'] }, [[/nebula|githubusercontent/, new Error()], [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookupChannel', info: { channelId: 'UC4w1YQAJMWOz4qtxinq55LQ', author: 'Level1Techs', profileUrl: 'http://www.youtube.com/@Level1Techs' } });
+  assert.equal(r.results[0].url, 'https://www.floatplane.com/');
+  assert.ok(r.results[0].subscribed);
+  console.log('ok  name-only creator matched and subscribed by name');
+
+  // 10. Live list knows Level1Techs: real address used, by-name subscription still counts,
+  //     and there is one Level1Techs entry, not two.
+  env = makeEnv({ floatplaneCreators: ['name:level1techs'] }, [[/nebula|githubusercontent/, new Error()],
+    [/creator\/list/, [{ id: 'l1t', title: 'Level1Techs', urlname: 'level1techs', socialLinks: {}, channels: [] }]], [/content\/creator/, []]]);
+  r = await env.send({ type: 'lookupChannel', info: { author: 'Level1Techs' } });
+  assert.equal(r.results[0].url, 'https://www.floatplane.com/channel/level1techs/home');
+  assert.ok(r.results[0].subscribed);
+  const all = (await env.send({ type: 'fpCreators' })).creators;
+  assert.equal(all.filter(c => c.title === 'Level1Techs').length, 1);
+  console.log('ok  live data replaces name-only entry, subscription carries over');
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
