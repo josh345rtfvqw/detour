@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Alt Redirect settings</title>
+<style>
+  :root { color-scheme: light dark; --muted: #777; --line: rgba(127,127,127,.3); }
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 0; padding: 16px; min-width: 340px; max-width: 560px; }
+  h1 { font-size: 16px; margin: 0 0 12px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; }
+  label.row { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
+  .hint { color: var(--muted); font-size: 12px; margin: 2px 0 6px 24px; }
+  #fpList { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+  #fpList img { width: 20px; height: 20px; border-radius: 50%; }
+  input[type=search] { width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 6px; }
+  select, input[type=number] { padding: 3px 4px; }
+  .status { color: var(--muted); font-size: 12px; }
+  button { padding: 6px 10px; }
+</style>
+</head>
+<body>
+  <h1>Alt Redirect</h1>
+
+  <h2>My subscriptions</h2>
+  <label class="row"><input type="checkbox" id="nebulaSubscribed"> I subscribe to Nebula</label>
+  <div class="hint">One Nebula subscription covers every Nebula creator.</div>
+
+  <div><strong>Floatplane creators I subscribe to</strong></div>
+  <div class="hint" style="margin-left:0">Uses your floatplane.com login to list creators. Log in there first if the list is empty.</div>
+  <input type="search" id="fpFilter" placeholder="Filter creators…">
+  <div id="fpList"><div class="status">Loading…</div></div>
+
+  <h2>Behaviour</h2>
+  <div><strong>When I'm subscribed and the video is found:</strong></div>
+  <label class="row"><input type="radio" name="mode" value="redirect"> Redirect automatically (3-second countdown, with “Stay on YouTube”)</label>
+  <label class="row"><input type="radio" name="mode" value="button"> Just show a “Watch on …” button next to the video</label>
+  <label class="row"><input type="checkbox" id="newTab"> Open in a new tab instead of leaving YouTube</label>
+  <label class="row"><input type="checkbox" id="showButton"> Show the button for platforms I'm <em>not</em> subscribed to too</label>
+  <label class="row">Prefer
+    <select id="preferred"><option value="nebula">Nebula</option><option value="floatplane">Floatplane</option></select>
+    when a video is on both
+  </label>
+  <label class="row">Minimum match confidence to auto-redirect
+    <input type="number" id="minConfidence" min="0.5" max="1" step="0.05" style="width:60px">
+  </label>
+  <div class="hint">Matching is by title (and release date). Lower = more redirects but more wrong guesses.</div>
+
+  <h2>Data</h2>
+  <button id="clearCache">Refresh creator & video data</button> <span class="status" id="cacheStatus"></span>
+
+  <script src="options.js"></script>
+</body>
+</html>

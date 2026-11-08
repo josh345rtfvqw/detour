@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "name": "Alt Redirect: YouTube to Nebula & Floatplane",
+  "version": "0.1.0",
+  "description": "Shows when a YouTube video is also on Nebula or Floatplane, and redirects there automatically if you subscribe.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "https://content.api.nebula.app/*",
+    "https://rss.nebula.app/*",
+    "https://talent.nebula.tv/*",
+    "https://raw.githubusercontent.com/*",
+    "https://www.floatplane.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": [
+      "match.js",
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://m.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://m.youtube.com/*"
+      ],
+      "js": [
+        "page.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "options.html",
+    "default_icon": "icons/icon128.png"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "alt-redirect@example.local",
+      "strict_min_version": "128.0"
+    }
+  }
+}
