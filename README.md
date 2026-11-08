@@ -42,6 +42,12 @@ Videos are matched by title similarity, with a boost when release dates are with
 Auto-redirect only happens above the confidence threshold set in the settings (default 0.75).
 Each video redirects at most once per tab, so pressing Back keeps you on YouTube.
 
+## Privacy
+
+Detour has no server and collects no analytics. To find matches, it sends requests directly to Nebula and Floatplane.
+For creators who are on those platforms, that includes the YouTube video's title.
+Details are in [PRIVACY.md](PRIVACY.md).
+
 ## Development
 
 ```bash
