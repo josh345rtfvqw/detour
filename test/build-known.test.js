@@ -31,7 +31,7 @@ function makeNet(state) {
       if (state.fpRefuse || (state.fpListRefuse && url.includes('/creator/list'))) return { ok: false, status: 403, headers: { get: k => (k === 'server' ? 'cloudflare' : null) }, text: async () => '{"message":"You must be logged-in to access this resource."}' };
       if (url.includes('/api/v3/creator/list')) return ok(state.fpCreators);
       if (url.includes('/api/v3/creator/named?')) {
-        // Case-sensitive like the real thing: only lowercase addresses match.
+        // Case-sensitive like the real thing: the address must match exactly.
         const asked = [...new URL(url).searchParams.entries()].filter(([k]) => /^creatorURL\[\d+\]$/.test(k)).map(([, v]) => v);
         state.namedAsked = [...(state.namedAsked || []), ...asked];
         return ok(asked.map(n => (state.fpNamed || {})[n]).filter(Boolean));
@@ -154,12 +154,23 @@ const baseState = () => ({
   const l1net = makeNet(state);
   const l1fetch = async (u, i) => (u === 'https://www.youtube.com/@level1techs' ? ok(`<link rel="canonical" href="https://www.youtube.com/channel/${L1_UC}">`) : l1net.fetchFn(u, i));
   r = await build({ ...opts(dir), fetchFn: l1fetch, now: new Date('2026-11-14T00:00:00Z') });
-  assert.ok(state.namedAsked.includes('level1techs'), 'asked by lowercase address guessed from the display name');
-  assert.ok(state.namedAsked.every(n => n === n.toLowerCase()), 'every address sent is lowercase');
+  assert.ok(state.namedAsked.includes('level1techs'), 'guessed address (from the display name) is lowercase');
   assert.deepEqual(r.data.floatplane.creators.l1t && r.data.floatplane.creators.l1t.name, 'Level1Techs', 'ID filled in from creator/named');
   assert.deepEqual(r.data.channels[L1_UC], { name: 'Level1Techs', floatplane: 'l1t' }, 'channels row from its YouTube link');
   assert.equal(readJ(dir, 'floatplane/l1t.json')[0].i, 'l1p1', 'its posts fetched too');
-  console.log('ok  creator/named fills in IDs by lowercase address; posts then fetched');
+  console.log('ok  creator/named fills in IDs from a guessed address; posts then fetched');
+
+  // ---- creator/named is case-sensitive: a stored mixed-case address is sent exactly as written ----
+  const tmDir = tmp();
+  const TM_UC = 'UCtylermcvicker000000000';
+  fs.writeFileSync(path.join(tmDir, 'floatplane-creators.json'), JSON.stringify([{ id: 'tyler1', title: 'Tyler McVicker', urlname: 'TylerMcVicker', links: [], channels: [] }]));
+  const tmState = { ...baseState(), fpListRefuse: true, fpCreators: [], fpPosts: { tyler1: [] },
+    fpNamed: { TylerMcVicker: { id: 'tyler1', title: 'Tyler McVicker', urlname: 'TylerMcVicker', socialLinks: { youtube: 'https://www.youtube.com/@TylerMcVicker' }, channels: [] } }, namedAsked: [] };
+  const tmNet = makeNet(tmState);
+  r = await build({ ...opts(tmDir), fetchFn: async (u, i) => (u === 'https://www.youtube.com/@tylermcvicker' ? ok(`<link rel="canonical" href="https://www.youtube.com/channel/${TM_UC}">`) : tmNet.fetchFn(u, i)) });
+  assert.ok(tmState.namedAsked.includes('TylerMcVicker') && !tmState.namedAsked.includes('tylermcvicker'), 'stored address sent with its exact case');
+  assert.deepEqual(r.data.channels[TM_UC], { name: 'Tyler McVicker', floatplane: 'tyler1' }, 'its YouTube link fills the channels table');
+  console.log('ok  stored mixed-case address sent exactly (creator/named is case-sensitive)');
 
   // ---- Anonymous only: no cookie or credential header is ever sent ----
   assert.ok(net.calls.every(c => !c.headers.Cookie && !c.headers.Authorization), 'no Cookie / Authorization headers');

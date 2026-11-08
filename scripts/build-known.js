@@ -159,9 +159,10 @@ function mergeFloatplaneCreator(creators, lc, match) {
   return true;
 }
 
-// A creator's Floatplane web address name, lowercase: the stored one if known, else the usual
-// form of the display name (lowercase letters and digits only, e.g. "Level1Techs" -> "level1techs").
-const floatplaneUrlname = c => (c.urlname ? String(c.urlname).toLowerCase() : String(c.title || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+// A creator's Floatplane web address name. creator/named matches it exactly (case-sensitive), so a
+// stored urlname is used as written ("TylerMcVicker"); without one, the usual form of the display
+// name is guessed (lowercase letters and digits, e.g. "Level1Techs" -> "level1techs").
+const floatplaneUrlname = c => (c.urlname ? String(c.urlname) : String(c.title || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
 
 // Hand-edited list, filled in and extended with Floatplane's own creator list. If Floatplane
 // refuses that, the previous run's list (with IDs already filled in) is kept. Either way, each
@@ -184,8 +185,8 @@ async function buildFloatplaneCreators({ get, log, handCreators, previousCreator
     }
   }
 
-  // creator/named: look up every creator by lowercase address, 10 per request.
-  const names = [...new Set(creators.map(floatplaneUrlname).filter(n => /^[a-z0-9_]{1,64}$/.test(n)))];
+  // creator/named: look up every creator by its exact address, 10 per request.
+  const names = [...new Set(creators.map(floatplaneUrlname).filter(n => /^[A-Za-z0-9_]{1,64}$/.test(n)))];
   const found = new Set();
   for (let i = 0; i < names.length; i += 10) {
     const batch = names.slice(i, i + 10);
@@ -193,15 +194,15 @@ async function buildFloatplaneCreators({ get, log, handCreators, previousCreator
     try {
       const res = await get(`${FP}/api/v3/creator/named?${q}`);
       for (const lc of Array.isArray(res) ? res : []) {
-        const asked = String(lc?.urlname || '').toLowerCase();
-        if (mergeFloatplaneCreator(creators, lc, c => floatplaneUrlname(c) === asked)) found.add(asked);
+        const got = String(lc?.urlname || '').toLowerCase();
+        if (mergeFloatplaneCreator(creators, lc, c => floatplaneUrlname(c).toLowerCase() === got)) found.add(got);
       }
     } catch (e) {
       log(`floatplane creator/named failed: ${e.message}`);
       if (/^40[13] /.test(e.message)) break; // refused: don't ask again for every batch
     }
   }
-  const missing = names.filter(n => !found.has(n));
+  const missing = names.filter(n => !found.has(n.toLowerCase()));
   log(`floatplane creator/named: ${found.size} of ${names.length} creators found${missing.length ? `; no creator at: ${missing.join(', ')} (set "urlname" in data/floatplane-creators.json)` : ''}`);
   return { creators, refused };
 }
