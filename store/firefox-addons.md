@@ -40,7 +40,7 @@ If `detour` is free, use it. Otherwise use the slug above.
 See when a YouTube video or channel is also on Nebula or Floatplane, and watch it there instead: a button next to the video title, or an automatic redirect if you subscribe. No server, no analytics.
 ```
 
-(204 characters)
+(198 characters)
 
 ### Description
 
