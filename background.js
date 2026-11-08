@@ -117,27 +117,41 @@ function sanitizeCreators(list) {
   const str = v => (typeof v === 'string' ? v : '');
   const links = v => (Array.isArray(v) ? v.filter(l => typeof l === 'string') : []);
   return list.filter(c => c && typeof c.title === 'string' && c.title).map(c => ({
-    id: str(c.id) || fpNameKey(c.title), title: c.title, urlname: str(c.urlname) || null, icon: '', builtin: true, links: links(c.links),
+    id: str(c.id) || fpNameKey(c.title), title: c.title, urlname: str(c.urlname) || null, icon: '', builtin: true, catalog: c.catalog === true, links: links(c.links),
     channels: (Array.isArray(c.channels) ? c.channels : []).filter(ch => ch && typeof ch.title === 'string')
       .map(ch => ({ id: str(ch.id), title: ch.title, urlname: str(ch.urlname) || null, links: links(ch.links) })),
   }));
 }
 
+function sanitizeNebulaCreators(list) {
+  if (!Array.isArray(list)) return null;
+  return list.filter(c => c && typeof c.name === 'string' && SLUG.test(c.slug || '')).map(c => ({
+    name: c.name, slug: c.slug, alt: SLUG.test(c.alt || '') ? c.alt : null,
+    ytId: /^UC[\w-]{22}$/.test(c.youtube || '') ? c.youtube : null, catalog: c.catalog === true,
+  }));
+}
+
+// Master list, version 2: { nebula: { videos, creators }, floatplane: { videos, creators } }.
 function loadMaster() {
-  return cached('masterList', 12 * 3600 * 1000, async () => {
+  return cached('masterList2', 12 * 3600 * 1000, async () => {
     // Plain fetch (no custom headers) so the cross-origin request needs no preflight.
     const res = await fetch(MASTER_URL, { credentials: 'omit', cache: 'no-cache' });
     if (!res.ok) throw new Error(`master list ${res.status}`);
     const d = await res.json();
-    if (!d || d.version !== 1) throw new Error('unsupported master list version');
-    const names = (list, valid) => (Array.isArray(list) ? list.filter(n => typeof n === 'string' && valid.test(n)) : []);
+    if (!d || d.version !== 2) throw new Error('unsupported master list version');
+    const nebCreators = sanitizeNebulaCreators(d.nebula?.creators);
+    const fpCreators = sanitizeCreators(d.floatplane?.creators);
+    const flagged = (list, names) => (list || []).filter(c => c.catalog).flatMap(names);
     return {
-      nebula: sanitizeVideoMap(d.nebula), floatplane: sanitizeVideoMap(d.floatplane), floatplaneCreators: sanitizeCreators(d.floatplaneCreators),
-      catalogs: { nebula: names(d.catalogs?.nebula, SLUG), floatplane: names(d.catalogs?.floatplane, FP_POST_ID) },
+      nebula: { videos: sanitizeVideoMap(d.nebula?.videos), creators: nebCreators, catalogs: flagged(nebCreators, c => [c.slug, c.alt].filter(Boolean)) },
+      floatplane: {
+        videos: sanitizeVideoMap(d.floatplane?.videos), creators: fpCreators,
+        catalogs: flagged(fpCreators, c => (FP_POST_ID.test(c.id) ? [c.id] : [])),
+      },
     };
   });
 }
-const EMPTY_MASTER = { nebula: {}, floatplane: {}, floatplaneCreators: null, catalogs: { nebula: [], floatplane: [] } };
+const EMPTY_MASTER = { nebula: { videos: {}, creators: null, catalogs: [] }, floatplane: { videos: {}, creators: null, catalogs: [] } };
 const masterOrEmpty = () => loadMaster().catch(() => EMPTY_MASTER);
 
 // A creator's full video catalogue from the master list (data/nebula/<slug>.json or
@@ -145,7 +159,7 @@ const masterOrEmpty = () => loadMaster().catch(() => EMPTY_MASTER);
 // Returns match candidates, or null if there's no catalogue for that creator.
 async function loadCatalog(kind, name) {
   const master = await masterOrEmpty();
-  if (!master.catalogs[kind].includes(name)) return null;
+  if (!master[kind].catalogs.includes(name)) return null;
   try {
     return await cached(`cat:${kind}:${name}`, 12 * 3600 * 1000, async () => {
       const res = await fetch(`${DATA_BASE}/${kind}/${name}.json`, { credentials: 'omit', cache: 'no-cache' });
@@ -184,7 +198,11 @@ async function putCachedMatch(platform, videoId, url, title) {
 // YouTube channel ID -> Nebula channel slug, from Nebula's public creator wall
 // (talent.nebula.tv/creators). Each creator card carries the YouTube channel ID
 // (data-video), the creator's name (image alt text) and a link to their Nebula channel.
-function loadNebulaCreators() {
+// Nebula's creators: from the master list when available (no request to Nebula), else from
+// Nebula's creator wall.
+async function loadNebulaCreators() {
+  const fromMaster = (await masterOrEmpty()).nebula.creators;
+  if (fromMaster && fromMaster.length) return fromMaster;
   return cached('nebulaCreators', DAY, async () => {
     const res = await detourFetch('https://talent.nebula.tv/creators/', { credentials: 'omit' });
     if (!res.ok) throw new Error(`creator wall ${res.status}`);
@@ -231,7 +249,7 @@ async function searchNebula(title, slugs) {
 
 async function lookupNebula(info, settings) {
   // Known video (master list or this browser's earlier match): no requests to Nebula.
-  const known = (await masterOrEmpty()).nebula[info.videoId] || (await getCachedMatch('nebula', info.videoId))?.url;
+  const known = (await masterOrEmpty()).nebula.videos[info.videoId] || (await getCachedMatch('nebula', info.videoId))?.url;
   if (known) return { platform: 'nebula', subscribed: settings.nebulaSubscribed, creator: info.author || '', kind: 'video', url: known, title: info.title, confidence: 1 };
 
   const creators = await loadNebulaCreators();
@@ -286,7 +304,7 @@ async function loadFloatplaneCreators() {
   const byId = new Map(live.map(c => [c.id, c]));
   const byName = new Map(live.map(c => [fpNameKey(c.title), c]));
   // Known creators: the master list's (updated without a release), else the built-in list.
-  const known = (await masterOrEmpty()).floatplaneCreators || FLOATPLANE_DEFAULTS;
+  const known = (await masterOrEmpty()).floatplane.creators || FLOATPLANE_DEFAULTS;
   for (const d of known) {
     // Same creator if the ID matches, or (for defaults without a known ID) the name does.
     const c = byId.get(d.id) || byName.get(fpNameKey(d.title));
@@ -350,7 +368,7 @@ async function lookupFloatplane(info, settings) {
   const hits = floatplaneMatches(await loadFloatplaneCreators(), info);
   if (!hits.length) return null;
   // Known video (master list or this browser's earlier match): no post search needed.
-  const known = (await masterOrEmpty()).floatplane[info.videoId] || (await getCachedMatch('floatplane', info.videoId))?.url;
+  const known = (await masterOrEmpty()).floatplane.videos[info.videoId] || (await getCachedMatch('floatplane', info.videoId))?.url;
   if (known) {
     const c = hits[0].creator;
     return { platform: 'floatplane', subscribed: isFpSubscribed(c, settings.floatplaneCreators), creator: c.title, kind: 'video', url: known, title: info.title, confidence: 1 };

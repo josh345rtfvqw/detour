@@ -3,13 +3,15 @@
 // .github/workflows/update-list.yml, or by hand:  node scripts/build-known.js
 //
 // Output:
-//  data/known.json             small index, downloaded by every user about twice a day:
-//    nebula               YouTube video ID -> Nebula URL, pre-matched from each Nebula creator's
-//                         latest YouTube uploads (public RSS feed). Accumulates.
-//    floatplane           YouTube video ID -> Floatplane post URL (manual overrides).
-//    floatplaneCreators   data/floatplane-creators.json (hand-edited), filled in and extended
-//                         with Floatplane's own creator list (IDs, addresses, YouTube links).
-//    catalogs             which per-creator catalogue files exist.
+//  data/known.json   small index, downloaded by every user about twice a day (version 2):
+//    nebula.videos        YouTube video ID -> Nebula URL, pre-matched from each Nebula creator's
+//                         latest YouTube uploads (public RSS feed), plus overrides. Accumulates.
+//    nebula.creators      Nebula's creator list: name, slug (alt), YouTube channel ID, and
+//                         catalog: true when data/nebula/<slug>.json exists.
+//    floatplane.videos    YouTube video ID -> Floatplane post URL (overrides).
+//    floatplane.creators  data/floatplane-creators.json (hand-edited), filled in and extended
+//                         with Floatplane's own creator list; catalog: true when
+//                         data/floatplane/<id>.json exists.
 //  data/nebula/<slug>.json       every video of that Nebula channel: [{ s: slug, t: title, d: date }]
 //  data/floatplane/<id>.json     every video post of that Floatplane creator: [{ i, t, d, c: channel }]
 //
@@ -88,7 +90,7 @@ async function updateNebulaCatalog({ get, sleep, delayMs, slug, existing }) {
 
 // ------------------------------------------------------------------ Floatplane
 
-async function buildFloatplaneCreators({ get, log, handCreators }) {
+async function buildFloatplaneCreators({ get, log, handCreators, previousCreators = [] }) {
   const links = o => Object.values(o || {}).filter(l => typeof l === 'string');
   const creators = handCreators.map(c => ({ ...c, channels: [...(c.channels || [])] }));
   try {
@@ -116,6 +118,13 @@ async function buildFloatplaneCreators({ get, log, handCreators }) {
   } catch (e) {
     const authRequired = /^40[13] /.test(e.message);
     log(`floatplane creator list failed: ${e.message}${authRequired ? ' (refused: login or bot protection, see the "refused by" line)' : ''}`);
+    // Keep the previous run's list (with IDs filled in from Floatplane), plus any creators
+    // added by hand since.
+    if (previousCreators.length) {
+      const kept = previousCreators.map(({ catalog, ...c }) => c);
+      for (const h of creators) if (!kept.some(k => (h.id && k.id === h.id) || fpNameKey(k.title) === fpNameKey(h.title))) kept.push(h);
+      return { creators: kept, authRequired };
+    }
     return { creators, authRequired };
   }
 }
@@ -175,7 +184,9 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
 
   const knownFile = path.join(dataDir, 'known.json');
   const previous = readJson(knownFile, {});
-  const nebula = { ...(previous.nebula || {}) };
+  // Pre-matched videos from the previous run (version 2 layout, or the older flat version 1).
+  const prevNebulaVideos = previous.version === 2 ? previous.nebula?.videos : previous.nebula;
+  const nebula = { ...(prevNebulaVideos || {}) };
   const overrides = readJson(path.join(dataDir, 'overrides.json'), {});
   const handCreators = readJson(path.join(dataDir, 'floatplane-creators.json'), []);
   const nebulaDir = path.join(dataDir, 'nebula');
@@ -216,7 +227,8 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   if (Object.keys(failures).length) log(`request failures so far: ${JSON.stringify(failures)}`);
 
   // 2. Floatplane: creator list and full catalogues.
-  const { creators: fpCreators, authRequired } = await buildFloatplaneCreators({ get, log, handCreators });
+  const previousFpCreators = previous.version === 2 ? previous.floatplane?.creators || [] : [];
+  const { creators: fpCreators, authRequired } = await buildFloatplaneCreators({ get, log, handCreators, previousCreators: previousFpCreators });
   let fpNew = 0, fpFailed = 0;
   if (authRequired) log('floatplane catalogues skipped: Floatplane refused the creator list; previous data kept');
   else {
@@ -242,22 +254,33 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     }
   }
 
-  // 4. Index of catalogue files that exist (and aren't empty).
-  const listCatalogs = (dir, valid) => (fs.existsSync(dir) ? fs.readdirSync(dir) : [])
-    .filter(f => f.endsWith('.json')).map(f => f.slice(0, -5)).filter(n => valid.test(n) && readJson(path.join(dir, `${n}.json`), []).length).sort();
-  const catalogs = { nebula: listCatalogs(nebulaDir, SLUG), floatplane: listCatalogs(fpDir, FP_ID) };
+  // 4. The index: videos and creators per platform; catalog: true where a non-empty file exists.
+  const hasCatalog = (dir, name) => readJson(path.join(dir, `${name}.json`), []).length > 0;
+  const nebulaCreators = creators.map(c => ({
+    name: c.name, slug: c.slug, ...(c.alt ? { alt: c.alt } : {}), ...(c.ytId ? { youtube: c.ytId } : {}),
+    catalog: [c.slug, c.alt].filter(Boolean).some(s => hasCatalog(nebulaDir, s)),
+  }));
+  // If the creator wall couldn't be read this time, keep yesterday's list.
+  const prevNebulaCreators = previous.version === 2 ? previous.nebula?.creators || [] : [];
+  const fpIndexCreators = fpCreators.map(c => ({ ...c, catalog: FP_ID.test(c.id || '') && hasCatalog(fpDir, c.id) }));
 
   const nebulaEntries = Object.entries(nebula);
   const kept = Object.fromEntries(nebulaEntries.slice(Math.max(0, nebulaEntries.length - MAX_ENTRIES)));
-  const data = { version: 1, nebula: sortObject(kept), floatplane: sortObject(floatplane), floatplaneCreators: fpCreators, catalogs };
+  const data = {
+    version: 2,
+    nebula: { videos: sortObject(kept), creators: nebulaCreators.length ? nebulaCreators : prevNebulaCreators },
+    floatplane: { videos: sortObject(floatplane), creators: fpIndexCreators },
+  };
   // Only bump "generated" when the index changes, so quiet days don't rewrite it.
   const { generated: _g, ...prevContent } = previous;
   const changed = JSON.stringify(prevContent) !== JSON.stringify(data);
-  const out = { version: 1, generated: changed ? now.toISOString() : (previous.generated || now.toISOString()), ...data };
+  const out = { version: 2, generated: changed ? now.toISOString() : (previous.generated || now.toISOString()), ...data };
   writeIfChanged(knownFile, out);
   if (Object.keys(failures).length) log(`request failures (after retries): ${JSON.stringify(failures)}`);
   const count = (dir, names) => names.reduce((n, x) => n + readJson(path.join(dir, `${x}.json`), []).length, 0);
-  log(`index ${changed ? 'updated' : 'unchanged'}: ${Object.keys(out.nebula).length} pre-matched Nebula videos; catalogues: ${catalogs.nebula.length} Nebula channels (${count(nebulaDir, catalogs.nebula)} videos), ${catalogs.floatplane.length} Floatplane creators (${count(fpDir, catalogs.floatplane)} posts)`);
+  const nebCat = out.nebula.creators.filter(c => c.catalog).flatMap(c => [c.slug, c.alt].filter(s => s && hasCatalog(nebulaDir, s)));
+  const fpCat = out.floatplane.creators.filter(c => c.catalog).map(c => c.id);
+  log(`index ${changed ? 'updated' : 'unchanged'}: Nebula ${Object.keys(out.nebula.videos).length} pre-matched videos, ${out.nebula.creators.length} creators, ${nebCat.length} catalogues (${count(nebulaDir, nebCat)} videos); Floatplane ${Object.keys(out.floatplane.videos).length} videos, ${out.floatplane.creators.length} creators, ${fpCat.length} catalogues (${count(fpDir, fpCat)} posts)`);
   return { changed, added: matched, data: out, nebNew, fpNew };
 }
 

@@ -32,13 +32,13 @@ function mockFetch(calls) {
   const log = () => {};
   let r = await build({ fetchFn: mockFetch(calls), dataDir: dir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   const known = JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8'));
-  assert.equal(known.version, 1);
-  assert.equal(known.nebula.ytvideo0001, 'https://nebula.tv/videos/realengineering-why-planes');
-  assert.ok(!('ytvideo0002' in known.nebula), 'unrelated video not matched');
-  assert.equal(known.nebula.manualvid01, 'https://nebula.tv/videos/manual');
-  assert.ok(!('badvid00001' in known.nebula) && !('not-an-id' in known.nebula), 'invalid overrides ignored');
-  assert.equal(known.floatplane.fpvideo0001, 'https://www.floatplane.com/post/p1');
-  assert.equal(known.floatplaneCreators[0].title, 'Creator One');
+  assert.equal(known.version, 2);
+  assert.equal(known.nebula.videos.ytvideo0001, 'https://nebula.tv/videos/realengineering-why-planes');
+  assert.ok(!('ytvideo0002' in known.nebula.videos), 'unrelated video not matched');
+  assert.equal(known.nebula.videos.manualvid01, 'https://nebula.tv/videos/manual');
+  assert.ok(!('badvid00001' in known.nebula.videos) && !('not-an-id' in known.nebula.videos), 'invalid overrides ignored');
+  assert.equal(known.floatplane.videos.fpvideo0001, 'https://www.floatplane.com/post/p1');
+  assert.equal(known.floatplane.creators[0].title, 'Creator One');
   assert.ok(calls.every(c => /^DetourListBuilder\/1\.0 /.test(c.init.headers['User-Agent'])), 'identifies itself');
   console.log('ok  list built: auto match, overrides, Floatplane creators, User-Agent');
 
@@ -52,19 +52,20 @@ function mockFetch(calls) {
   // A null override removes a wrong automatic match.
   fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ nebula: { ytvideo0001: null } }));
   r = await build({ fetchFn: mockFetch([]), dataDir: dir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  assert.ok(r.changed && !('ytvideo0001' in r.data.nebula));
+  assert.ok(r.changed && !('ytvideo0001' in r.data.nebula.videos));
   console.log('ok  null override removes an entry');
 
   // Network down: existing entries are kept, nothing breaks.
   fs.writeFileSync(path.join(dir, 'overrides.json'), '{}');
   const down = async () => { throw new Error('offline'); };
   r = await build({ fetchFn: down, dataDir: dir, now: new Date('2026-11-11T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  assert.equal(r.data.floatplaneCreators[0].title, 'Creator One');
+  assert.equal(r.data.floatplane.creators[0].title, 'Creator One');
   console.log('ok  survives the network being down');
   // Nebula catalogue written per channel (javascript: link from the API skipped).
   const nebCat = JSON.parse(fs.readFileSync(path.join(dir, 'nebula', 'realengineering.json'), 'utf8'));
   assert.deepEqual(nebCat, [{ s: 'realengineering-why-planes', t: 'Why Planes Don’t Fly Faster', d: '2026-11-02' }]);
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8')).catalogs.nebula, ['realengineering']);
+  const nc = JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8')).nebula.creators;
+  assert.deepEqual(nc, [{ name: 'Real Engineering', slug: 'realengineering', youtube: 'UCR1IuLEqb6UEA_zQ81kwXfg', catalog: true }]);
   console.log('ok  Nebula catalogue file written and indexed');
 
   // ---- Floatplane: creator list + full catalogue per creator, incremental, no login ----
@@ -91,7 +92,7 @@ function mockFetch(calls) {
   };
   const readCat = id => JSON.parse(fs.readFileSync(path.join(fpDir, 'floatplane', `${id}.json`), 'utf8'));
   r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
-  const fpc = r.data.floatplaneCreators;
+  const fpc = r.data.floatplane.creators;
   assert.equal(fpc.find(c => c.title === 'Level1Techs').id, 'l1t', 'name-only creator gets its real ID');
   assert.equal(fpc.find(c => c.title === 'Level1Techs').urlname, 'level1techs');
   assert.ok(fpc.find(c => c.id === 'ltt').links.includes('https://www.youtube.com/user/LinusTechTips'), 'hand-entered YouTube link kept');
@@ -101,7 +102,7 @@ function mockFetch(calls) {
   assert.deepEqual(readCat('ltt')[0], { i: 'ltt0', t: 'ltt video 0', d: '2026-11-01', c: 'chTL' }, 'compact post, channel id from object');
   assert.equal(readCat('l1t')[0].c, 'chL1', 'channel id from string');
   assert.equal(fpCalls.filter(u => u.includes('id=ltt&')).length, 7, '130 posts = 7 pages of 20');
-  assert.deepEqual(r.data.catalogs.floatplane, ['l1t', 'ltt'], 'empty catalogues not indexed');
+  assert.deepEqual(fpc.filter(c => c.catalog).map(c => c.id).sort(), ['l1t', 'ltt'], 'empty catalogues not flagged');
   console.log('ok  Floatplane: creators filled in, full history pulled on the first run');
 
   // Next day: two new posts. Only the first page is fetched, and the new posts go on top.
@@ -118,7 +119,7 @@ function mockFetch(calls) {
   const authFetch = async url => (url.includes('floatplane.com') ? { ok: false, status: 401 } : fpFetch(url));
   r = await build({ fetchFn: authFetch, dataDir: fpDir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   assert.equal(readCat('ltt').length, 132, 'catalogue kept when Floatplane refuses');
-  assert.deepEqual(r.data.catalogs.floatplane, ['l1t', 'ltt']);
+  assert.deepEqual(r.data.floatplane.creators.filter(c => c.catalog).map(c => c.id).sort(), ['l1t', 'ltt']);
   console.log('ok  Floatplane login required: skipped, catalogues kept');
   // Rate limiting: a 429 is retried (and then succeeds) instead of failing the creator.
   const rlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'known-rl-'));
