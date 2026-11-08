@@ -1,0 +1,46 @@
+name: Update known-videos list
+
+# Rebuilds data/known.json (served at https://josh345rtfvqw.github.io/detour/data/known.json)
+# and commits it when it changes. GitHub Pages then republishes it; the extension downloads it
+# about twice a day. Runs daily, on demand, and when the hand-edited data files change.
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - data/floatplane-creators.json
+      - data/overrides.json
+      - scripts/build-known.js
+      - match.js
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-list
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Build the list
+        run: node scripts/build-known.js
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- data/known.json; then
+            echo "No changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/known.json
+          git commit -m "Update known-videos list"
+          git push

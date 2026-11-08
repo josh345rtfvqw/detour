@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: ['data/known.json'] # daily list updates don't need a CI run
   pull_request:
 
 # Read-only token: CI only tests and builds.

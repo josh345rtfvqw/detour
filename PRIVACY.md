@@ -32,6 +32,13 @@ Domain: `www.floatplane.com`
 
 Your browser attaches your existing floatplane.com login cookies to these requests, so Floatplane can return its full creator list. Detour never reads, stores or transmits your Floatplane credentials.
 
+### Detour's list of known videos
+
+About twice a day, Detour downloads a list of known matches from its own website: `https://josh345rtfvqw.github.io/detour/data/known.json`, which GitHub Pages hosts.
+- The list holds known YouTube → Nebula/Floatplane video links and known Floatplane creators.
+- The download is the same for everyone. It includes nothing about you or what you watch. GitHub sees an ordinary request for a public file.
+- When a video is already in the list, Detour sends nothing to Nebula or Floatplane for it.
+
 ### What isn't sent
 
 - Nothing about videos or channels whose creator isn't on Nebula or Floatplane.
@@ -45,10 +52,11 @@ How Nebula and Floatplane handle the requests they receive is covered by their o
 
 Detour stores the following in your browser's extension storage:
 - **Your settings**, including which subscriptions you've ticked and how Detour should behave. If you use Chrome sync or Firefox Sync, your browser syncs these settings to your account.
-- **A cache of the Nebula and Floatplane creator and video lists**, so they aren't downloaded on every page. Video lists for at most 60 channels are kept. Older ones are deleted automatically.
+- **A cache of the Nebula and Floatplane creator and video lists, and of Detour's list of known videos**, so they aren't downloaded on every page. Video lists for at most 60 channels are kept. Older ones are deleted automatically.
+- **Matches Detour has confirmed** (a YouTube video ID and the Nebula/Floatplane link it matched), for 30 days and at most 2,000 videos. Revisiting a video then sends nothing to Nebula or Floatplane. This is kept only in your browser and never shared.
 - **The channels whose banner you've dismissed.**
 
-Detour keeps no history of the videos or pages you visit.
+Apart from those confirmed matches, Detour keeps no history of the videos or pages you visit.
 
 You can clear the cache at any time with **Refresh data** in Detour's settings. Removing the extension deletes all of its stored data.
 

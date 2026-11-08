@@ -1,0 +1,5 @@
+{
+  "_help": "Manual corrections to data/known.json. Map an 11-character YouTube video ID to the Nebula or Floatplane URL it should link to, or to null to remove a wrong match (keep the null here, or the automatic match can come back). Only https links to nebula.tv / floatplane.com are accepted. Saving this file rebuilds the list.",
+  "nebula": {},
+  "floatplane": {}
+}

@@ -1,14 +1,15 @@
 {
   "name": "detour",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "private": true,
   "description": "See when a YouTube video is also on Nebula or Floatplane, and go straight there — automatically if you subscribe.",
   "license": "MIT",
   "scripts": {
-    "test": "node test/background.test.js",
+    "test": "node test/background.test.js && node test/build-known.test.js",
     "test:e2e": "node test/e2e.js",
-    "lint": "web-ext lint --self-hosted --ignore-files 'test/**' 'scripts/**' 'dist/**' 'store/**' 'assets/**' '_layouts/**' 'index.html' '_config.yml' 'package*.json' 'node_modules/**'",
-    "build": "bash scripts/build.sh"
+    "lint": "web-ext lint --self-hosted --ignore-files 'test/**' 'scripts/**' 'dist/**' 'store/**' 'data/**' 'assets/**' '_layouts/**' 'index.html' '_config.yml' 'package*.json' 'node_modules/**'",
+    "build": "bash scripts/build.sh",
+    "build:list": "node scripts/build-known.js"
   },
   "devDependencies": {
     "playwright": "1.63.0",

@@ -27,7 +27,6 @@ function safeUrl(url) {
   } catch { return null; }
 }
 const sanitizeResults = results => results.map(r => ({ ...r, url: safeUrl(r.url) })).filter(r => r.url);
-const SLUG = /^[\w-]{1,100}$/;
 
 // Identify Detour (and its version) to Nebula and Floatplane, as Floatplane asks API clients to:
 // the browser's own User-Agent with "Detour/<version> (+repo URL)" appended.
@@ -93,33 +92,71 @@ async function pruneEpisodeCaches(keep = 60) {
   if (old.length) await chrome.storage.local.remove(old);
 }
 
+// ---------------------------------------------------------------- master list + match cache
+
+// Master list published on GitHub Pages and updated without a new extension version (data
+// only, never code): known YouTube -> Nebula/Floatplane videos and the Floatplane creator list.
+// GitHub Pages allows cross-origin reads, so no extra permission is needed. Fetching it sends
+// nothing about what the user watches. Every URL in it is checked with safeUrl().
+const MASTER_URL = 'https://josh345rtfvqw.github.io/detour/data/known.json';
+const YT_VIDEO_ID = /^[\w-]{11}$/;
+
+function sanitizeVideoMap(map) {
+  const out = {};
+  if (map && typeof map === 'object') {
+    for (const [id, url] of Object.entries(map)) if (YT_VIDEO_ID.test(id) && safeUrl(url)) out[id] = safeUrl(url);
+  }
+  return out;
+}
+
+function sanitizeCreators(list) {
+  if (!Array.isArray(list)) return null;
+  const str = v => (typeof v === 'string' ? v : '');
+  const links = v => (Array.isArray(v) ? v.filter(l => typeof l === 'string') : []);
+  return list.filter(c => c && typeof c.title === 'string' && c.title).map(c => ({
+    id: str(c.id) || fpNameKey(c.title), title: c.title, urlname: str(c.urlname) || null, icon: '', builtin: true, links: links(c.links),
+    channels: (Array.isArray(c.channels) ? c.channels : []).filter(ch => ch && typeof ch.title === 'string')
+      .map(ch => ({ id: str(ch.id), title: ch.title, urlname: str(ch.urlname) || null, links: links(ch.links) })),
+  }));
+}
+
+function loadMaster() {
+  return cached('masterList', 12 * 3600 * 1000, async () => {
+    // Plain fetch (no custom headers) so the cross-origin request needs no preflight.
+    const res = await fetch(MASTER_URL, { credentials: 'omit', cache: 'no-cache' });
+    if (!res.ok) throw new Error(`master list ${res.status}`);
+    const d = await res.json();
+    if (!d || d.version !== 1) throw new Error('unsupported master list version');
+    return { nebula: sanitizeVideoMap(d.nebula), floatplane: sanitizeVideoMap(d.floatplane), floatplaneCreators: sanitizeCreators(d.floatplaneCreators) };
+  });
+}
+const masterOrEmpty = () => loadMaster().catch(() => ({ nebula: {}, floatplane: {}, floatplaneCreators: null }));
+
+// Confirmed matches remembered locally, so revisits need no network requests (and don't send
+// the title again). 30 days, at most 2000 entries.
+const MATCH_TTL = 30 * DAY;
+const MATCH_MIN_CONFIDENCE = 0.75;
+async function getCachedMatch(platform, videoId) {
+  if (!videoId) return null;
+  const { matches = {} } = await chrome.storage.local.get('matches');
+  const m = matches[`${platform}:${videoId}`];
+  return m && Date.now() - m.t < MATCH_TTL && safeUrl(m.url) ? m : null;
+}
+async function putCachedMatch(platform, videoId, url, title) {
+  if (!videoId || !safeUrl(url)) return;
+  try {
+    const { matches = {} } = await chrome.storage.local.get('matches');
+    matches[`${platform}:${videoId}`] = { url, title: title || '', t: Date.now() };
+    const entries = Object.entries(matches).filter(([, m]) => Date.now() - m.t < MATCH_TTL).sort((a, b) => b[1].t - a[1].t).slice(0, 2000);
+    await chrome.storage.local.set({ matches: Object.fromEntries(entries) });
+  } catch (e) { console.warn('[detour] match cache write failed', e); }
+}
+
 // ---------------------------------------------------------------- Nebula
 
 // YouTube channel ID -> Nebula channel slug, from Nebula's public creator wall
 // (talent.nebula.tv/creators). Each creator card carries the YouTube channel ID
 // (data-video), the creator's name (image alt text) and a link to their Nebula channel.
-const decodeHtml = s => (s || '').replace(/&amp;/g, '&').replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"')
-  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
-
-function parseCreatorWall(html) {
-  const creators = [];
-  for (const block of html.split(/class="[^"]*\byoutube-creator\b/).slice(1)) {
-    const ytId = (block.match(/data-video="(UC[\w-]{22})"/) || [])[1];
-    const name = decodeHtml((block.match(/alt="([^"]*)"/) || [])[1]).trim();
-    // Prefer the explicit Nebula link; fall back to the card title's link (talent.nebula.tv/<slug>/).
-    const nebula = (block.match(/href="https?:\/\/(?:www\.)?nebula\.(?:tv|app)\/([\w-]+)\/?"/) || [])[1];
-    const titleHref = (block.match(/<h3[^>]*>\s*<a[^>]*href="([^"]+)"/) || [])[1];
-    let alt = null;
-    if (titleHref) {
-      try { alt = new URL(titleHref, 'https://talent.nebula.tv/').pathname.split('/').filter(Boolean)[0] || null; } catch { /* ignore */ }
-    }
-    if (alt && !SLUG.test(alt)) alt = null;
-    const slug = nebula || alt;
-    if (slug && (ytId || name) && !creators.some(c => c.slug === slug)) creators.push({ name, slug, alt: alt !== slug ? alt : null, ytId: ytId || null });
-  }
-  return creators;
-}
-
 function loadNebulaCreators() {
   return cached('nebulaCreators', DAY, async () => {
     const res = await detourFetch('https://talent.nebula.tv/creators/', { credentials: 'omit' });
@@ -166,6 +203,10 @@ async function searchNebula(title, slugs) {
 }
 
 async function lookupNebula(info, settings) {
+  // Known video (master list or this browser's earlier match): no requests to Nebula.
+  const known = (await masterOrEmpty()).nebula[info.videoId] || (await getCachedMatch('nebula', info.videoId))?.url;
+  if (known) return { platform: 'nebula', subscribed: settings.nebulaSubscribed, creator: info.author || '', kind: 'video', url: known, title: info.title, confidence: 1 };
+
   const creators = await loadNebulaCreators();
   const author = normalizeName(info.author);
   const matches = creators.filter(c => (info.channelId && c.ytId === info.channelId) ||
@@ -188,6 +229,7 @@ async function lookupNebula(info, settings) {
     } catch (e) { console.warn('[detour] nebula search', e); }
   }
   const base = { platform: 'nebula', subscribed: settings.nebulaSubscribed, creator: matches[0].name };
+  if (best && best.confidence >= MATCH_MIN_CONFIDENCE) await putCachedMatch('nebula', info.videoId, best.url, best.title);
   if (best && best.confidence >= 0.45) return { ...base, kind: 'video', url: best.url, title: best.title, confidence: best.confidence };
   return { ...base, kind: 'channel', url: `https://nebula.tv/${slugs[0]}`, confidence: 0 };
 }
@@ -212,7 +254,9 @@ async function loadFloatplaneCreators() {
   } catch (e) { console.warn('[detour] using built-in Floatplane creators', e); }
   const byId = new Map(live.map(c => [c.id, c]));
   const byName = new Map(live.map(c => [fpNameKey(c.title), c]));
-  for (const d of FLOATPLANE_DEFAULTS) {
+  // Known creators: the master list's (updated without a release), else the built-in list.
+  const known = (await masterOrEmpty()).floatplaneCreators || FLOATPLANE_DEFAULTS;
+  for (const d of known) {
     // Same creator if the ID matches, or (for defaults without a known ID) the name does.
     const c = byId.get(d.id) || byName.get(fpNameKey(d.title));
     if (!c) { byId.set(d.id, d); continue; }
@@ -274,6 +318,12 @@ async function floatplanePosts(creatorId, channelId, search) {
 async function lookupFloatplane(info, settings) {
   const hits = floatplaneMatches(await loadFloatplaneCreators(), info);
   if (!hits.length) return null;
+  // Known video (master list or this browser's earlier match): no post search needed.
+  const known = (await masterOrEmpty()).floatplane[info.videoId] || (await getCachedMatch('floatplane', info.videoId))?.url;
+  if (known) {
+    const c = hits[0].creator;
+    return { platform: 'floatplane', subscribed: isFpSubscribed(c, settings.floatplaneCreators), creator: c.title, kind: 'video', url: known, title: info.title, confidence: 1 };
+  }
   let best = null, bestHit = hits[0];
   for (const hit of hits) {
     const cands = [];
@@ -287,6 +337,7 @@ async function lookupFloatplane(info, settings) {
   }
   const c = bestHit.creator;
   const base = { platform: 'floatplane', subscribed: isFpSubscribed(c, settings.floatplaneCreators), creator: c.title };
+  if (best && best.confidence >= MATCH_MIN_CONFIDENCE) await putCachedMatch('floatplane', info.videoId, best.url, best.title);
   if (best && best.confidence >= 0.45) return { ...base, kind: 'video', url: best.url, title: best.title, confidence: best.confidence };
   return { ...base, kind: 'channel', url: fpChannelUrl(c, bestHit.channel), confidence: 0 };
 }

@@ -125,6 +125,7 @@ NETWORK REQUESTS (all from the background script, all disclosed in the privacy p
 - talent.nebula.tv/creators: Nebula's public creator list (YouTube channel ID -> Nebula channel).
 - content.api.nebula.app and rss.nebula.app: public video lists and search for the matched creator. The YouTube video title is sent to search.
 - www.floatplane.com/api/v3/...: creator list and post search for the matched creator (YouTube video title as the search term), with the user's existing floatplane.com cookies.
+- josh345rtfvqw.github.io/detour/data/known.json: the extension's own list of known YouTube -> Nebula/Floatplane matches and Floatplane creators (GitHub Pages, CORS-readable, so no host permission). Data only, never code; every URL in it is validated. No user data is sent; when a video is in the list, nothing is sent to Nebula/Floatplane for it.
 Nothing is sent anywhere else, and nothing is sent for creators who aren't on Nebula or Floatplane.
 
 PERMISSIONS

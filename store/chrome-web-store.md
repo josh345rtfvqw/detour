@@ -134,7 +134,7 @@ Used to load Floatplane's list of creators (with their YouTube channels) and to 
 No, I am not using remote code.
 ```
 
-All JavaScript ships inside the extension package. The extension only downloads data (JSON, HTML and RSS), never code to execute.
+All JavaScript ships inside the extension package. The extension only downloads data (JSON, HTML and RSS), never code to execute. That includes its own list of known videos from `https://josh345rtfvqw.github.io/detour/data/known.json`: plain JSON, with every link in it validated.
 
 ### Data usage
 

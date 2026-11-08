@@ -42,6 +42,13 @@ Requests to Nebula and Floatplane identify the extension. Floatplane asks API cl
 They use the browser's normal User-Agent with `Detour/<version> (+https://github.com/josh345rtfvqw/detour)` added on the end.
 In Chrome, a header rule applies it to the extension's own requests only. Your own browsing of those sites isn't changed.
 
+**Known-videos list.** Detour also downloads a master list from this repo's GitHub Pages site, [`data/known.json`](data/known.json), about twice a day. The list can be updated without releasing a new extension version, and it holds:
+- **Nebula videos:** YouTube video ID → Nebula link. A [daily GitHub Action](.github/workflows/update-list.yml) builds these by matching each Nebula creator's latest YouTube uploads (from YouTube's public RSS feeds) to their Nebula videos.
+- **Floatplane creators:** from [`data/floatplane-creators.json`](data/floatplane-creators.json).
+- **Manual corrections:** from [`data/overrides.json`](data/overrides.json).
+
+To add a Floatplane creator or fix a wrong match, edit those files on `main`. The Action rebuilds the list straight away. Confirmed matches are also remembered in the browser for 30 days, so revisits need no network requests.
+
 Videos are matched by title similarity, with a boost when release dates are within about a week.
 Auto-redirect only happens above the confidence threshold set in the settings (default 0.75).
 Each video redirects at most once per tab, so pressing Back keeps you on YouTube.

@@ -220,12 +220,58 @@ const fpRoutes = [
   env = makeEnv({ floatplaneCreators: ['ltt'] }, [...nebulaRoutes, ...fpRoutes]);
   await env.send({ type: 'lookup', info: { videoId: 'ua1', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' } });
   assert.ok(env.calls.length > 0);
-  for (const c of env.calls) assert.match(c.init.headers['User-Agent'], /Detour\/9\.9\.9 \(\+https:\/\/github\.com\/josh345rtfvqw\/detour\)$/, c.url);
+  // (The master list download on GitHub Pages sends no custom headers, to avoid a CORS preflight.)
+  for (const c of env.calls.filter(c => !c.url.includes('github.io'))) assert.match(c.init.headers['User-Agent'], /Detour\/9\.9\.9 \(\+https:\/\/github\.com\/josh345rtfvqw\/detour\)$/, c.url);
   const rule = env.dnr[0].addRules[0];
   assert.equal(rule.action.requestHeaders[0].header, 'User-Agent');
   assert.match(rule.action.requestHeaders[0].value, /Detour\/9\.9\.9/);
   assert.deepEqual(rule.condition.tabIds, [-1]);
   assert.ok(rule.condition.requestDomains.includes('floatplane.com'));
   console.log('ok  User-Agent identifies Detour/<version> on all', env.calls.length, 'requests');
+  // ---- master list (GitHub Pages) + local match cache ----
+  const MASTER = /josh345rtfvqw\.github\.io\/detour\/data\/known\.json/;
+
+  // 19. Master list hit: Nebula link comes from the list, no request to Nebula at all.
+  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, { version: 1, nebula: { 'aaaaaaaaaaa': 'https://nebula.tv/videos/known' }, floatplane: {}, floatplaneCreators: null }],
+    [/nebula|talent/, new Error()], [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'aaaaaaaaaaa', title: 'Anything', author: 'Someone' } });
+  assert.equal(r.results[0].url, 'https://nebula.tv/videos/known');
+  assert.equal(r.results[0].confidence, 1);
+  assert.ok(!env.calls.some(c => /nebula\.(app|tv)/.test(c.url)), 'no Nebula requests for a known video');
+  console.log('ok  master list hit needs no Nebula requests');
+
+  // 20. A tampered master list can't inject links: bad URLs are dropped, live lookup used instead.
+  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, { version: 1, nebula: { 'x2xxxxxxxxx': 'javascript:alert(1)', 'bad': 'https://nebula.tv/videos/y' }, floatplaneCreators: [{ title: 'Evil', urlname: 'e', links: ['javascript:x'], channels: 'nope' }] }],
+    ...nebulaRoutes, [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'x2xxxxxxxxx', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
+  assert.equal(r.results[0].url, 'https://nebula.tv/videos/realengineering-why-planes');
+  console.log('ok  invalid master list entries are ignored');
+
+  // 21. Master list Floatplane creators replace the built-in list (new creator, no release needed),
+  //     and a master Floatplane video link is used without searching posts.
+  env = makeEnv({ floatplaneCreators: ['newcreator1'] }, [[/nebula|talent/, new Error()],
+    [MASTER, { version: 1, nebula: {}, floatplane: { 'fpvideo0001': 'https://www.floatplane.com/post/abc' },
+      floatplaneCreators: [{ id: 'newcreator1', title: 'New Creator', urlname: 'newcreator', links: ['https://www.youtube.com/@NewCreator'], channels: [] }] }],
+    [/floatplane\.com\/api\/v3\/creator\/list/, new Error()], [/content\/creator/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'fpvideo0001', title: 'x', author: 'New Creator', profileUrl: 'http://www.youtube.com/@NewCreator' } });
+  assert.equal(r.results[0].url, 'https://www.floatplane.com/post/abc');
+  assert.ok(r.results[0].subscribed);
+  assert.ok(!env.calls.some(c => c.url.includes('content/creator')), 'no post search for a known video');
+  const fpl = (await env.send({ type: 'fpCreators' })).creators;
+  assert.ok(fpl.some(c => c.title === 'New Creator') && !fpl.some(c => c.title === 'EposVox'), 'master creators replace built-in');
+  console.log('ok  master list Floatplane creators and videos used');
+
+  // 22. Local match cache: a live match is remembered; later, with Nebula unreachable, it still works.
+  env = makeEnv({ nebulaSubscribed: true }, [...nebulaRoutes, [/floatplane/, new Error()]]);
+  const cinfo = { videoId: 'cachedvid01', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' };
+  await env.send({ type: 'lookup', info: cinfo });
+  assert.ok(env.store.local.matches['nebula:cachedvid01']);
+  env.routes.length = 0; env.routes.push([/./, new Error()]);       // everything down now
+  await env.chrome.storage.sync.set({ x: 1 });                        // clears the short-lived results cache
+  const before = env.calls.length;
+  r = await env.send({ type: 'lookup', info: cinfo });
+  assert.equal(r.results[0].url, 'https://nebula.tv/videos/realengineering-why-planes');
+  assert.ok(!env.calls.slice(before).some(c => /nebula\.(app|tv)/.test(c.url)), 'served from the local match cache');
+  console.log('ok  confirmed matches are remembered locally');
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
