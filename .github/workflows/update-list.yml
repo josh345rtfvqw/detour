@@ -30,6 +30,9 @@ jobs:
     timeout-minutes: 90 # the first (full) run takes longest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Build on the latest main (with the newest data), not the commit that triggered the run.
+          ref: main
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -45,9 +48,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Update known-videos list"
-          # main may have moved while the build ran (e.g. a code push): rebase onto it first.
+          # main may have moved while the build ran (e.g. a code push): rebase onto it first. If
+          # data files conflict, this run's freshly built data wins ("theirs" = the commit being
+          # replayed during a rebase).
           for i in 1 2 3; do
-            git pull --rebase origin main && git push && exit 0
+            if git pull --rebase -X theirs origin main && git push; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
             sleep 5
           done
           exit 1
