@@ -51,7 +51,6 @@
   .logo { width: 36px; height: 36px; flex-shrink: 0; display: block; }
   header h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
   header p { margin: 0; color: var(--muted); font-size: 12.5px; }
-  .version { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
   h2 { margin: 0 0 8px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
@@ -130,7 +129,8 @@
   }
   button.ghost:hover { background: var(--field); }
   .status { color: var(--muted); font-size: 12.5px; }
-  footer a { margin-left: auto; color: var(--muted); font-size: 12.5px; }
+  footer .meta { margin-left: auto; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  footer .meta a { color: var(--muted); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -142,7 +142,6 @@
       <h1>Detour</h1>
       <p>Watch YouTube videos on Nebula and Floatplane instead.</p>
     </div>
-    <span class="version" id="version"></span>
   </header>
 
   <section aria-labelledby="h-subs">
@@ -228,7 +227,7 @@
     <button class="ghost" id="clearCache">Refresh data</button>
     <button class="ghost" id="resetBanners">Show hidden banners</button>
     <span class="status" id="status" role="status"></span>
-    <a href="https://github.com/josh345rtfvqw/detour" target="_blank" rel="noopener">GitHub</a>
+    <span class="meta"><span id="version"></span> · <a href="https://github.com/josh345rtfvqw/detour" target="_blank" rel="noopener">GitHub</a></span>
   </footer>
 </div>
 <script src="floatplane-defaults.js"></script>
