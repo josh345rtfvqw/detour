@@ -88,6 +88,8 @@ youtube, nebula, floatplane, video, redirect, creators
 
 ### Support
 
+- **Homepage:** `https://josh345rtfvqw.github.io/detour/`
+
 - **Support email:** leave blank, or use an address you're happy to publish.
 - **Support website:** `https://josh345rtfvqw.github.io/detour/SUPPORT.html`
 
@@ -97,7 +99,7 @@ youtube, nebula, floatplane, video, redirect, creators
 
 ### Privacy policy
 
-AMO asks for the policy as **text**, not a link. Paste the contents of [`PRIVACY.md`](../PRIVACY.md). It covers what's sent to Nebula and Floatplane, what's stored, and that there's no server or analytics. That matches the `browsingActivity` and `websiteContent` data collection declared in the manifest.
+AMO asks for the policy as **text**, not a link. Paste the text of [`PRIVACY.md`](../PRIVACY.md), the same policy published at https://josh345rtfvqw.github.io/detour/PRIVACY.html. It covers what's sent to Nebula and Floatplane, what's stored, and that there's no server or analytics. That matches the `browsingActivity` and `websiteContent` data collection declared in the manifest.
 
 ### "Requires payment, non-free services or software"
 
