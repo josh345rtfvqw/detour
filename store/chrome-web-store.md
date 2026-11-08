@@ -63,19 +63,25 @@ English
 
 ### Graphic assets
 
-| Asset | Required | Size | Status |
+| Asset | Required | Size | File |
 |---|---|---|---|
-| Store icon | Yes | 128×128 PNG | Done: `icons/icon128.png` |
-| Screenshots | At least 1, up to 5 | 1280×800 or 640×400 | To do |
-| Small promo tile | Optional (needed for featuring) | 440×280 | To do |
-| Marquee promo tile | Optional | 1400×560 | To do |
+| Store icon | Yes | 128×128 PNG | `icons/icon128.png` |
+| Screenshots | At least 1, up to 5 | 1280×800 | `store/assets/screenshot-1-video.png` … `screenshot-5-settings.png` |
+| Small promo tile | Optional (needed for featuring) | 440×280 | `store/assets/promo-small-440x280.png` |
+| Marquee promo tile | Optional | 1400×560 | `store/assets/promo-marquee-1400x560.png` |
 
-Suggested screenshots:
-1. A video page with the "Watch on Nebula" chip next to the title.
-2. The auto-redirect countdown ("Opening on Nebula in 3s…").
-3. A channel page with the Nebula banner under Subscribe.
-4. The settings popup, with subscriptions ticked.
-5. The settings popup in light mode, or the Floatplane creator list.
+Upload the screenshots in this order:
+1. **Watch it where you already subscribe:** the "Watch on Nebula" chip next to the video title.
+2. **Or go there automatically:** the redirect countdown.
+3. **Find creators' channels too:** the channel-page banner.
+4. **Nebula and Floatplane:** the Floatplane chip, in light theme.
+5. **You decide how it works:** the settings popup.
+
+The images show the real extension running on a generic mock video site. They avoid YouTube's branding, and the creators are made up. To regenerate them after UI changes, run:
+
+```bash
+PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 node store/assets/make-store-images.js
+```
 
 ### Additional fields
 
@@ -171,6 +177,6 @@ https://github.com/josh345rtfvqw/detour/blob/main/PRIVACY.md
 
 - [ ] Pay the one-time $5 developer registration fee, if you haven't already.
 - [ ] Upload the release zip (for example `detour-0.3.9.zip` from GitHub Releases).
-- [ ] Add at least one 1280×800 screenshot.
+- [ ] Upload the five screenshots and the promo tiles from `store/assets/`.
 - [ ] Check that the privacy policy URL opens publicly. The repository must be public.
 - [ ] Expect review to take a few days. Host permissions on youtube.com can mean a closer manual review.
