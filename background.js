@@ -29,10 +29,39 @@ function safeUrl(url) {
 const sanitizeResults = results => results.map(r => ({ ...r, url: safeUrl(r.url) })).filter(r => r.url);
 const SLUG = /^[\w-]{1,100}$/;
 
+// Identify Detour (and its version) to Nebula and Floatplane, as Floatplane asks API clients to:
+// the browser's own User-Agent with "Detour/<version> (+repo URL)" appended.
+const DETOUR_UA_TOKEN = `Detour/${chrome.runtime.getManifest().version} (+https://github.com/josh345rtfvqw/detour)`;
+const DETOUR_UA = `${(typeof navigator !== 'undefined' && navigator.userAgent) || ''} ${DETOUR_UA_TOKEN}`.trim();
+const UA_RULE_ID = 1;
+
+// fetch() can't change User-Agent in Chrome, so a session header rule sets it on requests the
+// extension itself makes (tabId -1) to these sites. The user's own browsing isn't touched.
+async function installUserAgentRule() {
+  try {
+    await chrome.declarativeNetRequest.updateSessionRules({
+      removeRuleIds: [UA_RULE_ID],
+      addRules: [{
+        id: UA_RULE_ID, priority: 1,
+        action: { type: 'modifyHeaders', requestHeaders: [{ header: 'User-Agent', operation: 'set', value: DETOUR_UA }] },
+        condition: { requestDomains: ['floatplane.com', 'nebula.app', 'nebula.tv'], tabIds: [-1], resourceTypes: ['xmlhttprequest', 'other'] },
+      }],
+    });
+  } catch (e) { console.warn('[detour] could not set User-Agent rule', e); }
+}
+const uaReady = installUserAgentRule();
+
+// All network requests go through here: waits for the header rule, and also sets User-Agent
+// directly (Firefox honours that even where the rule isn't available).
+async function detourFetch(url, init = {}) {
+  await uaReady;
+  return fetch(url, { ...init, headers: { ...(init.headers || {}), 'User-Agent': DETOUR_UA } });
+}
+
 const getSettings = async () => ({ ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)) });
 
 async function getJSON(url, init = {}) {
-  const res = await fetch(url, init);
+  const res = await detourFetch(url, init);
   if (!res.ok) throw new Error(`${res.status} ${url}`);
   return res.json();
 }
@@ -93,7 +122,7 @@ function parseCreatorWall(html) {
 
 function loadNebulaCreators() {
   return cached('nebulaCreators', DAY, async () => {
-    const res = await fetch('https://talent.nebula.tv/creators/', { credentials: 'omit' });
+    const res = await detourFetch('https://talent.nebula.tv/creators/', { credentials: 'omit' });
     if (!res.ok) throw new Error(`creator wall ${res.status}`);
     const creators = parseCreatorWall(await res.text());
     if (!creators.length) throw new Error('no creators found on talent.nebula.tv (page layout may have changed)');
@@ -117,7 +146,7 @@ function loadNebulaEpisodes(slug) {
 
 // Nebula's public per-channel RSS feed (see blog.nebula.tv/rss-feed). Fewer items than the API.
 async function loadNebulaRss(slug) {
-  const res = await fetch(`https://rss.nebula.app/video/channels/${slug}.rss`, { credentials: 'omit' });
+  const res = await detourFetch(`https://rss.nebula.app/video/channels/${slug}.rss`, { credentials: 'omit' });
   if (!res.ok) throw new Error(`RSS ${res.status}`);
   const xml = await res.text();
   const text = (block, tag) => {

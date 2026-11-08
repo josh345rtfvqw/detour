@@ -38,6 +38,10 @@ Then click the extension icon:
 | Nebula | Nebula's creator wall ([talent.nebula.tv/creators](https://talent.nebula.tv/creators/)) | Nebula's public content API (newest 100 videos, then search); falls back to Nebula's [RSS feeds](https://blog.nebula.tv/rss-feed/) | No |
 | Floatplane | The YouTube links each Floatplane creator/channel lists | Floatplane's post search | Your own floatplane.com login (browser cookies) |
 
+Requests to Nebula and Floatplane identify the extension. Floatplane asks API clients to do this.
+They use the browser's normal User-Agent with `Detour/<version> (+https://github.com/josh345rtfvqw/detour)` added on the end.
+In Chrome, a header rule applies it to the extension's own requests only. Your own browsing of those sites isn't changed.
+
 Videos are matched by title similarity, with a boost when release dates are within about a week.
 Auto-redirect only happens above the confidence threshold set in the settings (default 0.75).
 Each video redirects at most once per tab, so pressing Back keeps you on YouTube.

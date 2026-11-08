@@ -17,13 +17,15 @@ function makeEnv(sync, routes) {
     clear: async () => { for (const k in s) delete s[k]; },
   });
   const tabsOpened = [];
+  const dnr = [];
   let listener;
   const calls = [];
   const ctx = {
     console: { log() {}, warn() {} }, URL, URLSearchParams, Date, Promise, Map, Set, encodeURIComponent,
     chrome: {
       storage: { sync: area(store.sync, 'sync'), local: area(store.local, 'local'), onChanged: { addListener: f => changeListeners.push(f) } },
-      runtime: { onMessage: { addListener: f => (listener = f) } },
+      runtime: { onMessage: { addListener: f => (listener = f) }, getManifest: () => ({ version: '9.9.9' }) },
+      declarativeNetRequest: { updateSessionRules: async o => { dnr.push(o); } },
       tabs: { create: async o => { tabsOpened.push(o.url); } },
     },
     fetch: async (url, init) => {
@@ -40,7 +42,7 @@ function makeEnv(sync, routes) {
   vm.runInContext(fs.readFileSync(path.join(root, 'floatplane-defaults.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(root, 'background.js'), 'utf8'), ctx);
   const send = msg => new Promise(r => listener(msg, {}, r));
-  return { send, calls, store, tabsOpened, routes, chrome: ctx.chrome };
+  return { send, calls, store, tabsOpened, routes, dnr, chrome: ctx.chrome };
 }
 
 // Mock of Nebula's creator wall (talent.nebula.tv/creators): one card with a Nebula link,
@@ -213,5 +215,17 @@ const fpRoutes = [
   const nebKeys = Object.keys(env.store.local).filter(k => k.startsWith('neb:'));
   assert.ok(nebKeys.length <= 60 && nebKeys.includes('neb:fresh'), String(nebKeys.length));
   console.log('ok  episode caches pruned to', nebKeys.length);
+  // 18. Every request identifies Detour and its version (Floatplane asks API clients to), and a
+  //     header rule sets it for extension-made requests only (tabId -1), not the user's tabs.
+  env = makeEnv({ floatplaneCreators: ['ltt'] }, [...nebulaRoutes, ...fpRoutes]);
+  await env.send({ type: 'lookup', info: { videoId: 'ua1', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' } });
+  assert.ok(env.calls.length > 0);
+  for (const c of env.calls) assert.match(c.init.headers['User-Agent'], /Detour\/9\.9\.9 \(\+https:\/\/github\.com\/josh345rtfvqw\/detour\)$/, c.url);
+  const rule = env.dnr[0].addRules[0];
+  assert.equal(rule.action.requestHeaders[0].header, 'User-Agent');
+  assert.match(rule.action.requestHeaders[0].value, /Detour\/9\.9\.9/);
+  assert.deepEqual(rule.condition.tabIds, [-1]);
+  assert.ok(rule.condition.requestDomains.includes('floatplane.com'));
+  console.log('ok  User-Agent identifies Detour/<version> on all', env.calls.length, 'requests');
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

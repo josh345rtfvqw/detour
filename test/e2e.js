@@ -128,6 +128,18 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
   assert.equal(await page.$('.detour-banner'), null, 'dismissed banner should stay hidden');
   console.log('dismissed banner stays hidden');
 
+  // 8. A header rule gives the extension's own requests to Nebula / Floatplane a User-Agent of
+  //    "<browser UA> Detour/<version> (+repo)". (Playwright's interception sees requests before
+  //    the rule applies, so check the installed rule; the on-the-wire header was verified with a
+  //    local HTTPS server standing in for floatplane.com.)
+  const version = require('../manifest.json').version;
+  const rules = await sw.evaluate(() => chrome.declarativeNetRequest.getSessionRules());
+  const ua = rules.find(r => r.action.requestHeaders?.[0]?.header === 'User-Agent');
+  assert.ok(ua, 'User-Agent rule installed');
+  assert.ok(ua.action.requestHeaders[0].value.endsWith(`Detour/${version} (+https://github.com/josh345rtfvqw/detour)`));
+  assert.deepEqual(ua.condition.tabIds, [-1], 'only the extension\'s own requests, not the user\'s tabs');
+  assert.ok(['floatplane.com', 'nebula.app', 'nebula.tv'].every(d => ua.condition.requestDomains.includes(d)));
+  console.log('User-Agent rule:', ua.action.requestHeaders[0].value);
   console.log('\ne2e passed');
   await ctx.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
