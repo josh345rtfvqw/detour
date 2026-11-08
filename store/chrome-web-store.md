@@ -169,6 +169,15 @@ https://github.com/josh345rtfvqw/detour/blob/main/PRIVACY.md
 
 ---
 
+## Test instructions tab
+
+- **Username / Password:** leave blank. No account is needed, and don't share your own Floatplane login.
+- **Additional instructions (max 500):**
+
+```
+No account needed. 1) Click the Detour toolbar icon, turn on "Nebula", choose "Show a button". 2) Open a recent YouTube video by a Nebula creator, e.g. Real Engineering, Wendover Productions or Half as Interesting: a "Watch on Nebula" button appears beside the title. 3) Open that creator's channel: a banner appears under Subscribe. 4) Choose "Redirect me" and open another of their videos: a 3s countdown, then Nebula opens. Floatplane works the same when logged in.
+```
+
 ## Distribution tab
 
 - **Visibility:** Public, or Unlisted if you want to share it with a link first.
