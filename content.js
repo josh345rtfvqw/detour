@@ -1,7 +1,7 @@
 // Content script on YouTube: on each watch page, ask the background whether the
 // video is on Nebula/Floatplane, then either auto-redirect or show a button.
 (() => {
-  const SKIP_KEY = 'altRedirectSkip';
+  const SKIP_KEY = 'detourSkip';
   let currentVideo = null;
   let ui = null;
   let countdownTimer = null;
@@ -19,12 +19,12 @@
     return new Promise(resolve => {
       const nonce = Math.random().toString(36).slice(2);
       const onMsg = ev => {
-        if (ev.source !== window || ev.data?.source !== 'alt-redirect-page' || ev.data.nonce !== nonce) return;
+        if (ev.source !== window || ev.data?.source !== 'detour-page' || ev.data.nonce !== nonce) return;
         window.removeEventListener('message', onMsg);
         resolve(ev.data.info);
       };
       window.addEventListener('message', onMsg);
-      window.postMessage({ source: 'alt-redirect-cs', type: 'getInfo', videoId, nonce }, '*');
+      window.postMessage({ source: 'detour-cs', type: 'getInfo', videoId, nonce }, '*');
       setTimeout(() => { window.removeEventListener('message', onMsg); resolve(null); }, 500);
     });
   }
@@ -67,7 +67,7 @@
         href: r.url, target: '_blank', rel: 'noopener',
         title: r.kind === 'video' ? `Matched “${r.title}” (${Math.round(r.confidence * 100)}% confidence)` : 'This video wasn’t found, but the channel is there',
       }, label);
-      a.addEventListener('click', () => window.postMessage({ source: 'alt-redirect-cs', type: 'pause' }, '*'));
+      a.addEventListener('click', () => window.postMessage({ source: 'detour-cs', type: 'pause' }, '*'));
       ui.append(a);
     }
     // Sit next to the channel / subscribe row under the video; float in the corner if it's not found.
@@ -83,7 +83,7 @@
 
   function autoRedirect(r, settings, videoId) {
     clearUI();
-    window.postMessage({ source: 'alt-redirect-cs', type: 'pause' }, '*');
+    window.postMessage({ source: 'detour-cs', type: 'pause' }, '*');
     markSkipped(videoId); // never redirect the same video twice in this tab (e.g. after Back)
     let left = 3;
     const go = () => {
@@ -116,9 +116,9 @@
 
     let resp;
     try { resp = await chrome.runtime.sendMessage({ type: 'lookup', info }); }
-    catch (e) { console.warn('[alt-redirect]', e); return; }
+    catch (e) { console.warn('[detour]', e); return; }
     if (!resp || resp.error || videoIdFromUrl() !== videoId) {
-      if (resp?.error) console.warn('[alt-redirect]', resp.error);
+      if (resp?.error) console.warn('[detour]', resp.error);
       return;
     }
     const { results, settings } = resp;

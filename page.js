@@ -8,7 +8,7 @@
   };
 
   window.addEventListener('message', ev => {
-    if (ev.source !== window || ev.data?.source !== 'alt-redirect-cs') return;
+    if (ev.source !== window || ev.data?.source !== 'detour-cs') return;
     const { type, videoId, nonce } = ev.data;
     if (type === 'getInfo') {
       const r = playerResponse();
@@ -22,7 +22,7 @@
         profileUrl: mf?.ownerProfileUrl || '',
         publishDate: mf?.publishDate || mf?.uploadDate || '',
       } : null;
-      window.postMessage({ source: 'alt-redirect-page', nonce, info }, '*');
+      window.postMessage({ source: 'detour-page', nonce, info }, '*');
     } else if (type === 'pause') {
       document.getElementById('movie_player')?.pauseVideo?.();
       document.querySelector('video')?.pause();

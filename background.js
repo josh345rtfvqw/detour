@@ -33,7 +33,7 @@ async function cached(key, maxAge, loader) {
     await chrome.storage.local.set({ [key]: { t: Date.now(), v } });
     return v;
   } catch (e) {
-    console.warn('[alt-redirect] load failed', key, e);
+    console.warn('[detour] load failed', key, e);
     if (hit) return hit.v; // stale is better than nothing
     throw e;
   }
@@ -50,7 +50,7 @@ function loadNebulaCreators() {
     try {
       const list = await getJSON('https://raw.githubusercontent.com/cpiber/NebulaEnhance/master/channels.json');
       for (const c of list) creators.push({ name: c.name, slug: c.nebula || c.nebulaAlt, alt: c.nebulaAlt, ytId: c.channel });
-    } catch (e) { console.warn('[alt-redirect] channels.json', e); }
+    } catch (e) { console.warn('[detour] channels.json', e); }
     try {
       const html = await (await fetch('https://talent.nebula.tv/creators/')).text();
       for (const block of html.split(/class="[^"]*\byoutube-creator\b/).slice(1)) {
@@ -59,7 +59,7 @@ function loadNebulaCreators() {
         const link = (block.match(/href="https?:\/\/nebula\.tv\/([\w-]+)\/?"/) || [])[1];
         if (ytId && link && !creators.some(c => c.ytId === ytId)) creators.push({ name, slug: link, ytId });
       }
-    } catch (e) { console.warn('[alt-redirect] talent page', e); }
+    } catch (e) { console.warn('[detour] talent page', e); }
     if (!creators.length) throw new Error('no Nebula creator data');
     return creators;
   });
@@ -73,7 +73,7 @@ function loadNebulaEpisodes(slug) {
         { headers: NEBULA_HEADERS, credentials: 'omit' });
       return body.results.map(v => ({ title: v.title, date: v.published_at, url: v.share_url || `https://nebula.tv/videos/${v.slug}` }));
     } catch (e) {
-      console.warn('[alt-redirect] nebula API failed, trying RSS', slug, e);
+      console.warn('[detour] nebula API failed, trying RSS', slug, e);
       return loadNebulaRss(slug);
     }
   });
@@ -113,14 +113,14 @@ async function lookupNebula(info, settings) {
     try {
       const m = bestMatch(info.title, info.publishDate, await loadNebulaEpisodes(slug));
       if (m && (!best || m.confidence > best.confidence)) best = m;
-    } catch (e) { console.warn('[alt-redirect] nebula episodes', slug, e); }
+    } catch (e) { console.warn('[detour] nebula episodes', slug, e); }
   }
   // Older videos fall outside the newest 100: try Nebula's search.
   if (!best || best.confidence < settings.minConfidence) {
     try {
       const m = bestMatch(info.title, info.publishDate, await searchNebula(info.title, slugs));
       if (m && (!best || m.confidence > best.confidence)) best = m;
-    } catch (e) { console.warn('[alt-redirect] nebula search', e); }
+    } catch (e) { console.warn('[detour] nebula search', e); }
   }
   const base = { platform: 'nebula', subscribed: settings.nebulaSubscribed, creator: matches[0].name };
   if (best && best.confidence >= 0.45) return { ...base, kind: 'video', url: best.url, title: best.title, confidence: best.confidence };
@@ -183,7 +183,7 @@ async function lookupFloatplane(info, settings) {
     const cands = [];
     for (const search of [info.title, '']) { // title search, then the newest posts
       try { cands.push(...await floatplanePosts(hit.creator.id, hit.channel?.id, search)); }
-      catch (e) { console.warn('[alt-redirect] floatplane posts', e); }
+      catch (e) { console.warn('[detour] floatplane posts', e); }
     }
     const m = bestMatch(info.title, info.publishDate, cands);
     if (m && (!best || m.confidence > best.confidence)) { best = m; bestHit = hit; }

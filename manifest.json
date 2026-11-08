@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Alt Redirect: YouTube to Nebula & Floatplane",
+  "name": "Detour",
   "version": "0.1.0",
-  "description": "Shows when a YouTube video is also on Nebula or Floatplane, and redirects there automatically if you subscribe.",
+  "description": "Watch YouTube videos on Nebula or Floatplane instead: shows a button, or redirects automatically if you subscribe.",
   "permissions": [
     "storage"
   ],
@@ -61,7 +61,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "alt-redirect@example.local",
+      "id": "detour@josh345rtfvqw.github.io",
       "strict_min_version": "128.0"
     }
   }

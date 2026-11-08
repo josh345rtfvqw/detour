@@ -1,4 +1,6 @@
-# Alt Redirect: YouTube → Nebula & Floatplane
+# Detour
+
+*Watch YouTube videos on Nebula & Floatplane instead.*
 
 A Chrome/Firefox extension. On a YouTube video page it checks whether the same video
 is on **Nebula** or **Floatplane**. Then it either:
