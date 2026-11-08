@@ -1,53 +1,242 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Detour settings</title>
 <style>
-  :root { color-scheme: light dark; --muted: #777; --line: rgba(127,127,127,.3); }
-  body { font: 14px/1.4 system-ui, sans-serif; margin: 0; padding: 16px; min-width: 340px; max-width: 560px; }
-  h1 { font-size: 16px; margin: 0 0 12px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; }
-  label.row { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
-  .hint { color: var(--muted); font-size: 12px; margin: 2px 0 6px 24px; }
-  #fpList { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
-  #fpList img { width: 20px; height: 20px; border-radius: 50%; }
-  input[type=search] { width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 6px; }
-  select, input[type=number] { padding: 3px 4px; }
-  .status { color: var(--muted); font-size: 12px; }
-  button { padding: 6px 10px; }
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f6f8;
+    --card: #ffffff;
+    --text: #15151a;
+    --muted: #5c5d6b;
+    --line: #e4e4ea;
+    --field: #f0f0f4;
+    --focus: #3b5bdb;
+    --nebula: #5b5fe0;
+    --nebula-tint: #ecedfd;
+    --floatplane: #0077b0;
+    --floatplane-tint: #e2f2fa;
+    --on: #3b5bdb;
+    --shadow: 0 1px 2px rgba(20, 20, 30, .06), 0 1px 1px rgba(20, 20, 30, .04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f0f12;
+      --card: #1a1a20;
+      --text: #f1f1f4;
+      --muted: #a4a5b2;
+      --line: #2c2c35;
+      --field: #24242c;
+      --focus: #8ea2ff;
+      --nebula-tint: #1c1d3a;
+      --floatplane-tint: #0b2633;
+      --on: #6f84ff;
+      --shadow: none;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-width: 360px;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+
+  header { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--nebula);
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  header h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 12.5px; }
+  .version { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  h2 { margin: 0 0 8px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 56px; }
+  .row + .row, .row + .sub, .sub + .row { border-top: 1px solid var(--line); }
+  .row .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .row .title { font-weight: 600; }
+  .row .desc { color: var(--muted); font-size: 12.5px; }
+  .row.stack { flex-direction: column; align-items: stretch; gap: 10px; }
+
+  .mark {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 16px;
+  }
+  .mark.nebula { background: var(--nebula); }
+  .mark.floatplane { background: var(--floatplane); }
+  .platform.nebula.active { background: var(--nebula-tint); }
+  .platform.floatplane.active { background: var(--floatplane-tint); }
+
+  /* Switch: a real checkbox, restyled. */
+  input.switch {
+    appearance: none; -webkit-appearance: none; margin: 0; flex-shrink: 0;
+    width: 40px; height: 24px; border-radius: 12px;
+    background: var(--line); position: relative; cursor: pointer;
+    transition: background .15s;
+  }
+  input.switch::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .15s;
+  }
+  input.switch:checked { background: var(--on); }
+  input.switch.nebula:checked { background: var(--nebula); }
+  input.switch.floatplane:checked { background: var(--floatplane); }
+  input.switch:checked::after { transform: translateX(16px); }
+  input.switch:disabled { opacity: .45; cursor: default; }
+  input:focus-visible, button:focus-visible, a:focus-visible, .seg label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* Segmented control: radio inputs laid over their labels. */
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  legend { padding: 0; font-weight: 600; margin-bottom: 8px; }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding: 4px; border-radius: 10px; background: var(--field); }
+  .seg label {
+    position: relative; text-align: center; padding: 7px 8px; border-radius: 7px;
+    font-weight: 500; color: var(--muted); cursor: pointer; user-select: none;
+  }
+  .seg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+  .seg label:has(input:checked) { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 6px 2px 0; }
+
+  /* Floatplane creator picker */
+  .sub { padding: 10px 14px 14px; background: var(--card); }
+  .search { position: relative; margin-bottom: 8px; }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .search input {
+    width: 100%; height: 36px; padding: 0 10px 0 32px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--field); color: var(--text); font: inherit;
+  }
+  #fpList { max-height: 240px; overflow: auto; margin: 0 -6px; }
+  .creator { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 8px; cursor: pointer; }
+  .creator:hover { background: var(--field); }
+  .creator img, .creator .ph { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; object-fit: cover; background: var(--line); }
+  .creator .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { padding: 14px 6px; color: var(--muted); font-size: 13px; }
+  .empty a { color: var(--floatplane); font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .empty a { color: #4dc3f5; } }
+  .count { font-size: 12px; font-weight: 600; color: var(--floatplane); }
+  @media (prefers-color-scheme: dark) { .count { color: #4dc3f5; } }
+
+  footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button.ghost {
+    height: 34px; padding: 0 12px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+    font: 500 13px system-ui, sans-serif; cursor: pointer;
+  }
+  button.ghost:hover { background: var(--field); }
+  .status { color: var(--muted); font-size: 12.5px; }
+  footer a { margin-left: auto; color: var(--muted); font-size: 12.5px; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-  <h1>Detour</h1>
+<div class="wrap">
+  <header>
+    <span class="logo" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18c4 0 4-12 8-12h8"></path><path d="M16 2l4 4-4 4"></path></svg>
+    </span>
+    <div>
+      <h1>Detour</h1>
+      <p>Watch YouTube videos on Nebula and Floatplane instead.</p>
+    </div>
+    <span class="version" id="version"></span>
+  </header>
 
-  <h2>My subscriptions</h2>
-  <label class="row"><input type="checkbox" id="nebulaSubscribed"> I subscribe to Nebula</label>
-  <div class="hint">One Nebula subscription covers every Nebula creator.</div>
+  <section aria-labelledby="h-subs">
+    <h2 id="h-subs">Your subscriptions</h2>
+    <div class="card">
+      <label class="row platform nebula" id="nebulaRow">
+        <span class="mark nebula" aria-hidden="true">N</span>
+        <span class="text">
+          <span class="title">Nebula</span>
+          <span class="desc">One subscription covers every Nebula creator.</span>
+        </span>
+        <input type="checkbox" class="switch nebula" id="nebulaSubscribed" role="switch" aria-label="I subscribe to Nebula">
+      </label>
+      <div class="row platform floatplane" id="fpRow">
+        <span class="mark floatplane" aria-hidden="true">F</span>
+        <span class="text">
+          <span class="title">Floatplane</span>
+          <span class="desc">Tick the creators you subscribe to.</span>
+        </span>
+        <span class="count" id="fpCount"></span>
+      </div>
+      <div class="sub">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <input type="search" id="fpFilter" placeholder="Search Floatplane creators" aria-label="Search Floatplane creators">
+        </div>
+        <div id="fpList" role="group" aria-label="Floatplane creators"><div class="empty">Loading creators…</div></div>
+      </div>
+    </div>
+  </section>
 
-  <div><strong>Floatplane creators I subscribe to</strong></div>
-  <div class="hint" style="margin-left:0">Uses your floatplane.com login to list creators. Log in there first if the list is empty.</div>
-  <input type="search" id="fpFilter" placeholder="Filter creators…">
-  <div id="fpList"><div class="status">Loading…</div></div>
+  <section aria-labelledby="h-yt">
+    <h2 id="h-yt">On YouTube</h2>
+    <div class="card">
+      <div class="row stack">
+        <fieldset>
+          <legend>When a video I subscribe to is found</legend>
+          <div class="seg">
+            <label><input type="radio" name="mode" value="redirect">Redirect me</label>
+            <label><input type="radio" name="mode" value="button">Show a button</label>
+          </div>
+          <p class="hint" id="modeHint"></p>
+        </fieldset>
+      </div>
+      <label class="row" id="newTabRow">
+        <span class="text">
+          <span class="title">Open in a new tab</span>
+          <span class="desc">Keep YouTube open and go to the other site in a new tab.</span>
+        </span>
+        <input type="checkbox" class="switch" id="newTab" role="switch">
+      </label>
+      <label class="row">
+        <span class="text">
+          <span class="title">Show other platforms too</span>
+          <span class="desc">Show the button for platforms you don't subscribe to.</span>
+        </span>
+        <input type="checkbox" class="switch" id="showButton" role="switch">
+      </label>
+      <div class="row stack">
+        <fieldset>
+          <legend>When a video is on both</legend>
+          <div class="seg">
+            <label><input type="radio" name="preferred" value="nebula">Prefer Nebula</label>
+            <label><input type="radio" name="preferred" value="floatplane">Prefer Floatplane</label>
+          </div>
+        </fieldset>
+      </div>
+      <div class="row stack">
+        <fieldset>
+          <legend>Title matching for redirects</legend>
+          <div class="seg">
+            <label><input type="radio" name="minConfidence" value="0.6">Loose</label>
+            <label><input type="radio" name="minConfidence" value="0.75">Balanced</label>
+            <label><input type="radio" name="minConfidence" value="0.9">Strict</label>
+          </div>
+          <p class="hint">Stricter means fewer redirects, but fewer wrong ones too.</p>
+        </fieldset>
+      </div>
+    </div>
+  </section>
 
-  <h2>Behaviour</h2>
-  <div><strong>When I'm subscribed and the video is found:</strong></div>
-  <label class="row"><input type="radio" name="mode" value="redirect"> Redirect automatically (3-second countdown, with “Stay on YouTube”)</label>
-  <label class="row"><input type="radio" name="mode" value="button"> Just show a “Watch on …” button next to the video</label>
-  <label class="row"><input type="checkbox" id="newTab"> Open in a new tab instead of leaving YouTube</label>
-  <label class="row"><input type="checkbox" id="showButton"> Show the button for platforms I'm <em>not</em> subscribed to too</label>
-  <label class="row">Prefer
-    <select id="preferred"><option value="nebula">Nebula</option><option value="floatplane">Floatplane</option></select>
-    when a video is on both
-  </label>
-  <label class="row">Minimum match confidence to auto-redirect
-    <input type="number" id="minConfidence" min="0.5" max="1" step="0.05" style="width:60px">
-  </label>
-  <div class="hint">Matching is by title (and release date). Lower = more redirects but more wrong guesses.</div>
-
-  <h2>Data</h2>
-  <button id="clearCache">Refresh creator & video data</button> <span class="status" id="cacheStatus"></span>
-
-  <script src="options.js"></script>
+  <footer>
+    <button class="ghost" id="clearCache">Refresh data</button>
+    <button class="ghost" id="resetBanners">Show hidden banners</button>
+    <span class="status" id="status" role="status"></span>
+    <a href="https://github.com/josh345rtfvqw/detour" target="_blank" rel="noopener">GitHub</a>
+  </footer>
+</div>
+<script src="options.js"></script>
 </body>
 </html>
