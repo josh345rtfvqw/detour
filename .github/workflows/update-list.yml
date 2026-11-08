@@ -35,10 +35,6 @@ jobs:
           node-version: 22
       - name: Build the list
         run: node scripts/build-known.js
-        env:
-          # Optional: session cookie of a dedicated free Floatplane account (repo secret).
-          # Floatplane's API requires a login; without it, Floatplane is skipped.
-          FLOATPLANE_COOKIE: ${{ secrets.FLOATPLANE_COOKIE }}
       - name: Commit if changed
         run: |
           git add -A data

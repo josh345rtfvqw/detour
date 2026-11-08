@@ -25,11 +25,10 @@
 //   overrides: { "videos": { "<YouTube video ID>": { "nebula": "<slug>" | null, "floatplane": "<post id>" | null } } }
 //   A value sets that column; null removes a wrong match (keep the null, or it can come back).
 //
-// Nebula and YouTube are fetched without logging in. Floatplane's API requires a login: if the
-// FLOATPLANE_COOKIE environment variable is set (a GitHub Actions secret holding the session
-// cookie of a dedicated free Floatplane account, e.g. "sails.sid=..."), it is sent to
-// www.floatplane.com only; otherwise Floatplane is skipped. If a source refuses, that part is
-// skipped and the previous data is kept.
+// Everything is fetched anonymously: no logins, cookies or credentials, ever. If a source refuses,
+// that part is skipped (logged once, not retried in a loop) and the previous data is kept. If
+// Floatplane's creator list is refused, each creator's posts are still fetched using the IDs
+// already known; if the posts endpoint refuses too, Floatplane is skipped for that run.
 const fs = require('fs');
 const path = require('path');
 const { bestMatch, parseCreatorWall, decodeHtml, SLUG } = require('../match.js');
@@ -195,7 +194,7 @@ function readPrevious(previous) {
 
 // ------------------------------------------------------------------ build
 
-async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'data'), now = new Date(), log = console.log, delayMs = 400, retryBaseMs = 2000, floatplaneCookie = process.env.FLOATPLANE_COOKIE || '' } = {}) {
+async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'data'), now = new Date(), log = console.log, delayMs = 400, retryBaseMs = 2000 } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const failures = {};          // "host status" -> count, for the log
   const refusalsLogged = new Set();
@@ -205,8 +204,8 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     const host = (() => { try { return new URL(url).hostname; } catch { return '?'; } })();
     for (let attempt = 0; ; attempt++) {
       let res;
+      // Anonymous requests only: no cookies or credentials are ever sent.
       const headers = { 'User-Agent': UA, 'Accept': type === 'json' ? 'application/json' : '*/*' };
-      if (floatplaneCookie && host === 'www.floatplane.com') headers.Cookie = floatplaneCookie; // never sent anywhere else
       try { res = await fetchFn(url, { headers }); }
       catch (e) { if (attempt < 3) { await sleep(retryBaseMs * 2 ** attempt); continue; } failures[`${host} network`] = (failures[`${host} network`] || 0) + 1; throw e; }
       if (res.ok) return type === 'json' ? res.json() : res.text();
@@ -292,25 +291,29 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   });
   log(`nebula: ${nebNew} new catalogue videos (${nebFailed} channels failed), ${matched.nebula} new pre-matched videos`);
 
-  // 2. Floatplane: creators, full catalogues.
-  log(`floatplane login: ${floatplaneCookie ? 'session cookie provided' : 'none (FLOATPLANE_COOKIE not set)'}`);
-  const { creators: fpCreators, refused } = await buildFloatplaneCreators({ get, log, handCreators, previousCreators: prev.fpCreators });
-  let fpNew = 0, fpFailed = 0;
+  // 2. Floatplane: creators (live list, else hand-edited / previous IDs), then each creator's
+  //    newest posts. A refused creator list doesn't stop the post fetches; a refused post fetch
+  //    does (no point asking again for every creator).
+  const { creators: fpCreators } = await buildFloatplaneCreators({ get, log, handCreators, previousCreators: prev.fpCreators });
+  let fpNew = 0, fpFailed = 0, postsRefused = false;
   const fpCatalog = {};
   for (const c of fpCreators) if (FP_ID.test(c.id || '')) fpCatalog[c.id] = readJson(path.join(fpDir, `${c.id}.json`), []);
-  if (refused) log('floatplane catalogues skipped: Floatplane refused the creator list; previous data kept');
-  else {
-    await mapLimit(fpCreators.filter(c => FP_ID.test(c.id || '')), 1, async c => {
-      const file = path.join(fpDir, `${c.id}.json`);
-      try {
-        const updated = await updateFloatplaneCatalog({ get, sleep, delayMs, id: c.id, existing: fpCatalog[c.id] });
-        fpNew += updated.length - fpCatalog[c.id].length;
-        writeIfChanged(file, updated);
-        fpCatalog[c.id] = updated;
-      } catch (e) { fpFailed++; }
-    });
-    log(`floatplane: ${fpNew} new catalogue posts (${fpFailed} creators failed)`);
-  }
+  await mapLimit(fpCreators.filter(c => FP_ID.test(c.id || '')), 1, async c => {
+    if (postsRefused) return;
+    const file = path.join(fpDir, `${c.id}.json`);
+    try {
+      const updated = await updateFloatplaneCatalog({ get, sleep, delayMs, id: c.id, existing: fpCatalog[c.id] });
+      fpNew += updated.length - fpCatalog[c.id].length;
+      writeIfChanged(file, updated);
+      fpCatalog[c.id] = updated;
+    } catch (e) {
+      fpFailed++;
+      if (/^40[13] /.test(e.message)) postsRefused = true;
+    }
+  });
+  log(postsRefused
+    ? 'floatplane posts: refused (see the "refused by" line); previous catalogues kept'
+    : `floatplane: ${fpNew} new catalogue posts from ${Object.keys(fpCatalog).length} creators (${fpFailed} failed)`);
 
   // 3. Floatplane YouTube links -> channel IDs (resolved once, remembered), then pre-matches.
   let resolvedNew = 0, unresolved = [];

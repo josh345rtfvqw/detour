@@ -6,7 +6,7 @@ const RE_UC = 'UCR1IuLEqb6UEA_zQ81kwXfg';
 const TL_UC = 'UCeeFfhMcJa1kjtfZAGskOCA';
 const LTT_UC = 'UCXuqSBlHAE6Xw-yeJA0Tunw';
 const log = () => {};
-const opts = (dir, extra = {}) => ({ dataDir: dir, log, delayMs: 0, retryBaseMs: 1, floatplaneCookie: '', ...extra });
+const opts = (dir, extra = {}) => ({ dataDir: dir, log, delayMs: 0, retryBaseMs: 1, ...extra });
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'known-'));
 const readJ = (dir, f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
 const ok = b => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => b, text: async () => (typeof b === 'string' ? b : JSON.stringify(b)) });
@@ -28,7 +28,7 @@ function makeNet(state) {
     if (url === 'https://www.youtube.com/@techlinked') return ok(`<html><link rel="canonical" href="https://www.youtube.com/channel/${TL_UC}"></html>`);
     if (url === 'https://www.youtube.com/user/linustechtips') return ok(`<script>{"externalId":"${LTT_UC}"}</script>`);
     if (url.includes('www.floatplane.com')) {
-      if (state.fpRefuse) return { ok: false, status: 403, headers: { get: k => (k === 'server' ? 'cloudflare' : null) }, text: async () => '{"message":"You must be logged-in to access this resource."}' };
+      if (state.fpRefuse || (state.fpListRefuse && url.includes('/creator/list'))) return { ok: false, status: 403, headers: { get: k => (k === 'server' ? 'cloudflare' : null) }, text: async () => '{"message":"You must be logged-in to access this resource."}' };
       if (url.includes('/api/v3/creator/list')) return ok(state.fpCreators);
       const m = url.match(/content\/creator\?id=(\w+)&limit=20&hasVideo=true&sort=DESC&fetchAfter=(\d+)/);
       if (m) return ok((state.fpPosts[m[1]] || []).slice(+m[2], +m[2] + 20));
@@ -129,13 +129,20 @@ const baseState = () => ({
   assert.equal(readJ(dir, 'floatplane/ltt.json').length, 3);
   console.log('ok  Floatplane refusal: previous creators, channels and catalogues kept');
 
-  // ---- Floatplane cookie: sent to Floatplane only ----
+  // ---- Creator list refused but posts allowed: the daily post fetch still runs ----
   state.fpRefuse = false;
+  state.fpListRefuse = true;
+  state.fpPosts.ltt = [{ id: 'p4', title: 'Even Newer', releaseDate: '2026-11-12T10:00:00Z', channel: 'chMain' }, ...state.fpPosts.ltt];
   net = makeNet(state);
-  await build({ ...opts(tmp()), fetchFn: net.fetchFn, floatplaneCookie: 'sails.sid=secret' });
-  const withCookie = net.calls.filter(c => c.headers.Cookie);
-  assert.ok(withCookie.length > 0 && withCookie.every(c => c.url.startsWith('https://www.floatplane.com/')), 'cookie only sent to www.floatplane.com');
-  console.log('ok  Floatplane cookie sent only to floatplane.com');
+  r = await build({ ...opts(dir), fetchFn: net.fetchFn, now: new Date('2026-11-13T00:00:00Z') });
+  assert.equal(r.fpNew, 1, 'new post fetched although the creator list was refused');
+  assert.equal(readJ(dir, 'floatplane/ltt.json')[0].i, 'p4');
+  assert.equal(r.data.channels[TL_UC].floatplane, 'ltt/chTL', 'creators and channels kept from the previous run');
+  console.log('ok  creator list refused: posts still fetched with known creator IDs');
+
+  // ---- Anonymous only: no cookie or credential header is ever sent ----
+  assert.ok(net.calls.every(c => !c.headers.Cookie && !c.headers.Authorization), 'no Cookie / Authorization headers');
+  console.log('ok  all requests anonymous');
 
   // ---- rate limiting retried; network down survived ----
   const rlDir = tmp();

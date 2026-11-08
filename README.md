@@ -59,12 +59,7 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 - **Matching** works the same way for both platforms. Each creator's latest YouTube uploads, from YouTube's public RSS feeds, are matched by title and date against their catalogue. Floatplane's YouTube links (`@handles`, `/user/…`) are resolved to channel IDs once and remembered in [`data/youtube-channels.json`](data/youtube-channels.json).
 - **Hand-edited inputs:** [`data/floatplane-creators.json`](data/floatplane-creators.json) and [`data/overrides.json`](data/overrides.json), which can set or remove (`null`) a platform column for a YouTube video. Saving either file on `main` rebuilds the list straight away.
 
-**Floatplane in the list (optional).** Floatplane's API requires a login, so without one the Action skips Floatplane, and matching stays live in each user's browser. To include it:
-1. Create a **separate, free** Floatplane account for this. Don't use your own.
-2. Log in with it at floatplane.com. Open the browser's developer tools (Application → Cookies) and copy the `sails.sid` cookie's value.
-3. In the repo, go to **Settings → Secrets and variables → Actions → New repository secret**. Name it `FLOATPLANE_COOKIE` and set the value to `sails.sid=<the value>`.
-
-The Action sends that cookie to www.floatplane.com only. Session cookies expire, so if the log shows Floatplane refusing again, repeat step 2.
+**Anonymous only.** The Action never logs in anywhere and never sends cookies or credentials. If Floatplane refuses its creator list, the Action still fetches each creator's posts using the creator IDs it already knows. If Floatplane refuses those too, Floatplane is skipped for that run and the previous data is kept. Either way, Floatplane matching also works live in each user's browser, with their own session.
 
 Confirmed matches are also remembered in the browser for 30 days, so revisits need no network requests.
 
