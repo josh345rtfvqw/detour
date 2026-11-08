@@ -30,7 +30,7 @@ function mockFetch(calls) {
   fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ nebula: { manualvid01: 'https://nebula.tv/videos/manual', badvid00001: 'https://evil.example/x', 'not-an-id': 'https://nebula.tv/x' }, floatplane: { fpvideo0001: 'https://www.floatplane.com/post/p1' } }));
   const calls = [];
   const log = () => {};
-  let r = await build({ fetchFn: mockFetch(calls), dataDir: dir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0 });
+  let r = await build({ fetchFn: mockFetch(calls), dataDir: dir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   const known = JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8'));
   assert.equal(known.version, 1);
   assert.equal(known.nebula.ytvideo0001, 'https://nebula.tv/videos/realengineering-why-planes');
@@ -44,21 +44,21 @@ function mockFetch(calls) {
 
   // Second run with nothing new: no change, "generated" kept, and no Nebula requests for known videos.
   const calls2 = [];
-  r = await build({ fetchFn: mockFetch(calls2), dataDir: dir, now: new Date('2026-11-09T00:00:00Z'), log, delayMs: 0 });
+  r = await build({ fetchFn: mockFetch(calls2), dataDir: dir, now: new Date('2026-11-09T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   assert.equal(r.changed, false);
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8')).generated, '2026-11-08T00:00:00.000Z');
   console.log('ok  unchanged run keeps the file identical (no commit)');
 
   // A null override removes a wrong automatic match.
   fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ nebula: { ytvideo0001: null } }));
-  r = await build({ fetchFn: mockFetch([]), dataDir: dir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0 });
+  r = await build({ fetchFn: mockFetch([]), dataDir: dir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   assert.ok(r.changed && !('ytvideo0001' in r.data.nebula));
   console.log('ok  null override removes an entry');
 
   // Network down: existing entries are kept, nothing breaks.
   fs.writeFileSync(path.join(dir, 'overrides.json'), '{}');
   const down = async () => { throw new Error('offline'); };
-  r = await build({ fetchFn: down, dataDir: dir, now: new Date('2026-11-11T00:00:00Z'), log, delayMs: 0 });
+  r = await build({ fetchFn: down, dataDir: dir, now: new Date('2026-11-11T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   assert.equal(r.data.floatplaneCreators[0].title, 'Creator One');
   console.log('ok  survives the network being down');
   // Nebula catalogue written per channel (javascript: link from the API skipped).
@@ -90,7 +90,7 @@ function mockFetch(calls) {
     return { ok: false, status: 404 };
   };
   const readCat = id => JSON.parse(fs.readFileSync(path.join(fpDir, 'floatplane', `${id}.json`), 'utf8'));
-  r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0 });
+  r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   const fpc = r.data.floatplaneCreators;
   assert.equal(fpc.find(c => c.title === 'Level1Techs').id, 'l1t', 'name-only creator gets its real ID');
   assert.equal(fpc.find(c => c.title === 'Level1Techs').urlname, 'level1techs');
@@ -107,7 +107,7 @@ function mockFetch(calls) {
   // Next day: two new posts. Only the first page is fetched, and the new posts go on top.
   lttPosts = [...mkPosts('new', 0, 2, 'chTL'), ...lttPosts];
   fpCalls.length = 0;
-  r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-09T00:00:00Z'), log, delayMs: 0 });
+  r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-09T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   assert.equal(fpCalls.filter(u => u.includes('id=ltt&')).length, 1, 'stops at the first known post');
   assert.equal(readCat('ltt').length, 132);
   assert.equal(readCat('ltt')[0].i, 'new0');
@@ -116,9 +116,19 @@ function mockFetch(calls) {
 
   // Floatplane asks for a login: skipped, existing catalogues untouched, nothing else breaks.
   const authFetch = async url => (url.includes('floatplane.com') ? { ok: false, status: 401 } : fpFetch(url));
-  r = await build({ fetchFn: authFetch, dataDir: fpDir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0 });
+  r = await build({ fetchFn: authFetch, dataDir: fpDir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
   assert.equal(readCat('ltt').length, 132, 'catalogue kept when Floatplane refuses');
   assert.deepEqual(r.data.catalogs.floatplane, ['l1t', 'ltt']);
   console.log('ok  Floatplane login required: skipped, catalogues kept');
+  // Rate limiting: a 429 is retried (and then succeeds) instead of failing the creator.
+  const rlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'known-rl-'));
+  let hits = 0;
+  const rlFetch = async (url, init) => {
+    if (url.includes('video_episodes') && hits++ < 2) return { ok: false, status: 429, headers: { get: () => null } };
+    return mockFetch([])(url, init);
+  };
+  r = await build({ fetchFn: rlFetch, dataDir: rlDir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0, retryBaseMs: 1 });
+  assert.equal(r.nebNew, 1, '429 retried, catalogue still fetched');
+  console.log('ok  rate-limited requests are retried');
   console.log('\nall build-known tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

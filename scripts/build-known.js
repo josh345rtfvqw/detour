@@ -115,7 +115,7 @@ async function buildFloatplaneCreators({ get, log, handCreators }) {
     return { creators, authRequired: false };
   } catch (e) {
     const authRequired = /^40[13] /.test(e.message);
-    log(`floatplane creator list failed: ${e.message}${authRequired ? ' (Floatplane requires a login for this)' : ''}`);
+    log(`floatplane creator list failed: ${e.message}${authRequired ? ' (refused: login or bot protection, see 'refused by' line)' : ''}`);
     return { creators, authRequired };
   }
 }
@@ -143,13 +143,35 @@ async function updateFloatplaneCatalog({ get, sleep, delayMs, id, existing }) {
 
 // ------------------------------------------------------------------ build
 
-async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'data'), now = new Date(), log = console.log, delayMs = 200 } = {}) {
-  const get = async (url, type = 'json') => {
-    const res = await fetchFn(url, { headers: { 'User-Agent': UA, 'Accept': type === 'json' ? 'application/json' : '*/*' } });
-    if (!res.ok) throw new Error(`${res.status} ${url}`);
-    return type === 'json' ? res.json() : res.text();
-  };
+async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'data'), now = new Date(), log = console.log, delayMs = 400, retryBaseMs = 2000 } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const failures = {};          // "host status" -> count, for the log
+  const refusalsLogged = new Set();
+  // GET with polite retries: on 429 (rate limited) or 5xx, wait (Retry-After if given, else
+  // exponential back-off) and try again, up to 4 times. Refusals are logged once per host.
+  const get = async (url, type = 'json') => {
+    const host = (() => { try { return new URL(url).hostname; } catch { return '?'; } })();
+    for (let attempt = 0; ; attempt++) {
+      let res;
+      try { res = await fetchFn(url, { headers: { 'User-Agent': UA, 'Accept': type === 'json' ? 'application/json' : '*/*' } }); }
+      catch (e) { if (attempt < 3) { await sleep(retryBaseMs * 2 ** attempt); continue; } failures[`${host} network`] = (failures[`${host} network`] || 0) + 1; throw e; }
+      if (res.ok) return type === 'json' ? res.json() : res.text();
+      const retryable = res.status === 429 || res.status >= 500;
+      if (retryable && attempt < 4) {
+        const ra = Number(res.headers?.get?.('retry-after'));
+        await sleep(ra > 0 ? Math.min(ra, 120) * 1000 : retryBaseMs * 2 ** attempt);
+        continue;
+      }
+      failures[`${host} ${res.status}`] = (failures[`${host} ${res.status}`] || 0) + 1;
+      if ((res.status === 401 || res.status === 403) && !refusalsLogged.has(host)) {
+        refusalsLogged.add(host);
+        let body = ''; try { body = (await res.text()).replace(/\s+/g, ' ').slice(0, 200); } catch { /* ignore */ }
+        const h = k => res.headers?.get?.(k) || '';
+        log(`refused by ${host}: ${res.status} server=${h('server')} cf-ray=${h('cf-ray') ? 'yes' : 'no'} cf-mitigated=${h('cf-mitigated')} body="${body}"`);
+      }
+      throw new Error(`${res.status} ${url}`);
+    }
+  };
 
   const knownFile = path.join(dataDir, 'known.json');
   const previous = readJson(knownFile, {});
@@ -167,7 +189,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   } catch (e) { log(`creator wall failed: ${e.message}`); }
 
   let nebNew = 0, nebFailed = 0, matched = 0;
-  await mapLimit(creators, 3, async c => {
+  await mapLimit(creators, 2, async c => {
     const episodes = [];
     for (const slug of [...new Set([c.slug, c.alt].filter(s => s && SLUG.test(s)))]) {
       const file = path.join(nebulaDir, `${slug}.json`);
@@ -191,13 +213,14 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     if (delayMs) await sleep(delayMs);
   });
   log(`nebula: ${nebNew} new catalogue videos (${nebFailed} channels failed), ${matched} new YouTube pre-matches`);
+  if (Object.keys(failures).length) log(`request failures so far: ${JSON.stringify(failures)}`);
 
   // 2. Floatplane: creator list and full catalogues.
   const { creators: fpCreators, authRequired } = await buildFloatplaneCreators({ get, log, handCreators });
   let fpNew = 0, fpFailed = 0;
-  if (authRequired) log('floatplane catalogues skipped: Floatplane requires a login; previous data kept');
+  if (authRequired) log('floatplane catalogues skipped: Floatplane refused the creator list; previous data kept');
   else {
-    await mapLimit(fpCreators.filter(c => FP_ID.test(c.id || '')), 2, async c => {
+    await mapLimit(fpCreators.filter(c => FP_ID.test(c.id || '')), 1, async c => {
       const file = path.join(fpDir, `${c.id}.json`);
       const existing = readJson(file, []);
       try {
@@ -232,6 +255,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   const changed = JSON.stringify(prevContent) !== JSON.stringify(data);
   const out = { version: 1, generated: changed ? now.toISOString() : (previous.generated || now.toISOString()), ...data };
   writeIfChanged(knownFile, out);
+  if (Object.keys(failures).length) log(`request failures (after retries): ${JSON.stringify(failures)}`);
   const count = (dir, names) => names.reduce((n, x) => n + readJson(path.join(dir, `${x}.json`), []).length, 0);
   log(`index ${changed ? 'updated' : 'unchanged'}: ${Object.keys(out.nebula).length} pre-matched Nebula videos; catalogues: ${catalogs.nebula.length} Nebula channels (${count(nebulaDir, catalogs.nebula)} videos), ${catalogs.floatplane.length} Floatplane creators (${count(fpDir, catalogs.floatplane)} posts)`);
   return { changed, added: matched, data: out, nebNew, fpNew };
