@@ -39,15 +39,48 @@ Videos are matched by title similarity, with a boost when release dates are with
 Auto-redirect only happens above the confidence threshold set in the settings (default 0.75).
 Each video redirects at most once per tab, so pressing Back keeps you on YouTube.
 
-## Tests
+## Development
 
 ```bash
-node test/background.test.js
+npm ci
 ```
 
 ```bash
-node test/e2e.js
+npm test
 ```
+
+```bash
+npm run lint
+```
+
+```bash
+npm run test:e2e
+```
+
+```bash
+npm run build
+```
+
+`npm test` runs the lookup logic against mocked APIs. `npm run lint` applies Firefox's add-on rules.
+`npm run test:e2e` loads the extension in Chromium against mocked YouTube and Nebula pages.
+`npm run build` writes `dist/detour-<version>.zip`.
+
+GitHub Actions runs all of these on every push and pull request, and attaches the zip to each run.
+
+## Releasing
+
+Bump `version` in `manifest.json` (and `package.json`), commit, then tag and push:
+
+```bash
+git tag v0.2.0
+```
+
+```bash
+git push origin v0.2.0
+```
+
+The Release workflow checks that the tag matches the manifest, runs the tests,
+and publishes a GitHub release with the zip attached.
 
 The first test runs the lookup logic against mocked APIs. The second loads the extension
 in Playwright's Chromium against mocked YouTube and Nebula pages.

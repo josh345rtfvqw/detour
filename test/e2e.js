@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const assert = require('assert');
 const ext = require('path').join(__dirname, '..');
 const fakeYT = (vid, title, chId, author) => `<!doctype html><html><body>
 <div id="above"><div id="owner" class="ytd-watch-metadata">Real Engineering [Subscribe]</div></div><div id="movie_player"><video></video></div><h1 class="ytd-watch-metadata">${title}</h1>
@@ -45,6 +46,7 @@ document.getElementById('movie_player').pauseVideo=()=>{window.paused=true};</sc
   // Subscribed -> countdown then redirect (different video ID to avoid cache)
   await page.goto('https://www.youtube.com/watch?v=BBB');
   await page.waitForSelector('.altr-toast', { timeout: 15000 });
+  assert.ok(await page.evaluate(() => window.paused), 'video should be paused during countdown');
   console.log('toast:', await page.textContent('.altr-toast'), '| paused:', await page.evaluate(() => window.paused));
   await page.screenshot({ path: require('os').tmpdir() + '/toast.png' });
   await page.waitForURL('**/nebula.tv/videos/why-planes', { timeout: 8000 });
@@ -54,6 +56,7 @@ document.getElementById('movie_player').pauseVideo=()=>{window.paused=true};</sc
   await page.goBack();
   await page.waitForSelector('.altr-btn', { timeout: 15000 });
   console.log('after back:', await page.textContent('.altr-wrap'), '| url', page.url());
+  assert.ok(page.url().includes('youtube.com/watch?v=BBB'), 'Back should stay on YouTube');
   // Button-only mode while subscribed
   const opt2 = await ctx.newPage();
   await opt2.goto(`chrome-extension://${extId}/options.html`);
@@ -62,6 +65,10 @@ document.getElementById('movie_player').pauseVideo=()=>{window.paused=true};</sc
   await page.goto('https://www.youtube.com/watch?v=AAA&t=1');
   await page.waitForSelector('.altr-btn', { timeout: 15000 });
   await page.waitForTimeout(3500);
-  console.log('button mode, still on:', page.url(), '| inline:', await page.evaluate(() => !!document.querySelector('#above .altr-inline')));
+  const inline = await page.evaluate(() => !!document.querySelector('#above .altr-inline'));
+  console.log('button mode, still on:', page.url(), '| inline:', inline);
+  assert.ok(page.url().includes('youtube.com/watch?v=AAA'), 'button mode must not redirect');
+  assert.ok(inline, 'button should sit next to the channel row');
+  console.log('\ne2e passed');
   await ctx.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
