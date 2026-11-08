@@ -16,6 +16,8 @@ Keeping other companies' names out of the extension name avoids trademark proble
 
 ### Summary (max 132)
 
+The dashboard takes this from the manifest's `description` field ("Summary from package"), so it's already set in the package. It can't be edited in the dashboard.
+
 ```
 See when a YouTube video is also on Nebula or Floatplane, and go straight there — automatically if you subscribe.
 ```
