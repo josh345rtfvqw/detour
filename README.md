@@ -35,7 +35,7 @@ Then click the extension icon:
 
 | | Channel mapping | Video lookup | Login needed? |
 |---|---|---|---|
-| Nebula | Nebula's creator wall (talent.nebula.tv) + the community list from [Enhancer for Nebula](https://github.com/cpiber/NebulaEnhance) | Nebula's public content API (newest 100 videos, then search); falls back to Nebula's [RSS feeds](https://blog.nebula.tv/rss-feed/) | No |
+| Nebula | Nebula's creator wall ([talent.nebula.tv/creators](https://talent.nebula.tv/creators/)) | Nebula's public content API (newest 100 videos, then search); falls back to Nebula's [RSS feeds](https://blog.nebula.tv/rss-feed/) | No |
 | Floatplane | The YouTube links each Floatplane creator/channel lists | Floatplane's post search | Your own floatplane.com login (browser cookies) |
 
 Videos are matched by title similarity, with a boost when release dates are within about a week.

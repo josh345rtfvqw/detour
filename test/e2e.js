@@ -28,7 +28,7 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
 <div id="page-header"><yt-page-header-view-model style="display:block"><h1>Real Engineering</h1>
 <yt-flexible-actions-view-model style="display:block"><button>Subscribe</button></yt-flexible-actions-view-model></yt-page-header-view-model></div>
 <div id="tabs-container" style="height:48px;overflow:hidden">Home · Videos · Shorts</div>
-<script>window.ytInitialData = {metadata:{channelMetadataRenderer:{title:'Real Engineering',externalId:'UCR1',vanityChannelUrl:'http://www.youtube.com/@RealEngineering'}}};</script>
+<script>window.ytInitialData = {metadata:{channelMetadataRenderer:{title:'Real Engineering',externalId:'UCR1IuLEqb6UEA_zQ81kwXfg',vanityChannelUrl:'http://www.youtube.com/@RealEngineering'}}};</script>
 </body></html>`;
 
 (async () => {
@@ -41,12 +41,11 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
     if (u.startsWith('chrome-extension://')) return route.continue();
     const json = b => route.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     const html = b => route.fulfill({ contentType: 'text/html', body: b });
-    if (u.includes('youtube.com/watch?v=AAA')) return html(fakeVideo('AAA', "Why Planes Don't Fly Faster", 'UCR1', 'Real Engineering', true));
-    if (u.includes('youtube.com/watch?v=BBB')) return html(fakeVideo('BBB', "Why Planes Don't Fly Faster", 'UCR1', 'Real Engineering'));
+    if (u.includes('youtube.com/watch?v=AAA')) return html(fakeVideo('AAA', "Why Planes Don't Fly Faster", 'UCR1IuLEqb6UEA_zQ81kwXfg', 'Real Engineering', true));
+    if (u.includes('youtube.com/watch?v=BBB')) return html(fakeVideo('BBB', "Why Planes Don't Fly Faster", 'UCR1IuLEqb6UEA_zQ81kwXfg', 'Real Engineering'));
     if (u.includes('youtube.com/@RealEngineering/videos')) return html(fakeChannel(false));
     if (u.includes('youtube.com/@RealEngineering')) return html(fakeChannel(true));
-    if (u.includes('channels.json')) return json([{ name: 'Real Engineering', nebula: 'realengineering', channel: 'UCR1' }]);
-    if (u.includes('talent.nebula.tv')) return route.fulfill({ body: '' });
+    if (u.includes('talent.nebula.tv/creators')) return html('<div id="creator-wall"><div class="youtube-creator" data-video="UCR1IuLEqb6UEA_zQ81kwXfg"><img alt="Real Engineering"><h3><a href="https://talent.nebula.tv/realengineering/">Real Engineering</a></h3><a class="link nebula" href="https://nebula.tv/realengineering">Nebula</a></div></div>');
     if (u.includes('/content/realengineering/')) return json({ id: 'c1' });
     if (u.includes('video_channels/c1/video_episodes')) return json({ results: [{ title: 'Why Planes Don’t Fly Faster', published_at: '2024-03-01', share_url: 'https://nebula.tv/videos/why-planes' }] });
     if (u.includes('nebula.tv/videos/why-planes')) return html('<h1>NEBULA PAGE</h1>');

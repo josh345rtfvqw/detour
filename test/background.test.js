@@ -31,9 +31,15 @@ function makeEnv(sync, routes) {
   return { send, calls };
 }
 
+// Mock of Nebula's creator wall (talent.nebula.tv/creators): one card with a Nebula link,
+// one with only the card title's link and an HTML entity in the name.
+const CREATOR_WALL = `<div id="creator-wall">
+<div class="youtube-creator" data-video="UCR1IuLEqb6UEA_zQ81kwXfg"><img alt="Real Engineering" src="x.jpg"><h3><a href="https://talent.nebula.tv/realengineering/">Real Engineering</a></h3><a class="link nebula" href="https://nebula.tv/realengineering">Nebula</a></div>
+<div class="youtube-creator" data-video="UCxxxxxxxxxxxxxxxxxxxxxx"><img alt="Tom &amp; Friends" src="y.jpg"><h3><a href="https://talent.nebula.tv/tomandfriends/">Tom &amp; Friends</a></h3></div>
+</div>`;
+
 const nebulaRoutes = [
-  [/channels\.json$/, [{ name: 'Real Engineering', nebula: 'realengineering', nebulaAlt: 'realengineering', channel: 'UCR1IuLEqb6UEA_zQ81kwXfg' }]],
-  [/talent\.nebula\.tv/, ''],
+  [/talent\.nebula\.tv\/creators/, CREATOR_WALL],
   [/content\/realengineering\/$/, { id: 'chan-1' }],
   [/video_channels\/chan-1\/video_episodes/, { results: [
     { title: 'Why Planes Don’t Fly Faster', published_at: '2024-03-01T00:00:00Z', share_url: 'https://nebula.tv/videos/realengineering-why-planes' },
@@ -64,7 +70,7 @@ const fpRoutes = [
   console.log('ok  unmatched video falls back to channel link');
 
   // 3. Floatplane sub-channel matched by @handle, user subscribed to that creator
-  env = makeEnv({ floatplaneCreators: ['ltt'] }, [[/nebula|githubusercontent/, new Error()], ...fpRoutes]);
+  env = makeEnv({ floatplaneCreators: ['ltt'] }, [[/nebula/, new Error()], ...fpRoutes]);
   r = await env.send({ type: 'lookup', info: { videoId: 'c', title: 'Nvidia did WHAT?', channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked', publishDate: '2024-05-03' } });
   assert.equal(r.results[0].platform, 'floatplane');
   assert.equal(r.results[0].url, 'https://www.floatplane.com/post/post1');
@@ -74,14 +80,14 @@ const fpRoutes = [
   console.log('ok  floatplane channel match via handle, uses login cookies', r.results[0].confidence.toFixed(2));
 
   // 4. Same but not subscribed -> result present, subscribed=false (button only)
-  env = makeEnv({ floatplaneCreators: [] }, [[/nebula|githubusercontent/, new Error()], ...fpRoutes]);
+  env = makeEnv({ floatplaneCreators: [] }, [[/nebula/, new Error()], ...fpRoutes]);
   r = await env.send({ type: 'lookup', info: { videoId: 'c', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' } });
   assert.equal(r.results[0].subscribed, false);
   console.log('ok  not subscribed -> no auto-redirect flag');
 
   // 5. Nebula API down -> RSS fallback
   const rss = `<rss><channel><item><title><![CDATA[Why Planes Don&apos;t Fly Faster]]></title><link>https://nebula.tv/videos/realengineering-why-planes</link><pubDate>Fri, 01 Mar 2024 00:00:00 GMT</pubDate></item></channel></rss>`;
-  env = makeEnv({ nebulaSubscribed: true }, [nebulaRoutes[0], nebulaRoutes[1], [/content\.api\.nebula/, new Error()], [/rss\.nebula\.app\/video\/channels\/realengineering\.rss/, rss], [/floatplane/, new Error()]]);
+  env = makeEnv({ nebulaSubscribed: true }, [nebulaRoutes[0], [/content\.api\.nebula/, new Error()], [/rss\.nebula\.app\/video\/channels\/realengineering\.rss/, rss], [/floatplane/, new Error()]]);
   r = await env.send({ type: 'lookup', info: { videoId: 'd', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
   assert.equal(r.results[0].kind, 'video');
   assert.equal(r.results[0].url, 'https://nebula.tv/videos/realengineering-why-planes');
@@ -93,7 +99,7 @@ const fpRoutes = [
   console.log('ok  unrelated channel -> nothing shown');
   // 7. Floatplane creator list unavailable (not logged in) -> built-in list still matches
   //    TechLinked by its @handle and links to the right Floatplane sub-channel.
-  env = makeEnv({ floatplaneCreators: ['59f94c0bdd241b70349eb72b'] }, [[/nebula|githubusercontent/, new Error()], [/floatplane/, new Error()]]);
+  env = makeEnv({ floatplaneCreators: ['59f94c0bdd241b70349eb72b'] }, [[/nebula/, new Error()], [/floatplane/, new Error()]]);
   r = await env.send({ type: 'lookupChannel', info: { channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' } });
   assert.equal(r.results[0].platform, 'floatplane');
   assert.equal(r.results[0].url, 'https://www.floatplane.com/channel/linustechtips/home/techlinked');
@@ -105,14 +111,14 @@ const fpRoutes = [
   console.log('ok  built-in Floatplane list used when the live list fails');
 
   // 8. Live list loads -> it wins, and built-in creators missing from it are still added
-  env = makeEnv({}, [[/nebula|githubusercontent/, new Error()], [/creator\/list/, [{ id: 'new1', title: 'Someone New', urlname: 'someonenew', socialLinks: {}, channels: [] }]]]);
+  env = makeEnv({}, [[/nebula/, new Error()], [/creator\/list/, [{ id: 'new1', title: 'Someone New', urlname: 'someonenew', socialLinks: {}, channels: [] }]]]);
   const merged = (await env.send({ type: 'fpCreators' })).creators;
   assert.ok(merged.some(c => c.id === 'new1' && !c.builtin) && merged.some(c => c.urlname === 'linustechtips'));
   console.log('ok  live list merged with built-in creators');
 
   // 9. Name-only built-in creator (Level1Techs): matched by channel name, ticked by name,
   //    links to Floatplane's home page while its address is unknown.
-  env = makeEnv({ floatplaneCreators: ['name:level1techs'] }, [[/nebula|githubusercontent/, new Error()], [/floatplane/, new Error()]]);
+  env = makeEnv({ floatplaneCreators: ['name:level1techs'] }, [[/nebula/, new Error()], [/floatplane/, new Error()]]);
   r = await env.send({ type: 'lookupChannel', info: { channelId: 'UC4w1YQAJMWOz4qtxinq55LQ', author: 'Level1Techs', profileUrl: 'http://www.youtube.com/@Level1Techs' } });
   assert.equal(r.results[0].url, 'https://www.floatplane.com/');
   assert.ok(r.results[0].subscribed);
@@ -120,7 +126,7 @@ const fpRoutes = [
 
   // 10. Live list knows Level1Techs: real address used, by-name subscription still counts,
   //     and there is one Level1Techs entry, not two.
-  env = makeEnv({ floatplaneCreators: ['name:level1techs'] }, [[/nebula|githubusercontent/, new Error()],
+  env = makeEnv({ floatplaneCreators: ['name:level1techs'] }, [[/nebula/, new Error()],
     [/creator\/list/, [{ id: 'l1t', title: 'Level1Techs', urlname: 'level1techs', socialLinks: {}, channels: [] }]], [/content\/creator/, []]]);
   r = await env.send({ type: 'lookupChannel', info: { author: 'Level1Techs' } });
   assert.equal(r.results[0].url, 'https://www.floatplane.com/channel/level1techs/home');
@@ -128,5 +134,13 @@ const fpRoutes = [
   const all = (await env.send({ type: 'fpCreators' })).creators;
   assert.equal(all.filter(c => c.title === 'Level1Techs').length, 1);
   console.log('ok  live data replaces name-only entry, subscription carries over');
+  // 11. Creator wall parsing: entity in the name decoded, slug from the card title when there's
+  //     no Nebula link; matched by channel name too.
+  env = makeEnv({ nebulaSubscribed: true }, [nebulaRoutes[0], [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookupChannel', info: { channelId: 'UCxxxxxxxxxxxxxxxxxxxxxx', author: 'Tom & Friends' } });
+  assert.equal(r.results[0].url, 'https://nebula.tv/tomandfriends');
+  r = await env.send({ type: 'lookupChannel', info: { author: 'Tom & Friends' } });
+  assert.equal(r.results[0]?.url, 'https://nebula.tv/tomandfriends');
+  console.log('ok  creator wall parsed (entities, title-link fallback, name match)');
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
