@@ -72,7 +72,11 @@ GitHub Actions runs all of these on every push and pull request, and attaches th
 
 ## Releasing
 
-Bump `version` in `manifest.json` (and `package.json`), commit, then tag and push:
+Bump `version` in `manifest.json` (and `package.json`) and push to `main`.
+Then open **Actions → Release → Run workflow** on GitHub. It tags the commit as `v<version>`,
+runs the tests, and publishes a release with the zip attached.
+
+Pushing a tag also works:
 
 ```bash
 git tag v0.2.0

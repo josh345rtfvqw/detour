@@ -1,7 +1,12 @@
 name: Release
 
-# Push a tag like v0.2.0 (matching "version" in manifest.json) to publish a release.
+# Two ways to publish a release:
+#  1. Actions tab -> Release -> "Run workflow" on main. Tags the commit as
+#     v<manifest version> and publishes the release.
+#  2. Push a tag like v0.2.0 (matching "version" in manifest.json).
+# Either way the tests run first and the built zip is attached to the release.
 on:
+  workflow_dispatch:
   push:
     tags: ['v*']
 
@@ -18,13 +23,20 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Check tag matches manifest version
+      - name: Work out the tag
+        id: tag
         run: |
           manifest=$(node -p "require('./manifest.json').version")
-          if [ "v$manifest" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match manifest.json version $manifest"
-            exit 1
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            tag="$GITHUB_REF_NAME"
+            if [ "v$manifest" != "$tag" ]; then
+              echo "::error::Tag $tag does not match manifest.json version $manifest"
+              exit 1
+            fi
+          else
+            tag="v$manifest"
           fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - run: npm test
       - run: npm run lint
       - run: npx playwright install --with-deps chromium
@@ -34,7 +46,15 @@ jobs:
       - name: Build zip
         id: build
         run: echo "zip=$(npm run --silent build)" >> "$GITHUB_OUTPUT"
-      - name: Create GitHub release
+      - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "${{ steps.build.outputs.zip }}" --title "Detour $GITHUB_REF_NAME" --generate-notes
+          TAG: ${{ steps.tag.outputs.tag }}
+          ZIP: ${{ steps.build.outputs.zip }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists; replacing its zip"
+            gh release upload "$TAG" "$ZIP" --clobber
+          else
+            gh release create "$TAG" "$ZIP" --target "$GITHUB_SHA" --title "Detour $TAG" --generate-notes
+          fi
