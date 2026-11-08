@@ -16,6 +16,19 @@ const NEBULA_API = 'https://content.api.nebula.app';
 const NEBULA_HEADERS = { 'Accept': 'application/json', 'Nebula-Platform': 'web' };
 const FP = 'https://www.floatplane.com';
 
+// Every link Detour puts on YouTube must be an https link to Nebula or Floatplane. Links come
+// from Nebula's API / RSS and Floatplane's API, so a bad or spoofed response could otherwise
+// inject e.g. a javascript: URL that runs on youtube.com when clicked or auto-redirected to.
+const ALLOWED_HOSTS = new Set(['nebula.tv', 'www.nebula.tv', 'nebula.app', 'www.nebula.app', 'floatplane.com', 'www.floatplane.com']);
+function safeUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && ALLOWED_HOSTS.has(u.hostname) ? u.href : null;
+  } catch { return null; }
+}
+const sanitizeResults = results => results.map(r => ({ ...r, url: safeUrl(r.url) })).filter(r => r.url);
+const SLUG = /^[\w-]{1,100}$/;
+
 const getSettings = async () => ({ ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)) });
 
 async function getJSON(url, init = {}) {
@@ -28,15 +41,27 @@ async function getJSON(url, init = {}) {
 async function cached(key, maxAge, loader) {
   const hit = (await chrome.storage.local.get(key))[key];
   if (hit && Date.now() - hit.t < maxAge) return hit.v;
+  let v;
   try {
-    const v = await loader();
-    await chrome.storage.local.set({ [key]: { t: Date.now(), v } });
-    return v;
+    v = await loader();
   } catch (e) {
     console.warn('[detour] load failed', key, e);
     if (hit) return hit.v; // stale is better than nothing
     throw e;
   }
+  try {
+    await chrome.storage.local.set({ [key]: { t: Date.now(), v } });
+    if (key.startsWith('neb:')) await pruneEpisodeCaches();
+  } catch (e) { console.warn('[detour] cache write failed', key, e); } // still return the data
+  return v;
+}
+
+// Per-channel episode lists would otherwise pile up in storage forever: keep the newest 60.
+async function pruneEpisodeCaches(keep = 60) {
+  const all = await chrome.storage.local.get(null);
+  const old = Object.entries(all).filter(([k]) => k.startsWith('neb:'))
+    .sort((a, b) => (b[1]?.t || 0) - (a[1]?.t || 0)).slice(keep).map(([k]) => k);
+  if (old.length) await chrome.storage.local.remove(old);
 }
 
 // ---------------------------------------------------------------- Nebula
@@ -59,6 +84,7 @@ function parseCreatorWall(html) {
     if (titleHref) {
       try { alt = new URL(titleHref, 'https://talent.nebula.tv/').pathname.split('/').filter(Boolean)[0] || null; } catch { /* ignore */ }
     }
+    if (alt && !SLUG.test(alt)) alt = null;
     const slug = nebula || alt;
     if (slug && (ytId || name) && !creators.some(c => c.slug === slug)) creators.push({ name, slug, alt: alt !== slug ? alt : null, ytId: ytId || null });
   }
@@ -257,27 +283,34 @@ async function channelOnFloatplane(info, settings) {
 
 async function lookupChannel(info) {
   const settings = await getSettings();
-  const results = (await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings)]))
+  const results = sanitizeResults((await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings)]))
     .map(r => (r.status === 'fulfilled' ? r.value : null))
-    .filter(Boolean);
+    .filter(Boolean));
   results.sort((a, b) => (b.subscribed - a.subscribed) || ((b.platform === settings.preferred) - (a.platform === settings.preferred)));
   return results;
 }
 
 // ---------------------------------------------------------------- messages
 
-const recent = new Map(); // videoId -> results, for this worker's lifetime
+// videoId -> { t, results }. Kept 10 minutes, only when both lookups succeeded, and cleared
+// whenever settings change (results carry the "subscribed" flag, which depends on them).
+const recent = new Map();
+const RECENT_TTL = 10 * 60 * 1000;
+chrome.storage.onChanged.addListener((_changes, area) => { if (area === 'sync') recent.clear(); });
 
 async function lookup(info) {
-  if (recent.has(info.videoId)) return recent.get(info.videoId);
+  const hit = recent.get(info.videoId);
+  if (hit && Date.now() - hit.t < RECENT_TTL) return hit.results;
   const settings = await getSettings();
-  const results = (await Promise.allSettled([lookupNebula(info, settings), lookupFloatplane(info, settings)]))
-    .map(r => (r.status === 'fulfilled' ? r.value : null))
-    .filter(Boolean);
+  const settled = await Promise.allSettled([lookupNebula(info, settings), lookupFloatplane(info, settings)]);
+  const results = sanitizeResults(settled.map(r => (r.status === 'fulfilled' ? r.value : null)).filter(Boolean));
   // Order: subscribed first, then video over channel, then preferred platform, then confidence.
   results.sort((a, b) => (b.subscribed - a.subscribed) || ((b.kind === 'video') - (a.kind === 'video')) ||
     ((b.platform === settings.preferred) - (a.platform === settings.preferred)) || (b.confidence - a.confidence));
-  recent.set(info.videoId, results);
+  if (settled.every(r => r.status === 'fulfilled')) {
+    recent.set(info.videoId, { t: Date.now(), results });
+    if (recent.size > 200) recent.delete(recent.keys().next().value);
+  }
   return results;
 }
 
@@ -286,7 +319,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     if (msg.type === 'lookup') return { results: await lookup(msg.info), settings: await getSettings() };
     if (msg.type === 'lookupChannel') return { results: await lookupChannel(msg.info), settings: await getSettings() };
     if (msg.type === 'fpCreators') return { creators: await loadFloatplaneCreators() };
-    if (msg.type === 'clearCache') { recent.clear(); await chrome.storage.local.clear(); return { ok: true }; }
+    if (msg.type === 'clearCache') {
+      // Refresh data, but keep the user's dismissed channel banners.
+      recent.clear();
+      const { dismissedChannels } = await chrome.storage.local.get('dismissedChannels');
+      await chrome.storage.local.clear();
+      if (dismissedChannels) await chrome.storage.local.set({ dismissedChannels });
+      return { ok: true };
+    }
+    // Auto-redirect in a new tab: opened from here, because window.open from a timer in the
+    // page is blocked as a popup.
+    if (msg.type === 'openTab') {
+      const url = safeUrl(msg.url);
+      if (!url) throw new Error('refused to open a non-Nebula/Floatplane URL');
+      await chrome.tabs.create({ url, active: true });
+      return { ok: true };
+    }
   };
   handle().then(reply, e => reply({ error: String(e?.message || e) }));
   return true; // async reply

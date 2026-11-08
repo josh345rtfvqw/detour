@@ -187,7 +187,8 @@
     let left = 3;
     const go = () => {
       clearUI();
-      if (settings.newTab) window.open(r.url, '_blank', 'noopener');
+      if (!/^https:\/\//.test(r.url)) return; // background already checks; never follow anything else
+      if (settings.newTab) chrome.runtime.sendMessage({ type: 'openTab', url: r.url }).catch(() => window.open(r.url, '_blank', 'noopener'));
       else location.assign(r.url);
     };
     const msg = el('span', { class: 'detour-title' }, `Opening on ${NAMES[r.platform]} in ${left}s…`);

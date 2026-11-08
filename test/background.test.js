@@ -4,16 +4,28 @@ const root = path.join(__dirname, '..');
 
 function makeEnv(sync, routes) {
   const store = { sync: { ...sync }, local: {} };
-  const area = s => ({
-    get: async keys => { const out = {}; const def = typeof keys === 'string' ? { [keys]: undefined } : keys;
-      for (const k of Object.keys(def)) out[k] = k in s ? s[k] : def[k]; return out; },
-    set: async o => Object.assign(s, o), clear: async () => { for (const k in s) delete s[k]; },
+  const changeListeners = [];
+  const area = (s, name) => ({
+    get: async keys => {
+      if (keys == null) return { ...s };
+      const out = {}; const def = typeof keys === 'string' ? { [keys]: undefined } : keys;
+      for (const k of Object.keys(def)) { const v = k in s ? s[k] : def[k]; if (v !== undefined) out[k] = v; }
+      return out;
+    },
+    set: async o => { Object.assign(s, o); changeListeners.forEach(f => f({}, name)); },
+    remove: async keys => { [].concat(keys).forEach(k => delete s[k]); },
+    clear: async () => { for (const k in s) delete s[k]; },
   });
+  const tabsOpened = [];
   let listener;
   const calls = [];
   const ctx = {
     console: { log() {}, warn() {} }, URL, URLSearchParams, Date, Promise, Map, Set, encodeURIComponent,
-    chrome: { storage: { sync: area(store.sync), local: area(store.local) }, runtime: { onMessage: { addListener: f => (listener = f) } } },
+    chrome: {
+      storage: { sync: area(store.sync, 'sync'), local: area(store.local, 'local'), onChanged: { addListener: f => changeListeners.push(f) } },
+      runtime: { onMessage: { addListener: f => (listener = f) } },
+      tabs: { create: async o => { tabsOpened.push(o.url); } },
+    },
     fetch: async (url, init) => {
       calls.push({ url, init });
       for (const [re, body] of routes) if (re.test(url)) {
@@ -28,7 +40,7 @@ function makeEnv(sync, routes) {
   vm.runInContext(fs.readFileSync(path.join(root, 'floatplane-defaults.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(root, 'background.js'), 'utf8'), ctx);
   const send = msg => new Promise(r => listener(msg, {}, r));
-  return { send, calls };
+  return { send, calls, store, tabsOpened, routes, chrome: ctx.chrome };
 }
 
 // Mock of Nebula's creator wall (talent.nebula.tv/creators): one card with a Nebula link,
@@ -142,5 +154,64 @@ const fpRoutes = [
   r = await env.send({ type: 'lookupChannel', info: { author: 'Tom & Friends' } });
   assert.equal(r.results[0]?.url, 'https://nebula.tv/tomandfriends');
   console.log('ok  creator wall parsed (entities, title-link fallback, name match)');
+  // ---- security / bug-fix regressions ----
+
+  // 12. A javascript: link from Nebula's API never reaches YouTube (video result dropped).
+  env = makeEnv({ nebulaSubscribed: true }, [nebulaRoutes[0], nebulaRoutes[1],
+    [/video_channels\/chan-1\/video_episodes/, { results: [{ title: 'Why Planes Don’t Fly Faster', published_at: '2024-03-01', share_url: 'javascript:alert(document.cookie)' }] }],
+    [/search/, { results: [] }], [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'x1', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
+  assert.ok(r.results.every(x => x.url.startsWith('https://')), JSON.stringify(r.results));
+  console.log('ok  javascript: URL from the API is dropped');
+
+  // 13. Ticking a subscription takes effect immediately (cached results are cleared).
+  env = makeEnv({ nebulaSubscribed: false }, [...nebulaRoutes, [/floatplane/, new Error()]]);
+  const vinfo = { videoId: 'x2', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' };
+  r = await env.send({ type: 'lookup', info: vinfo });
+  assert.equal(r.results[0].subscribed, false);
+  await env.chrome.storage.sync.set({ nebulaSubscribed: true });
+  r = await env.send({ type: 'lookup', info: vinfo });
+  assert.equal(r.results[0].subscribed, true);
+  console.log('ok  settings change clears cached results');
+
+  // 14. A failed lookup isn't cached: once Floatplane is reachable again, it's retried.
+  const fpDown = [/floatplane/, new Error()];
+  env = makeEnv({ floatplaneCreators: ['ltt'] }, [[/nebula/, new Error()], fpDown]);
+  const tinfo = { videoId: 'x3', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' };
+  await env.send({ type: 'lookup', info: tinfo });
+  env.routes.splice(env.routes.indexOf(fpDown), 1, ...fpRoutes);
+  r = await env.send({ type: 'lookup', info: tinfo });
+  assert.equal(r.results[0].url, 'https://www.floatplane.com/post/post1');
+  console.log('ok  failed lookups are retried, not cached');
+
+  // 15. "Refresh data" keeps dismissed banners.
+  env = makeEnv({}, []);
+  env.store.local.dismissedChannels = ['nebula:UCabc'];
+  env.store.local.nebulaCreators = { t: 1, v: [] };
+  await env.send({ type: 'clearCache' });
+  assert.deepEqual(env.store.local.dismissedChannels, ['nebula:UCabc']);
+  assert.equal(env.store.local.nebulaCreators, undefined);
+  console.log('ok  refresh keeps dismissed banners');
+
+  // 16. New-tab redirects open via the background, only for Nebula/Floatplane URLs.
+  r = await env.send({ type: 'openTab', url: 'https://nebula.tv/videos/x' });
+  assert.ok(r.ok && env.tabsOpened[0] === 'https://nebula.tv/videos/x');
+  r = await env.send({ type: 'openTab', url: 'javascript:alert(1)' });
+  assert.ok(r.error && env.tabsOpened.length === 1);
+  r = await env.send({ type: 'openTab', url: 'https://evil.example/nebula.tv' });
+  assert.ok(r.error && env.tabsOpened.length === 1);
+  console.log('ok  openTab only opens Nebula/Floatplane URLs');
+
+  // 17. Per-channel episode caches are pruned (storage doesn't grow forever).
+  env = makeEnv({}, []);
+  for (let i = 0; i < 70; i++) env.store.local[`neb:ch${i}`] = { t: i, v: [] };
+  env.routes.push([/content\/fresh\/$/, { id: 'f1' }], [/video_channels\/f1\/video_episodes/, { results: [] }]);
+  await env.send({ type: 'lookupChannel', info: {} }); // warm-up no-op
+  // Trigger an episode-cache write through a lookup on a creator with slug "fresh".
+  env.routes.unshift([/talent\.nebula\.tv\/creators/, '<div class="youtube-creator" data-video="UCfreshfreshfreshfresh01"><img alt="Fresh"><h3><a href="https://talent.nebula.tv/fresh/">Fresh</a></h3></div>']);
+  await env.send({ type: 'lookup', info: { videoId: 'x4', title: 'anything', channelId: 'UCfreshfreshfreshfresh01', author: 'Fresh' } });
+  const nebKeys = Object.keys(env.store.local).filter(k => k.startsWith('neb:'));
+  assert.ok(nebKeys.length <= 60 && nebKeys.includes('neb:fresh'), String(nebKeys.length));
+  console.log('ok  episode caches pruned to', nebKeys.length);
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
