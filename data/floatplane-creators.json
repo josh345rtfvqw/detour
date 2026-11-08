@@ -2,200 +2,101 @@
   {
     "id": "59f94c0bdd241b70349eb72b",
     "title": "LinusTechTips",
-    "urlname": "linustechtips",
-    "links": [
-      "https://www.youtube.com/user/LinusTechTips"
-    ],
-    "channels": [
-      {
-        "id": "63fe42c309e691e4e36de93d",
-        "title": "Linus Tech Tips",
-        "urlname": "main",
-        "links": [
-          "https://www.youtube.com/@LinusTechTips"
-        ]
-      },
-      {
-        "id": "6413534d88c13c181c3e2809",
-        "title": "TechLinked",
-        "urlname": "techlinked",
-        "links": [
-          "https://www.youtube.com/@TechLinked"
-        ]
-      },
-      {
-        "id": "64135e27c773b27ff22c97eb",
-        "title": "Techquickie",
-        "urlname": "techquickie",
-        "links": [
-          "https://www.youtube.com/@Techquickie"
-        ]
-      },
-      {
-        "id": "64135da7ce81077a8480c679",
-        "title": "ShortCircuit",
-        "urlname": "shortcircuit",
-        "links": [
-          "https://www.youtube.com/@ShortCircuit"
-        ]
-      },
-      {
-        "id": "64135e901ebaee42e258eb0b",
-        "title": "Mac Address",
-        "urlname": "macaddress",
-        "links": [
-          "https://www.youtube.com/@macaddress"
-        ]
-      },
-      {
-        "id": "64135ed078d6262f717341b7",
-        "title": "Channel Super Fun",
-        "urlname": "channelsuperfun",
-        "links": [
-          "https://www.youtube.com/@ChannelSuperFun"
-        ]
-      },
-      {
-        "id": "64135f82fc76ab7f9fbdc876",
-        "title": "They're Just Movies",
-        "urlname": "tajm",
-        "links": []
-      }
-    ]
+    "urlname": "linustechtips"
   },
   {
     "id": "5d2fd26df33b8d14fc5ff48d",
     "title": "EposVox",
-    "urlname": "eposvox",
-    "links": [
-      "https://www.youtube.com/eposvox"
-    ],
-    "channels": []
+    "urlname": "eposvox"
   },
   {
     "id": "5d48c7be5fa46b731f1d5885",
     "title": "Level1Techs",
-    "urlname": "level1techs",
-    "links": [],
-    "channels": []
+    "urlname": "level1techs"
   },
   {
     "id": "5e01428f3d4e7d45d06127ed",
     "title": "3D Printing Nerd",
-    "urlname": "3dprintingnerd",
-    "links": [],
-    "channels": []
+    "urlname": "3dprintingnerd"
   },
   {
     "id": "5e0237533d4e7d45d06127f7",
     "title": "The Mighty Jingles",
-    "urlname": "TheMightyJingles",
-    "links": [],
-    "channels": []
+    "urlname": "TheMightyJingles"
   },
   {
     "id": "5e0a35aa5e351721d033a7a4",
     "title": "Tyler McVicker",
-    "urlname": "TylerMcVicker",
-    "links": [],
-    "channels": []
+    "urlname": "TylerMcVicker"
   },
   {
     "id": "5e0b818aced7211628e8b1c4",
     "title": "Robert Neal",
-    "urlname": "RobertNeal",
-    "links": [],
-    "channels": []
+    "urlname": "RobertNeal"
   },
   {
     "id": "5e0b899b299f45224c8fa332",
     "title": "Lawful Masses with Leonard French",
-    "urlname": "LawfulMasses",
-    "links": [],
-    "channels": []
+    "urlname": "LawfulMasses"
   },
   {
     "id": "5e0bb452fd9eec0f443b3d7f",
     "title": "Forgotten Weapons",
-    "urlname": "ForgottenWeapons",
-    "links": [],
-    "channels": []
+    "urlname": "ForgottenWeapons"
   },
   {
     "id": "5e1e1ac47622cc11287c6f11",
     "title": "Lon.TV",
-    "urlname": "LonSeidman",
-    "links": [],
-    "channels": []
+    "urlname": "LonSeidman"
   },
   {
     "id": "5f8607b7d4470bfe472cbe7c",
     "title": "Craft Computing",
-    "urlname": "CraftComputing",
-    "links": [],
-    "channels": []
+    "urlname": "CraftComputing"
   },
   {
     "id": "5f886b28b1076a23b81ed43c",
     "title": "The Gun Collective",
-    "urlname": "TheGunCollective",
-    "links": [],
-    "channels": []
+    "urlname": "TheGunCollective"
   },
   {
     "id": "605921124e62297311ab72d0",
     "title": "Ivycomb",
-    "urlname": "ivycomb",
-    "links": [],
-    "channels": []
+    "urlname": "ivycomb"
   },
   {
     "id": "61bc20c9a131fb692bf2a513",
     "title": "The Trash Network",
-    "urlname": "TheTrashNetwork",
-    "links": [],
-    "channels": []
+    "urlname": "TheTrashNetwork"
   },
   {
     "id": "626ad21aa2ffab0c7d8f69ac",
     "title": "Shank Mods",
-    "urlname": "ShankMods",
-    "links": [],
-    "channels": []
+    "urlname": "ShankMods"
   },
   {
     "id": "6525a2a2229da53b4b9daabb",
     "title": "DMS",
-    "urlname": "DMS3",
-    "links": [],
-    "channels": []
+    "urlname": "DMS3"
   },
   {
     "id": "6548c71244c4c2831b1bdac7",
     "title": "James Channel",
-    "urlname": "games_for_james",
-    "links": [],
-    "channels": []
+    "urlname": "games_for_james"
   },
   {
     "id": "6706e3d7525a78d8d03ff827",
     "title": "Jeff Geerling",
-    "urlname": "JeffGeerling",
-    "links": [],
-    "channels": []
+    "urlname": "JeffGeerling"
   },
   {
     "id": "695e767b68481033f7feb42e",
     "title": "Hardware Haven",
-    "urlname": "hardwarehaven",
-    "links": [],
-    "channels": []
+    "urlname": "hardwarehaven"
   },
   {
     "id": "6a7a43085fd872ae18691345",
     "title": "Bringus Studios",
-    "urlname": "bringus",
-    "links": [],
-    "channels": []
+    "urlname": "bringus"
   }
 ]

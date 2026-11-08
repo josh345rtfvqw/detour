@@ -164,11 +164,17 @@ function mergeFloatplaneCreator(creators, lc, match) {
 // name is guessed (lowercase letters and digits, e.g. "Level1Techs" -> "level1techs").
 const floatplaneUrlname = c => (c.urlname ? String(c.urlname) : String(c.title || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
 
-// Hand-edited list, filled in and extended with Floatplane's own creator list. If Floatplane
-// refuses that, the previous run's list (with IDs already filled in) is kept. Either way, each
-// creator's details are then looked up by address with creator/named (several per request).
-async function buildFloatplaneCreators({ get, log, handCreators, previousCreators }) {
-  let creators = handCreators.map(c => ({ ...c, links: [...(c.links || [])], channels: [...(c.channels || [])] }));
+// Creators: the hand-edited list (just id, title, urlname) plus any from the previous index, then
+// filled in each run by Floatplane itself: creator/list if it answers, and creator/named by
+// address (several per request). YouTube links and sub-channels come from those lookups and are
+// never stored by hand.
+async function buildFloatplaneCreators({ get, log, handCreators, previousIndex }) {
+  const creators = handCreators.map(c => ({ id: c.id || null, title: c.title, urlname: c.urlname || null, links: [], channels: [] }));
+  for (const [id, pc] of Object.entries(previousIndex || {})) {
+    if (!FP_ID.test(id) || creators.some(c => c.id === id)) continue;
+    creators.push({ id, title: pc.name, urlname: pc.urlname || null, links: [],
+      channels: Object.entries(pc.channels || {}).map(([chId, ch]) => ({ id: chId, title: ch.name, urlname: ch.urlname || null, links: [] })) });
+  }
   let refused = false;
   try {
     const live = await get(`${FP}/api/v3/creator/list?search=`);
@@ -178,11 +184,6 @@ async function buildFloatplaneCreators({ get, log, handCreators, previousCreator
   } catch (e) {
     refused = /^40[13] /.test(e.message);
     log(`floatplane creator list failed: ${e.message}${refused ? ' (refused: login or bot protection, see the "refused by" line)' : ''}`);
-    if (previousCreators.length) {
-      const kept = previousCreators.map(c => ({ ...c, links: [...(c.links || [])], channels: [...(c.channels || [])] }));
-      for (const h of creators) if (!kept.some(k => (h.id && k.id === h.id) || fpNameKey(k.title) === fpNameKey(h.title))) kept.push(h);
-      creators = kept;
-    }
   }
 
   // creator/named: look up every creator by its exact address, 10 per request.
@@ -209,8 +210,7 @@ async function buildFloatplaneCreators({ get, log, handCreators, previousCreator
 
 // ------------------------------------------------------------------ previous data
 
-// The previous index, read in any version, as { videos: { yt: { nebula, floatplane } },
-// fpCreators: [...] (with links / channels, for when Floatplane refuses) }.
+// The previous index, read in any version, as { videos: { yt: { nebula, floatplane } } }.
 function readPrevious(previous) {
   const videos = {};
   const add = (id, col, val) => { if (YT_VIDEO.test(id) && val) (videos[id] ||= {})[col] = val; };
@@ -222,7 +222,7 @@ function readPrevious(previous) {
     for (const [id, url] of Object.entries(neb || {})) add(id, 'nebula', typeof url === 'string' && nebulaSlugFromUrl(url));
     for (const [id, url] of Object.entries(fp || {})) add(id, 'floatplane', typeof url === 'string' && fpPostFromUrl(url));
   }
-  return { videos, fpCreators: previous._fpCreators || [] };
+  return { videos };
 }
 
 // ------------------------------------------------------------------ build
@@ -327,7 +327,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   // 2. Floatplane: creators (live list, else hand-edited / previous IDs), then each creator's
   //    newest posts. A refused creator list doesn't stop the post fetches; a refused post fetch
   //    does (no point asking again for every creator).
-  const { creators: fpCreators } = await buildFloatplaneCreators({ get, log, handCreators, previousCreators: prev.fpCreators });
+  const { creators: fpCreators } = await buildFloatplaneCreators({ get, log, handCreators, previousIndex: previousRaw.version === 3 ? previousRaw.floatplane?.creators : null });
   let fpNew = 0, fpFailed = 0, postsRefused = false;
   const fpCatalog = {};
   for (const c of fpCreators) if (FP_ID.test(c.id || '')) fpCatalog[c.id] = readJson(path.join(fpDir, `${c.id}.json`), []);
@@ -378,6 +378,15 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
       }
     }
   }
+  // A creator whose details couldn't be looked up this run (no YouTube links): keep its rows
+  // from the previous index rather than dropping them.
+  const looked = new Set(fpCreators.filter(c => [...(c.links || []), ...(c.channels || []).flatMap(ch => ch.links || [])].length).map(c => c.id));
+  if (previousRaw.version === 3) {
+    for (const [uc, row] of Object.entries(previousRaw.channels || {})) {
+      const fpVal = typeof row?.floatplane === 'string' ? row.floatplane : '';
+      if (fpVal && !looked.has(fpVal.split('/')[0]) && !channels[uc]?.floatplane) setChannel(uc, row.name, 'floatplane', fpVal);
+    }
+  }
   writeIfChanged(handlesFile, sortObject(handles));
   log(`youtube channels: ${Object.keys(handles).length} resolved links (${resolvedNew} new)${unresolved.length ? `, unresolved: ${[...new Set(unresolved)].join(', ')}` : ''}; floatplane: ${matched.floatplane} new pre-matched videos`);
 
@@ -408,8 +417,6 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     channels: sortObject(channels),
     nebula: { creators: sortObject(nebulaIndex) },
     floatplane: { creators: sortObject(fpIndex) },
-    // Kept so a run where Floatplane refuses still knows each creator's YouTube links and channels.
-    _fpCreators: fpCreators.map(({ catalog, ...c }) => c),
   };
   // Only bump "generated" when the index changes, so quiet days don't rewrite it.
   const { generated: _g, ...prevContent } = previousRaw;

@@ -92,6 +92,7 @@ const baseState = () => ({
   assert.deepEqual(k.channels[TL_UC], { name: 'TechLinked', floatplane: 'ltt/chTL' });
   assert.deepEqual(k.channels[LTT_UC], { name: 'LinusTechTips', floatplane: 'ltt' });
   assert.ok(Object.keys(k.channels).every(id => /^UC[\w-]{22}$/.test(id)), 'channels keyed by YouTube channel ID only');
+  assert.ok(!('_fpCreators' in k) && !JSON.stringify(k.floatplane).includes('youtube.com'), 'no stored creator links in the index');
   // reference tables
   assert.deepEqual(k.nebula.creators.realengineering, { name: 'Real Engineering', catalog: true });
   assert.deepEqual(k.floatplane.creators.ltt, { name: 'LinusTechTips', urlname: 'linustechtips', channels: { chTL: { name: 'TechLinked', urlname: 'techlinked' } }, catalog: true });
