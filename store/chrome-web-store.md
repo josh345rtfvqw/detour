@@ -1,0 +1,176 @@
+# Chrome Web Store listing
+
+Copy each field into the Chrome Web Store Developer Dashboard. Character limits are noted where the store has them.
+
+---
+
+## Store listing tab
+
+### Name (max 75)
+
+```
+Detour
+```
+
+Keeping other companies' names out of the extension name avoids trademark problems in review. The platforms are named in the summary and description, which is allowed.
+
+### Summary (max 132)
+
+```
+See when a YouTube video is also on Nebula or Floatplane, and go straight there — automatically if you subscribe.
+```
+
+(114 characters)
+
+### Description
+
+```
+Detour shows you when a YouTube video or channel is also on Nebula or Floatplane, so you can watch it where you already pay to support the creator.
+
+ON A VIDEO
+A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe to that platform, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
+
+ON A CHANNEL
+A banner under the Subscribe button lets you know the creator is also on Nebula or Floatplane, with a link to their channel there. Dismiss it once and it stays hidden for that channel.
+
+YOU'RE IN CONTROL
+• Tell Detour which subscriptions you have: Nebula, and the individual Floatplane creators you support
+• Choose between automatic redirects or just a button
+• Open the other site in a new tab instead of leaving YouTube
+• Pick which platform wins when a video is on both
+• Set how strict title matching is before Detour redirects you
+• Light and dark themes follow YouTube and your system
+
+HOW IT WORKS
+Detour matches the YouTube channel to the creator's Nebula or Floatplane channel, then compares video titles and release dates to find the same video. If the exact video can't be found, you get a link to the creator's channel instead, and Detour never redirects you on a guess.
+
+PRIVATE BY DESIGN
+Detour has no server and collects no analytics. It talks only to Nebula and Floatplane, directly from your browser, and only for creators who are on those platforms. Your Floatplane login stays with floatplane.com. Full details are in the privacy policy.
+
+OPEN SOURCE
+https://github.com/josh345rtfvqw/detour
+
+Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula or Floatplane. All trademarks belong to their owners.
+```
+
+### Category
+
+**Tools** is the closest fit for a utility that works on top of other sites. **Entertainment** also works if you'd rather be listed with video-related extensions.
+
+### Language
+
+English
+
+### Graphic assets
+
+| Asset | Required | Size | Status |
+|---|---|---|---|
+| Store icon | Yes | 128×128 PNG | Done: `icons/icon128.png` |
+| Screenshots | At least 1, up to 5 | 1280×800 or 640×400 | To do |
+| Small promo tile | Optional (needed for featuring) | 440×280 | To do |
+| Marquee promo tile | Optional | 1400×560 | To do |
+
+Suggested screenshots:
+1. A video page with the "Watch on Nebula" chip next to the title.
+2. The auto-redirect countdown ("Opening on Nebula in 3s…").
+3. A channel page with the Nebula banner under Subscribe.
+4. The settings popup, with subscriptions ticked.
+5. The settings popup in light mode, or the Floatplane creator list.
+
+### Additional fields
+
+- **Official URL / Homepage:** `https://github.com/josh345rtfvqw/detour`
+- **Support URL:** `https://github.com/josh345rtfvqw/detour/issues`
+- **Mature content:** No
+
+---
+
+## Privacy practices tab
+
+### Single purpose (required)
+
+```
+Detour helps people who subscribe to Nebula or Floatplane watch YouTube videos on those platforms instead. On YouTube video and channel pages it checks whether the creator and video are also on Nebula or Floatplane, then shows a link or, if the user has turned it on and subscribes, redirects them there.
+```
+
+### Permission justifications
+
+**storage**
+```
+Saves the user's settings (which subscriptions they have, redirect or button mode, new-tab preference, preferred platform, matching strictness), a cache of Nebula and Floatplane creator and video lists so they aren't re-downloaded on every page, and the channels whose banner the user dismissed.
+```
+
+**declarativeNetRequestWithHostAccess**
+```
+Sets a User-Agent header that identifies the extension and its version ("Detour/<version>") on the extension's own requests to Floatplane and Nebula, as Floatplane asks API clients to do. Chrome ignores a User-Agent set in fetch(), so a session rule is used. The rule only matches requests made by the extension itself (tabId -1) to floatplane.com, nebula.app and nebula.tv, so the user's own browsing of those sites is never modified. No other requests are blocked, redirected or changed.
+```
+
+**Host permission: youtube.com**
+```
+The extension's content script runs on YouTube video and channel pages to read the video title and channel, and to show the "Watch on Nebula/Floatplane" button, the channel banner, and the optional redirect countdown.
+```
+
+**Host permissions: content.api.nebula.app, rss.nebula.app, talent.nebula.tv**
+```
+talent.nebula.tv/creators is Nebula's public list of creators with their YouTube channels, used to work out whether a YouTube channel is on Nebula. content.api.nebula.app (Nebula's public video API) and rss.nebula.app (Nebula's public RSS feeds, used as a fallback) are used to find the matching video on that creator's Nebula channel. No Nebula account data is accessed.
+```
+
+**Host permission: www.floatplane.com**
+```
+Used to load Floatplane's list of creators (with their YouTube channels) and to search a matched creator's posts for the same video. The requests use the user's existing floatplane.com session so the full creator list is available. The extension never reads, stores or transmits Floatplane credentials.
+```
+
+### Remote code
+
+```
+No, I am not using remote code.
+```
+
+All JavaScript ships inside the extension package. The extension only downloads data (JSON, HTML and RSS), never code to execute.
+
+### Data usage
+
+**What user data do you plan to collect from users now or in the future?** Tick:
+
+- [x] **Web history.** When the user is on a YouTube video by a creator who is on Nebula or Floatplane, the video's title is sent to that platform's search. Requests for that creator's video list also show which creators' videos the user opens.
+- [x] **Website content.** The YouTube video title above is page content.
+
+Leave everything else unticked:
+- Personally identifiable information
+- Health information
+- Financial and payment information
+- Authentication information. The browser attaches the user's own floatplane.com cookies to requests to floatplane.com, but the extension never reads, stores or sends them anywhere else.
+- Personal communications
+- Location
+- User activity. No clicks, keystrokes or mouse movement are recorded.
+
+These are also declared for Firefox as `browsingActivity` and `websiteContent`.
+
+**Certify all three:**
+- [x] I do not sell or transfer user data to third parties, outside of the approved use cases.
+- [x] I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
+- [x] I do not use or transfer user data to determine creditworthiness or for lending purposes.
+
+The "approved use case" here is sending the video title and creator requests to Nebula and Floatplane. That's necessary for the single purpose and is disclosed in the privacy policy.
+
+### Privacy policy URL
+
+```
+https://github.com/josh345rtfvqw/detour/blob/main/PRIVACY.md
+```
+
+---
+
+## Distribution tab
+
+- **Visibility:** Public, or Unlisted if you want to share it with a link first.
+- **Regions:** All regions.
+- **Pricing:** Free.
+
+## Before submitting
+
+- [ ] Pay the one-time $5 developer registration fee, if you haven't already.
+- [ ] Upload the release zip (for example `detour-0.3.9.zip` from GitHub Releases).
+- [ ] Add at least one 1280×800 screenshot.
+- [ ] Check that the privacy policy URL opens publicly. The repository must be public.
+- [ ] Expect review to take a few days. Host permissions on youtube.com can mean a closer manual review.
