@@ -1,30 +1,49 @@
-// Builds data/known.json: the master list the extension downloads daily from GitHub Pages
-// (https://josh345rtfvqw.github.io/detour/data/known.json). Run daily by
+// Builds the master list the extension downloads from GitHub Pages
+// (https://josh345rtfvqw.github.io/detour/data/...). Run daily by
 // .github/workflows/update-list.yml, or by hand:  node scripts/build-known.js
 //
-// It contains:
-//  - nebula:             YouTube video ID -> Nebula video URL. Built automatically: for each
-//                        creator on Nebula's creator wall, their latest YouTube uploads (public
-//                        RSS feed) are matched by title and date against their Nebula videos.
-//                        Entries accumulate; existing ones are kept.
-//  - floatplane:         YouTube video ID -> Floatplane post URL (from overrides only; Floatplane's
-//                        post search needs a login, so it isn't automated).
-//  - floatplaneCreators: from data/floatplane-creators.json (edited by hand).
-// data/overrides.json is applied last: a URL adds or replaces an entry, null removes one.
+// Output:
+//  data/known.json             small index, downloaded by every user about twice a day:
+//    nebula               YouTube video ID -> Nebula URL, pre-matched from each Nebula creator's
+//                         latest YouTube uploads (public RSS feed). Accumulates.
+//    floatplane           YouTube video ID -> Floatplane post URL (manual overrides).
+//    floatplaneCreators   data/floatplane-creators.json (hand-edited), filled in and extended
+//                         with Floatplane's own creator list (IDs, addresses, YouTube links).
+//    catalogs             which per-creator catalogue files exist.
+//  data/nebula/<slug>.json       every video of that Nebula channel: [{ s: slug, t: title, d: date }]
+//  data/floatplane/<id>.json     every video post of that Floatplane creator: [{ i, t, d, c: channel }]
+//
+// Catalogues are incremental: the first run pages back through each creator's whole history;
+// later runs fetch pages only until they reach a video already stored, so the daily job is
+// just the newest uploads. Everything is fetched without logging in. If a source refuses, that
+// part is skipped and the previous data is kept.
+// data/overrides.json is applied last: a URL adds or replaces a pre-matched entry, null removes it.
 const fs = require('fs');
 const path = require('path');
-const { bestMatch, parseCreatorWall, decodeHtml } = require('../match.js');
+const { bestMatch, parseCreatorWall, decodeHtml, SLUG } = require('../match.js');
+const { fpNameKey } = require('../floatplane-defaults.js');
 
 const UA = 'DetourListBuilder/1.0 (+https://github.com/josh345rtfvqw/detour)';
 const NEBULA_API = 'https://content.api.nebula.app';
-const MIN_CONFIDENCE = 0.85; // stricter than the extension: these are shared with every user
+const FP = 'https://www.floatplane.com';
+const FP_ID = /^\w{1,64}$/;
+const MIN_CONFIDENCE = 0.85; // stricter than the extension: pre-matches are shared with every user
 const MAX_ENTRIES = 50000;
+const MAX_PAGES = 1000;      // safety stop per creator
 const ALLOWED_HOSTS = new Set(['nebula.tv', 'www.nebula.tv', 'nebula.app', 'www.nebula.app', 'floatplane.com', 'www.floatplane.com']);
 const isAllowedUrl = u => { try { const x = new URL(u); return x.protocol === 'https:' && ALLOWED_HOSTS.has(x.hostname); } catch { return false; } };
 const YT_ID = /^[\w-]{11}$/;
 
 const readJson = (f, fallback) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return fallback; } };
 const sortObject = o => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
+const writeIfChanged = (file, data) => {
+  const text = JSON.stringify(data) + '\n';
+  if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') === text) return false;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, text);
+  return true;
+};
+const nebulaSlugFromUrl = u => { try { const m = new URL(u).pathname.match(/^\/videos\/([\w-]+)\/?$/); return m ? m[1] : null; } catch { return null; } };
 
 // YouTube's public per-channel feed: the latest ~15 uploads.
 function parseYouTubeFeed(xml) {
@@ -36,14 +55,95 @@ function parseYouTubeFeed(xml) {
 }
 
 async function mapLimit(items, limit, fn) {
-  const out = []; let i = 0;
+  let i = 0;
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (i < items.length) { const idx = i++; out[idx] = await fn(items[idx], idx); }
+    while (i < items.length) { const idx = i++; await fn(items[idx], idx); }
   }));
-  return out;
 }
 
-async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'data'), now = new Date(), log = console.log, delayMs = 150 } = {}) {
+// ------------------------------------------------------------------ Nebula catalogue
+
+// Newest-first pages of a Nebula channel, stopping at the first episode already stored.
+async function updateNebulaCatalog({ get, sleep, delayMs, slug, existing }) {
+  const known = new Set(existing.map(e => e.s));
+  const channel = await get(`${NEBULA_API}/content/${slug}/`);
+  let url = `${NEBULA_API}/video_channels/${channel.id}/video_episodes/?page_size=100`;
+  const fresh = [];
+  for (let page = 0; url && page < MAX_PAGES; page++) {
+    const body = await get(url);
+    let reachedKnown = false;
+    for (const v of body.results || []) {
+      const s = nebulaSlugFromUrl(v.share_url || '') || (SLUG.test(v.slug || '') ? v.slug : null);
+      if (!s || typeof v.title !== 'string') continue;
+      if (known.has(s)) { reachedKnown = true; break; }
+      fresh.push({ s, t: v.title, d: (v.published_at || '').slice(0, 10) });
+      known.add(s);
+    }
+    if (reachedKnown) break;
+    url = body.next && body.next.startsWith(NEBULA_API) ? body.next : null;
+    if (url && delayMs) await sleep(delayMs);
+  }
+  return [...fresh, ...existing];
+}
+
+// ------------------------------------------------------------------ Floatplane
+
+async function buildFloatplaneCreators({ get, log, handCreators }) {
+  const links = o => Object.values(o || {}).filter(l => typeof l === 'string');
+  const creators = handCreators.map(c => ({ ...c, channels: [...(c.channels || [])] }));
+  try {
+    const live = await get(`${FP}/api/v3/creator/list?search=`);
+    if (!Array.isArray(live)) throw new Error('unexpected response');
+    for (const lc of live) {
+      if (!lc || !FP_ID.test(lc.id || '') || typeof lc.title !== 'string') continue;
+      const entry = {
+        id: lc.id, title: lc.title, urlname: lc.urlname || null, links: links(lc.socialLinks),
+        channels: (lc.channels || []).filter(ch => ch && FP_ID.test(ch.id || '')).map(ch => ({ id: ch.id, title: ch.title, urlname: ch.urlname || null, links: links(ch.socialLinks) })),
+      };
+      const existing = creators.find(c => c.id === lc.id) || creators.find(c => fpNameKey(c.title) === fpNameKey(lc.title));
+      if (!existing) { creators.push(entry); continue; }
+      // Live data fills gaps; hand-entered YouTube links are kept.
+      existing.id = entry.id; existing.urlname = entry.urlname || existing.urlname;
+      existing.links = [...new Set([...(existing.links || []), ...entry.links])];
+      for (const ch of entry.channels) {
+        const ec = existing.channels.find(x => x.id === ch.id);
+        if (!ec) existing.channels.push(ch);
+        else { ec.urlname = ch.urlname || ec.urlname; ec.links = [...new Set([...(ec.links || []), ...ch.links])]; }
+      }
+    }
+    log(`floatplane creator list: ${live.length} creators`);
+    return { creators, authRequired: false };
+  } catch (e) {
+    const authRequired = /^40[13] /.test(e.message);
+    log(`floatplane creator list failed: ${e.message}${authRequired ? ' (Floatplane requires a login for this)' : ''}`);
+    return { creators, authRequired };
+  }
+}
+
+// Newest-first pages of a Floatplane creator's video posts, stopping at the first one stored.
+async function updateFloatplaneCatalog({ get, sleep, delayMs, id, existing }) {
+  const known = new Set(existing.map(p => p.i));
+  const fresh = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const posts = await get(`${FP}/api/v3/content/creator?id=${id}&limit=20&hasVideo=true&sort=DESC&fetchAfter=${page * 20}`);
+    if (!Array.isArray(posts)) throw new Error('unexpected response');
+    let reachedKnown = false;
+    for (const p of posts) {
+      if (!p || !FP_ID.test(p.id || '') || typeof p.title !== 'string') continue;
+      if (known.has(p.id)) { reachedKnown = true; break; }
+      const ch = typeof p.channel === 'string' ? p.channel : p.channel?.id;
+      fresh.push({ i: p.id, t: p.title, d: (p.releaseDate || '').slice(0, 10), ...(ch && FP_ID.test(ch) ? { c: ch } : {}) });
+      known.add(p.id);
+    }
+    if (reachedKnown || posts.length < 20) break;
+    if (delayMs) await sleep(delayMs);
+  }
+  return [...fresh, ...existing];
+}
+
+// ------------------------------------------------------------------ build
+
+async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'data'), now = new Date(), log = console.log, delayMs = 200 } = {}) {
   const get = async (url, type = 'json') => {
     const res = await fetchFn(url, { headers: { 'User-Agent': UA, 'Accept': type === 'json' ? 'application/json' : '*/*' } });
     if (!res.ok) throw new Error(`${res.status} ${url}`);
@@ -55,39 +155,59 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   const previous = readJson(knownFile, {});
   const nebula = { ...(previous.nebula || {}) };
   const overrides = readJson(path.join(dataDir, 'overrides.json'), {});
-  const floatplaneCreators = readJson(path.join(dataDir, 'floatplane-creators.json'), []);
+  const handCreators = readJson(path.join(dataDir, 'floatplane-creators.json'), []);
+  const nebulaDir = path.join(dataDir, 'nebula');
+  const fpDir = path.join(dataDir, 'floatplane');
 
-  // 1. Creators on Nebula with a YouTube channel.
+  // 1. Nebula: creators, their full catalogues, and pre-matches for their latest YouTube uploads.
   let creators = [];
   try {
-    creators = parseCreatorWall(await get('https://talent.nebula.tv/creators/', 'text')).filter(c => c.ytId);
-    log(`creator wall: ${creators.length} creators with a YouTube channel`);
+    creators = parseCreatorWall(await get('https://talent.nebula.tv/creators/', 'text'));
+    log(`creator wall: ${creators.length} creators (${creators.filter(c => c.ytId).length} with a YouTube channel)`);
   } catch (e) { log(`creator wall failed: ${e.message}`); }
 
-  // 2. For each, match recent YouTube uploads to Nebula videos.
-  let added = 0, failed = 0;
+  let nebNew = 0, nebFailed = 0, matched = 0;
   await mapLimit(creators, 3, async c => {
+    const episodes = [];
+    for (const slug of [...new Set([c.slug, c.alt].filter(s => s && SLUG.test(s)))]) {
+      const file = path.join(nebulaDir, `${slug}.json`);
+      const existing = readJson(file, []);
+      try {
+        const updated = await updateNebulaCatalog({ get, sleep, delayMs, slug, existing });
+        nebNew += updated.length - existing.length;
+        writeIfChanged(file, updated);
+        episodes.push(...updated);
+      } catch (e) { nebFailed++; episodes.push(...existing); }
+    }
+    if (!c.ytId || !episodes.length) return;
     try {
       const feed = parseYouTubeFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${c.ytId}`, 'text'));
-      const fresh = feed.filter(v => !nebula[v.videoId]);
-      if (!fresh.length) return;
-      const slugs = [...new Set([c.slug, c.alt].filter(Boolean))];
-      const episodes = [];
-      for (const slug of slugs) {
-        try {
-          const channel = await get(`${NEBULA_API}/content/${slug}/`);
-          const body = await get(`${NEBULA_API}/video_channels/${channel.id}/video_episodes/?page_size=100`);
-          episodes.push(...body.results.map(v => ({ title: v.title, date: v.published_at, url: v.share_url || `https://nebula.tv/videos/${v.slug}` })));
-        } catch (e) { /* try the other slug */ }
+      const cands = episodes.map(e => ({ title: e.t, date: e.d, url: `https://nebula.tv/videos/${e.s}` }));
+      for (const v of feed.filter(v => !nebula[v.videoId])) {
+        const m = bestMatch(v.title, v.date, cands);
+        if (m && m.confidence >= MIN_CONFIDENCE && isAllowedUrl(m.url)) { nebula[v.videoId] = m.url; matched++; }
       }
-      for (const v of fresh) {
-        const m = bestMatch(v.title, v.date, episodes);
-        if (m && m.confidence >= MIN_CONFIDENCE && isAllowedUrl(m.url)) { nebula[v.videoId] = m.url; added++; }
-      }
-    } catch (e) { failed++; }
+    } catch (e) { /* feed unavailable today */ }
     if (delayMs) await sleep(delayMs);
   });
-  log(`matched ${added} new videos (${failed} creators failed)`);
+  log(`nebula: ${nebNew} new catalogue videos (${nebFailed} channels failed), ${matched} new YouTube pre-matches`);
+
+  // 2. Floatplane: creator list and full catalogues.
+  const { creators: fpCreators, authRequired } = await buildFloatplaneCreators({ get, log, handCreators });
+  let fpNew = 0, fpFailed = 0;
+  if (authRequired) log('floatplane catalogues skipped: Floatplane requires a login; previous data kept');
+  else {
+    await mapLimit(fpCreators.filter(c => FP_ID.test(c.id || '')), 2, async c => {
+      const file = path.join(fpDir, `${c.id}.json`);
+      const existing = readJson(file, []);
+      try {
+        const updated = await updateFloatplaneCatalog({ get, sleep, delayMs, id: c.id, existing });
+        fpNew += updated.length - existing.length;
+        writeIfChanged(file, updated);
+      } catch (e) { fpFailed++; }
+    });
+    log(`floatplane: ${fpNew} new catalogue posts (${fpFailed} creators failed)`);
+  }
 
   // 3. Manual overrides win.
   const floatplane = {};
@@ -99,18 +219,22 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     }
   }
 
-  // Keep the list bounded (only reached if it ever grows past MAX_ENTRIES).
+  // 4. Index of catalogue files that exist (and aren't empty).
+  const listCatalogs = (dir, valid) => (fs.existsSync(dir) ? fs.readdirSync(dir) : [])
+    .filter(f => f.endsWith('.json')).map(f => f.slice(0, -5)).filter(n => valid.test(n) && readJson(path.join(dir, `${n}.json`), []).length).sort();
+  const catalogs = { nebula: listCatalogs(nebulaDir, SLUG), floatplane: listCatalogs(fpDir, FP_ID) };
+
   const nebulaEntries = Object.entries(nebula);
   const kept = Object.fromEntries(nebulaEntries.slice(Math.max(0, nebulaEntries.length - MAX_ENTRIES)));
-
-  const data = { version: 1, nebula: sortObject(kept), floatplane: sortObject(floatplane), floatplaneCreators };
-  // Only bump "generated" when the content changes, so unchanged days produce no commit.
+  const data = { version: 1, nebula: sortObject(kept), floatplane: sortObject(floatplane), floatplaneCreators: fpCreators, catalogs };
+  // Only bump "generated" when the index changes, so quiet days don't rewrite it.
   const { generated: _g, ...prevContent } = previous;
   const changed = JSON.stringify(prevContent) !== JSON.stringify(data);
   const out = { version: 1, generated: changed ? now.toISOString() : (previous.generated || now.toISOString()), ...data };
-  fs.writeFileSync(knownFile, JSON.stringify(out) + '\n');
-  log(`${changed ? 'updated' : 'unchanged'}: ${Object.keys(out.nebula).length} Nebula videos, ${Object.keys(out.floatplane).length} Floatplane videos, ${floatplaneCreators.length} Floatplane creators`);
-  return { changed, added, data: out };
+  writeIfChanged(knownFile, out);
+  const count = (dir, names) => names.reduce((n, x) => n + readJson(path.join(dir, `${x}.json`), []).length, 0);
+  log(`index ${changed ? 'updated' : 'unchanged'}: ${Object.keys(out.nebula).length} pre-matched Nebula videos; catalogues: ${catalogs.nebula.length} Nebula channels (${count(nebulaDir, catalogs.nebula)} videos), ${catalogs.floatplane.length} Floatplane creators (${count(fpDir, catalogs.floatplane)} posts)`);
+  return { changed, added: matched, data: out, nebNew, fpNew };
 }
 
 if (require.main === module) build().catch(e => { console.error(e); process.exit(1); });

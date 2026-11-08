@@ -79,15 +79,16 @@ async function cached(key, maxAge, loader) {
   }
   try {
     await chrome.storage.local.set({ [key]: { t: Date.now(), v } });
-    if (key.startsWith('neb:')) await pruneEpisodeCaches();
+    if (key.startsWith('neb:')) await pruneCaches('neb:', 60);
+    if (key.startsWith('cat:')) await pruneCaches('cat:', 25);
   } catch (e) { console.warn('[detour] cache write failed', key, e); } // still return the data
   return v;
 }
 
-// Per-channel episode lists would otherwise pile up in storage forever: keep the newest 60.
-async function pruneEpisodeCaches(keep = 60) {
+// Per-creator caches would otherwise pile up in storage forever: keep the newest few.
+async function pruneCaches(prefix, keep) {
   const all = await chrome.storage.local.get(null);
-  const old = Object.entries(all).filter(([k]) => k.startsWith('neb:'))
+  const old = Object.entries(all).filter(([k]) => k.startsWith(prefix))
     .sort((a, b) => (b[1]?.t || 0) - (a[1]?.t || 0)).slice(keep).map(([k]) => k);
   if (old.length) await chrome.storage.local.remove(old);
 }
@@ -98,7 +99,9 @@ async function pruneEpisodeCaches(keep = 60) {
 // only, never code): known YouTube -> Nebula/Floatplane videos and the Floatplane creator list.
 // GitHub Pages allows cross-origin reads, so no extra permission is needed. Fetching it sends
 // nothing about what the user watches. Every URL in it is checked with safeUrl().
-const MASTER_URL = 'https://josh345rtfvqw.github.io/detour/data/known.json';
+const DATA_BASE = 'https://josh345rtfvqw.github.io/detour/data';
+const MASTER_URL = `${DATA_BASE}/known.json`;
+const FP_POST_ID = /^\w{1,64}$/;
 const YT_VIDEO_ID = /^[\w-]{11}$/;
 
 function sanitizeVideoMap(map) {
@@ -127,10 +130,34 @@ function loadMaster() {
     if (!res.ok) throw new Error(`master list ${res.status}`);
     const d = await res.json();
     if (!d || d.version !== 1) throw new Error('unsupported master list version');
-    return { nebula: sanitizeVideoMap(d.nebula), floatplane: sanitizeVideoMap(d.floatplane), floatplaneCreators: sanitizeCreators(d.floatplaneCreators) };
+    const names = (list, valid) => (Array.isArray(list) ? list.filter(n => typeof n === 'string' && valid.test(n)) : []);
+    return {
+      nebula: sanitizeVideoMap(d.nebula), floatplane: sanitizeVideoMap(d.floatplane), floatplaneCreators: sanitizeCreators(d.floatplaneCreators),
+      catalogs: { nebula: names(d.catalogs?.nebula, SLUG), floatplane: names(d.catalogs?.floatplane, FP_POST_ID) },
+    };
   });
 }
-const masterOrEmpty = () => loadMaster().catch(() => ({ nebula: {}, floatplane: {}, floatplaneCreators: null }));
+const EMPTY_MASTER = { nebula: {}, floatplane: {}, floatplaneCreators: null, catalogs: { nebula: [], floatplane: [] } };
+const masterOrEmpty = () => loadMaster().catch(() => EMPTY_MASTER);
+
+// A creator's full video catalogue from the master list (data/nebula/<slug>.json or
+// data/floatplane/<id>.json), downloaded only for creators the user actually watches.
+// Returns match candidates, or null if there's no catalogue for that creator.
+async function loadCatalog(kind, name) {
+  const master = await masterOrEmpty();
+  if (!master.catalogs[kind].includes(name)) return null;
+  try {
+    return await cached(`cat:${kind}:${name}`, 12 * 3600 * 1000, async () => {
+      const res = await fetch(`${DATA_BASE}/${kind}/${name}.json`, { credentials: 'omit', cache: 'no-cache' });
+      if (!res.ok) throw new Error(`catalogue ${res.status}`);
+      const list = await res.json();
+      if (!Array.isArray(list)) throw new Error('bad catalogue');
+      return kind === 'nebula'
+        ? list.filter(e => e && SLUG.test(e.s || '') && typeof e.t === 'string').map(e => ({ title: e.t, date: e.d, url: `https://nebula.tv/videos/${e.s}` }))
+        : list.filter(p => p && FP_POST_ID.test(p.i || '') && typeof p.t === 'string').map(p => ({ title: p.t, date: p.d, url: `${FP}/post/${p.i}`, channel: p.c }));
+    });
+  } catch (e) { console.warn('[detour] catalogue unavailable', kind, name, e); return null; }
+}
 
 // Confirmed matches remembered locally, so revisits need no network requests (and don't send
 // the title again). 30 days, at most 2000 entries.
@@ -215,14 +242,18 @@ async function lookupNebula(info, settings) {
 
   const slugs = [...new Set(matches.flatMap(c => [c.slug, c.alt]).filter(Boolean))];
   let best = null;
+  let allCatalogued = true;
   for (const slug of slugs) {
     try {
-      const m = bestMatch(info.title, info.publishDate, await loadNebulaEpisodes(slug));
+      // Full catalogue from the master list if there is one, else Nebula's newest 100.
+      let cands = await loadCatalog('nebula', slug);
+      if (!cands) { allCatalogued = false; cands = await loadNebulaEpisodes(slug); }
+      const m = bestMatch(info.title, info.publishDate, cands);
       if (m && (!best || m.confidence > best.confidence)) best = m;
     } catch (e) { console.warn('[detour] nebula episodes', slug, e); }
   }
-  // Older videos fall outside the newest 100: try Nebula's search.
-  if (!best || best.confidence < settings.minConfidence) {
+  // Older videos fall outside the newest 100: try Nebula's search (not needed with a full catalogue).
+  if (!allCatalogued && (!best || best.confidence < settings.minConfidence)) {
     try {
       const m = bestMatch(info.title, info.publishDate, await searchNebula(info.title, slugs));
       if (m && (!best || m.confidence > best.confidence)) best = m;
@@ -326,6 +357,13 @@ async function lookupFloatplane(info, settings) {
   }
   let best = null, bestHit = hits[0];
   for (const hit of hits) {
+    const catalog = await loadCatalog('floatplane', hit.creator.id);
+    if (catalog) {
+      // Full catalogue from the master list: match locally, no request to Floatplane.
+      const m = bestMatch(info.title, info.publishDate, hit.channel ? catalog.filter(p => !p.channel || p.channel === hit.channel.id) : catalog);
+      if (m && (!best || m.confidence > best.confidence)) { best = m; bestHit = hit; }
+      continue;
+    }
     const cands = [];
     if (!fpKnown(hit.creator)) continue; // can't search posts without the creator's ID
     for (const search of [info.title, '']) { // title search, then the newest posts

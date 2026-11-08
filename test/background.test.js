@@ -273,5 +273,26 @@ const fpRoutes = [
   assert.equal(r.results[0].url, 'https://nebula.tv/videos/realengineering-why-planes');
   assert.ok(!env.calls.slice(before).some(c => /nebula\.(app|tv)/.test(c.url)), 'served from the local match cache');
   console.log('ok  confirmed matches are remembered locally');
+  // 23. Nebula full catalogue: matched locally, no Nebula episode or search requests.
+  env = makeEnv({ nebulaSubscribed: true }, [
+    [MASTER, { version: 1, nebula: {}, floatplane: {}, floatplaneCreators: null, catalogs: { nebula: ['realengineering'], floatplane: [] } }],
+    [/detour\/data\/nebula\/realengineering\.json/, [{ s: 'realengineering-old-video', t: 'A Very Old Video About Dams', d: '2019-03-01' }, { s: '../evil', t: 'x' }, { s: 'ok', t: 42 }]],
+    nebulaRoutes[0], [/content\.api\.nebula\.app/, new Error()], [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'catneb00001', title: 'A Very Old Video About Dams', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
+  assert.equal(r.results[0].url, 'https://nebula.tv/videos/realengineering-old-video');
+  assert.ok(!env.calls.some(c => c.url.includes('content.api.nebula.app')), 'no Nebula API requests with a full catalogue');
+  console.log('ok  Nebula catalogue matched locally (bad entries ignored)');
+
+  // 24. Floatplane full catalogue, filtered to the matched sub-channel; no post search.
+  env = makeEnv({ floatplaneCreators: ['ltt'] }, [[/nebula|talent/, new Error()],
+    [MASTER, { version: 1, nebula: {}, floatplane: {}, floatplaneCreators: null, catalogs: { nebula: [], floatplane: ['ltt'] } }],
+    [/detour\/data\/floatplane\/ltt\.json/, [
+      { i: 'wrongch', t: 'Nvidia did WHAT?', d: '2024-05-02', c: 'chOther' },
+      { i: 'rightch', t: 'Nvidia did WHAT? - TechLinked', d: '2024-05-02', c: 'ch-tl' }]],
+    fpRoutes[0], [/content\/creator/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'catfp000001', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked', publishDate: '2024-05-03' } });
+  assert.equal(r.results[0].url, 'https://www.floatplane.com/post/rightch', 'only the TechLinked sub-channel is considered');
+  assert.ok(!env.calls.some(c => c.url.includes('content/creator')), 'no Floatplane post search with a full catalogue');
+  console.log('ok  Floatplane catalogue matched locally, filtered by sub-channel');
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

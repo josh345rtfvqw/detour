@@ -44,6 +44,7 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 
 **Known-videos list.** Detour also downloads a master list from this repo's GitHub Pages site, [`data/known.json`](data/known.json), about twice a day. The list can be updated without releasing a new extension version, and it holds:
 - **Nebula videos:** YouTube video ID → Nebula link. A [daily GitHub Action](.github/workflows/update-list.yml) builds these by matching each Nebula creator's latest YouTube uploads (from YouTube's public RSS feeds) to their Nebula videos.
+- **Creator catalogues:** every video of every Nebula channel (`data/nebula/`) and every video post of every Floatplane creator (`data/floatplane/`). The first run pulls each creator's whole history, and the daily run only adds newer videos. The extension downloads a creator's catalogue when you watch them and matches locally, without contacting Nebula or Floatplane.
 - **Floatplane creators:** from [`data/floatplane-creators.json`](data/floatplane-creators.json).
 - **Manual corrections:** from [`data/overrides.json`](data/overrides.json).
 

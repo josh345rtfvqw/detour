@@ -61,5 +61,64 @@ function mockFetch(calls) {
   r = await build({ fetchFn: down, dataDir: dir, now: new Date('2026-11-11T00:00:00Z'), log, delayMs: 0 });
   assert.equal(r.data.floatplaneCreators[0].title, 'Creator One');
   console.log('ok  survives the network being down');
+  // Nebula catalogue written per channel (javascript: link from the API skipped).
+  const nebCat = JSON.parse(fs.readFileSync(path.join(dir, 'nebula', 'realengineering.json'), 'utf8'));
+  assert.deepEqual(nebCat, [{ s: 'realengineering-why-planes', t: 'Why Planes Don’t Fly Faster', d: '2026-11-02' }]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'known.json'), 'utf8')).catalogs.nebula, ['realengineering']);
+  console.log('ok  Nebula catalogue file written and indexed');
+
+  // ---- Floatplane: creator list + full catalogue per creator, incremental, no login ----
+  const fpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'known-fp-'));
+  fs.writeFileSync(path.join(fpDir, 'floatplane-creators.json'), JSON.stringify([
+    { id: null, title: 'Level1Techs', urlname: null, links: [], channels: [] },               // name-only, filled in from the live list
+    { id: 'ltt', title: 'LinusTechTips', urlname: 'linustechtips', links: ['https://www.youtube.com/user/LinusTechTips'], channels: [] }]));
+  const mkPosts = (prefix, from, n, ch) => Array.from({ length: n }, (_, i) => ({ id: `${prefix}${from + i}`, title: `${prefix} video ${from + i}`, releaseDate: '2026-11-0' + (1 + ((from + i) % 8)) + 'T10:00:00Z', channel: ch }));
+  let lttPosts = mkPosts('ltt', 0, 130, { id: 'chTL', title: 'TechLinked' });   // newest first
+  const fpCalls = [];
+  const fpFetch = async url => {
+    fpCalls.push(url);
+    const ok = b => ({ ok: true, status: 200, json: async () => b, text: async () => JSON.stringify(b) });
+    if (url.includes('/api/v3/creator/list')) return ok([
+      { id: 'ltt', title: 'LinusTechTips', urlname: 'linustechtips', socialLinks: {}, channels: [{ id: 'chTL', title: 'TechLinked', urlname: 'techlinked', socialLinks: { youtube: 'https://www.youtube.com/@TechLinked' } }] },
+      { id: 'l1t', title: 'Level1Techs', urlname: 'level1techs', socialLinks: { youtube: 'https://www.youtube.com/@Level1Techs' }, channels: [] },
+      { id: 'newc', title: 'Brand New Creator', urlname: 'brandnew', socialLinks: {}, channels: [] }]);
+    const m = url.match(/content\/creator\?id=(\w+)&limit=20&hasVideo=true&sort=DESC&fetchAfter=(\d+)/);
+    if (m) {
+      const all = { ltt: lttPosts, l1t: mkPosts('l1t', 0, 25, 'chL1'), newc: [] }[m[1]] || [];
+      return ok(all.slice(+m[2], +m[2] + 20));
+    }
+    return { ok: false, status: 404 };
+  };
+  const readCat = id => JSON.parse(fs.readFileSync(path.join(fpDir, 'floatplane', `${id}.json`), 'utf8'));
+  r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-08T00:00:00Z'), log, delayMs: 0 });
+  const fpc = r.data.floatplaneCreators;
+  assert.equal(fpc.find(c => c.title === 'Level1Techs').id, 'l1t', 'name-only creator gets its real ID');
+  assert.equal(fpc.find(c => c.title === 'Level1Techs').urlname, 'level1techs');
+  assert.ok(fpc.find(c => c.id === 'ltt').links.includes('https://www.youtube.com/user/LinusTechTips'), 'hand-entered YouTube link kept');
+  assert.ok(fpc.find(c => c.id === 'ltt').channels.some(ch => ch.id === 'chTL'), 'sub-channels added');
+  assert.ok(fpc.some(c => c.id === 'newc'), 'new creators added');
+  assert.equal(readCat('ltt').length, 130, 'first run pulls the whole history');
+  assert.deepEqual(readCat('ltt')[0], { i: 'ltt0', t: 'ltt video 0', d: '2026-11-01', c: 'chTL' }, 'compact post, channel id from object');
+  assert.equal(readCat('l1t')[0].c, 'chL1', 'channel id from string');
+  assert.equal(fpCalls.filter(u => u.includes('id=ltt&')).length, 7, '130 posts = 7 pages of 20');
+  assert.deepEqual(r.data.catalogs.floatplane, ['l1t', 'ltt'], 'empty catalogues not indexed');
+  console.log('ok  Floatplane: creators filled in, full history pulled on the first run');
+
+  // Next day: two new posts. Only the first page is fetched, and the new posts go on top.
+  lttPosts = [...mkPosts('new', 0, 2, 'chTL'), ...lttPosts];
+  fpCalls.length = 0;
+  r = await build({ fetchFn: fpFetch, dataDir: fpDir, now: new Date('2026-11-09T00:00:00Z'), log, delayMs: 0 });
+  assert.equal(fpCalls.filter(u => u.includes('id=ltt&')).length, 1, 'stops at the first known post');
+  assert.equal(readCat('ltt').length, 132);
+  assert.equal(readCat('ltt')[0].i, 'new0');
+  assert.equal(r.fpNew, 2);
+  console.log('ok  daily run fetches only the newest posts');
+
+  // Floatplane asks for a login: skipped, existing catalogues untouched, nothing else breaks.
+  const authFetch = async url => (url.includes('floatplane.com') ? { ok: false, status: 401 } : fpFetch(url));
+  r = await build({ fetchFn: authFetch, dataDir: fpDir, now: new Date('2026-11-10T00:00:00Z'), log, delayMs: 0 });
+  assert.equal(readCat('ltt').length, 132, 'catalogue kept when Floatplane refuses');
+  assert.deepEqual(r.data.catalogs.floatplane, ['l1t', 'ltt']);
+  console.log('ok  Floatplane login required: skipped, catalogues kept');
   console.log('\nall build-known tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
