@@ -136,42 +136,74 @@ async function updateFloatplaneCatalog({ get, sleep, delayMs, id, existing }) {
 
 // ------------------------------------------------------------------ Floatplane creators
 
-// Hand-edited list, filled in and extended with Floatplane's own creator list. If Floatplane
-// refuses, the previous run's list (with IDs already filled in) is kept.
-async function buildFloatplaneCreators({ get, log, handCreators, previousCreators }) {
+// Merges one Floatplane creator object (from creator/list or creator/named) into `creators`:
+// live data fills in IDs, addresses, YouTube links and sub-channels; hand-entered links are kept.
+// `match` optionally finds the existing entry (e.g. by the lowercase address that was asked for).
+function mergeFloatplaneCreator(creators, lc, match) {
   const links = o => Object.values(o || {}).filter(l => typeof l === 'string');
-  const creators = handCreators.map(c => ({ ...c, links: [...(c.links || [])], channels: [...(c.channels || [])] }));
+  if (!lc || !FP_ID.test(lc.id || '') || typeof lc.title !== 'string') return false;
+  const entry = {
+    id: lc.id, title: lc.title, urlname: lc.urlname || null, links: links(lc.socialLinks),
+    channels: (lc.channels || []).filter(ch => ch && FP_ID.test(ch.id || '')).map(ch => ({ id: ch.id, title: ch.title, urlname: ch.urlname || null, links: links(ch.socialLinks) })),
+  };
+  const existing = creators.find(c => c.id === lc.id) || (match && creators.find(match)) || creators.find(c => fpNameKey(c.title) === fpNameKey(lc.title));
+  if (!existing) { creators.push(entry); return true; }
+  existing.id = entry.id; existing.urlname = entry.urlname || existing.urlname;
+  existing.links = [...new Set([...(existing.links || []), ...entry.links])];
+  existing.channels = existing.channels || [];
+  for (const ch of entry.channels) {
+    const ec = existing.channels.find(x => x.id === ch.id);
+    if (!ec) existing.channels.push(ch);
+    else { ec.urlname = ch.urlname || ec.urlname; ec.links = [...new Set([...(ec.links || []), ...ch.links])]; }
+  }
+  return true;
+}
+
+// A creator's Floatplane web address name, lowercase: the stored one if known, else the usual
+// form of the display name (lowercase letters and digits only, e.g. "Level1Techs" -> "level1techs").
+const floatplaneUrlname = c => (c.urlname ? String(c.urlname).toLowerCase() : String(c.title || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+// Hand-edited list, filled in and extended with Floatplane's own creator list. If Floatplane
+// refuses that, the previous run's list (with IDs already filled in) is kept. Either way, each
+// creator's details are then looked up by address with creator/named (several per request).
+async function buildFloatplaneCreators({ get, log, handCreators, previousCreators }) {
+  let creators = handCreators.map(c => ({ ...c, links: [...(c.links || [])], channels: [...(c.channels || [])] }));
+  let refused = false;
   try {
     const live = await get(`${FP}/api/v3/creator/list?search=`);
     if (!Array.isArray(live)) throw new Error('unexpected response');
-    for (const lc of live) {
-      if (!lc || !FP_ID.test(lc.id || '') || typeof lc.title !== 'string') continue;
-      const entry = {
-        id: lc.id, title: lc.title, urlname: lc.urlname || null, links: links(lc.socialLinks),
-        channels: (lc.channels || []).filter(ch => ch && FP_ID.test(ch.id || '')).map(ch => ({ id: ch.id, title: ch.title, urlname: ch.urlname || null, links: links(ch.socialLinks) })),
-      };
-      const existing = creators.find(c => c.id === lc.id) || creators.find(c => fpNameKey(c.title) === fpNameKey(lc.title));
-      if (!existing) { creators.push(entry); continue; }
-      existing.id = entry.id; existing.urlname = entry.urlname || existing.urlname;
-      existing.links = [...new Set([...existing.links, ...entry.links])];
-      for (const ch of entry.channels) {
-        const ec = existing.channels.find(x => x.id === ch.id);
-        if (!ec) existing.channels.push(ch);
-        else { ec.urlname = ch.urlname || ec.urlname; ec.links = [...new Set([...(ec.links || []), ...ch.links])]; }
-      }
-    }
+    for (const lc of live) mergeFloatplaneCreator(creators, lc);
     log(`floatplane creator list: ${live.length} creators`);
-    return { creators, refused: false };
   } catch (e) {
-    const refused = /^40[13] /.test(e.message);
+    refused = /^40[13] /.test(e.message);
     log(`floatplane creator list failed: ${e.message}${refused ? ' (refused: login or bot protection, see the "refused by" line)' : ''}`);
     if (previousCreators.length) {
       const kept = previousCreators.map(c => ({ ...c, links: [...(c.links || [])], channels: [...(c.channels || [])] }));
       for (const h of creators) if (!kept.some(k => (h.id && k.id === h.id) || fpNameKey(k.title) === fpNameKey(h.title))) kept.push(h);
-      return { creators: kept, refused };
+      creators = kept;
     }
-    return { creators, refused };
   }
+
+  // creator/named: look up every creator by lowercase address, 10 per request.
+  const names = [...new Set(creators.map(floatplaneUrlname).filter(n => /^[a-z0-9_]{1,64}$/.test(n)))];
+  const found = new Set();
+  for (let i = 0; i < names.length; i += 10) {
+    const batch = names.slice(i, i + 10);
+    const q = batch.map((n, j) => `creatorURL[${j}]=${encodeURIComponent(n)}`).join('&');
+    try {
+      const res = await get(`${FP}/api/v3/creator/named?${q}`);
+      for (const lc of Array.isArray(res) ? res : []) {
+        const asked = String(lc?.urlname || '').toLowerCase();
+        if (mergeFloatplaneCreator(creators, lc, c => floatplaneUrlname(c) === asked)) found.add(asked);
+      }
+    } catch (e) {
+      log(`floatplane creator/named failed: ${e.message}`);
+      if (/^40[13] /.test(e.message)) break; // refused: don't ask again for every batch
+    }
+  }
+  const missing = names.filter(n => !found.has(n));
+  log(`floatplane creator/named: ${found.size} of ${names.length} creators found${missing.length ? `; no creator at: ${missing.join(', ')} (set "urlname" in data/floatplane-creators.json)` : ''}`);
+  return { creators, refused };
 }
 
 // ------------------------------------------------------------------ previous data

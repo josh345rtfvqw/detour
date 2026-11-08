@@ -30,6 +30,12 @@ function makeNet(state) {
     if (url.includes('www.floatplane.com')) {
       if (state.fpRefuse || (state.fpListRefuse && url.includes('/creator/list'))) return { ok: false, status: 403, headers: { get: k => (k === 'server' ? 'cloudflare' : null) }, text: async () => '{"message":"You must be logged-in to access this resource."}' };
       if (url.includes('/api/v3/creator/list')) return ok(state.fpCreators);
+      if (url.includes('/api/v3/creator/named?')) {
+        // Case-sensitive like the real thing: only lowercase addresses match.
+        const asked = [...new URL(url).searchParams.entries()].filter(([k]) => /^creatorURL\[\d+\]$/.test(k)).map(([, v]) => v);
+        state.namedAsked = [...(state.namedAsked || []), ...asked];
+        return ok(asked.map(n => (state.fpNamed || {})[n]).filter(Boolean));
+      }
       const m = url.match(/content\/creator\?id=(\w+)&limit=20&hasVideo=true&sort=DESC&fetchAfter=(\d+)/);
       if (m) return ok((state.fpPosts[m[1]] || []).slice(+m[2], +m[2] + 20));
     }
@@ -139,6 +145,21 @@ const baseState = () => ({
   assert.equal(readJ(dir, 'floatplane/ltt.json')[0].i, 'p4');
   assert.equal(r.data.channels[TL_UC].floatplane, 'ltt/chTL', 'creators and channels kept from the previous run');
   console.log('ok  creator list refused: posts still fetched with known creator IDs');
+
+  // ---- creator/named: fills in a creator known only by display name (list still refused) ----
+  const L1_UC = 'UC4w1YQAJMWOz4qtxinq55LQ';
+  state.fpNamed = { level1techs: { id: 'l1t', title: 'Level1Techs', urlname: 'level1techs', socialLinks: { youtube: 'https://www.youtube.com/@Level1Techs' }, channels: [] } };
+  state.fpPosts.l1t = [{ id: 'l1p1', title: 'A Level1 Video', releaseDate: '2026-11-12T10:00:00Z', channel: 'chL1' }];
+  state.namedAsked = [];
+  const l1net = makeNet(state);
+  const l1fetch = async (u, i) => (u === 'https://www.youtube.com/@level1techs' ? ok(`<link rel="canonical" href="https://www.youtube.com/channel/${L1_UC}">`) : l1net.fetchFn(u, i));
+  r = await build({ ...opts(dir), fetchFn: l1fetch, now: new Date('2026-11-14T00:00:00Z') });
+  assert.ok(state.namedAsked.includes('level1techs'), 'asked by lowercase address guessed from the display name');
+  assert.ok(state.namedAsked.every(n => n === n.toLowerCase()), 'every address sent is lowercase');
+  assert.deepEqual(r.data.floatplane.creators.l1t && r.data.floatplane.creators.l1t.name, 'Level1Techs', 'ID filled in from creator/named');
+  assert.deepEqual(r.data.channels[L1_UC], { name: 'Level1Techs', floatplane: 'l1t' }, 'channels row from its YouTube link');
+  assert.equal(readJ(dir, 'floatplane/l1t.json')[0].i, 'l1p1', 'its posts fetched too');
+  console.log('ok  creator/named fills in IDs by lowercase address; posts then fetched');
 
   // ---- Anonymous only: no cookie or credential header is ever sent ----
   assert.ok(net.calls.every(c => !c.headers.Cookie && !c.headers.Authorization), 'no Cookie / Authorization headers');
