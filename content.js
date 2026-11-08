@@ -58,6 +58,7 @@
     clearInterval(countdownTimer);
     ui.forEach(n => n.remove());
     ui = [];
+    document.querySelectorAll('.detour-title-row').forEach(e => e.classList.remove('detour-title-row'));
   }
 
   // Ask page.js (main world) for data, retrying until YouTube has the new page's data.
@@ -124,23 +125,35 @@
     return `${sub}Matched “${r.title}” (${Math.round(r.confidence * 100)}% confidence)`;
   }
 
-  // The chip gets its own right-aligned row directly above the channel / Like / Share row
-  // (YouTube's #top-row), in the gap under the video. It doesn't go inside YouTube's button
-  // row, whose layout varies and which YouTube re-renders.
+  // The chip sits on the same line as the video title, aligned right. The title's container
+  // (#title, holding the h1) is turned into a flex row while the chip is shown. If that can't
+  // be found, the chip goes in its own row above the channel / Like / Share row (#top-row).
+  const TITLE_H1 = 'ytd-watch-metadata #title > h1';
   const TOP_ROW = 'ytd-watch-metadata #top-row';
   const firstMatch = list => list.map(s => document.querySelector(s)).find(Boolean) || null;
-  const placeAbove = box => {
+  const placeChipBox = box => {
+    const h1 = document.querySelector(TITLE_H1);
+    if (h1) {
+      const title = h1.parentElement;
+      title.classList.add('detour-title-row');
+      box.classList.add('detour-inline'); box.classList.remove('detour-above');
+      if (box.parentElement !== title) title.append(box);
+      return true;
+    }
     const top = document.querySelector(TOP_ROW);
-    if (!top) return false;
-    if (box.nextElementSibling !== top) top.before(box);
-    return true;
+    if (top) {
+      box.classList.add('detour-above'); box.classList.remove('detour-inline');
+      if (box.nextElementSibling !== top) top.before(box);
+      return true;
+    }
+    return false;
   };
 
   async function showChips(results, key) {
     clearUI();
     // Wait for YouTube to build that row before showing anything, so the chip appears once in
     // its final place instead of jumping there from a fallback position.
-    const top = await waitFor(() => document.querySelector(TOP_ROW), key);
+    const spot = await waitFor(() => document.querySelector(TITLE_H1) || document.querySelector(TOP_ROW), key);
     if (pageKey() !== key) return;
     const box = el('div', { class: 'detour-chips' });
     for (const r of results) {
@@ -154,16 +167,15 @@
       chipLabel(r),
       svg(ICON_OUT, 14)));
     }
-    if (top) { box.classList.add('detour-above'); placeAbove(box); }
-    else { box.classList.add('detour-floating'); document.body.append(box); } // row never appeared
+    if (!spot || !placeChipBox(box)) { box.classList.add('detour-floating'); document.body.append(box); } // never appeared
     ui.push(box);
 
     // YouTube sometimes re-renders the metadata shortly after load, dropping our node: put it back.
-    if (top) {
+    if (spot) {
       let tries = 0;
       const keep = setInterval(() => {
         if (pageKey() !== key || !ui.includes(box) || ++tries > 30) return clearInterval(keep);
-        if (!box.isConnected) placeAbove(box);
+        if (!box.isConnected || (box.classList.contains('detour-inline') && !box.parentElement.classList.contains('detour-title-row'))) placeChipBox(box);
       }, 500);
     }
   }

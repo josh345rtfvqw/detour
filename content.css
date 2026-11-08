@@ -31,6 +31,12 @@
   flex-shrink: 0;
   font-family: Roboto, Arial, sans-serif;
 }
+/* Inline with the title: #title becomes a wrapping flex row; the h1 takes the space, the chip
+   sits at the right, and anything else in #title (badges, hashtags) keeps its own line. */
+.detour-title-row { display: flex !important; flex-wrap: wrap; align-items: center; column-gap: 16px; }
+.detour-title-row > * { flex-basis: 100%; }
+.detour-title-row > h1 { flex: 1 1 0; min-width: 0; }
+.detour-title-row > .detour-chips { flex: 0 0 auto; margin: 0 0 0 auto; }
 .detour-chips.detour-above {
   display: flex; justify-content: flex-end; flex-wrap: wrap;
   margin: 4px 0 8px;
