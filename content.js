@@ -221,7 +221,7 @@
     const { results, settings } = resp;
     const best = results[0];
     const canRedirect = settings.autoRedirect && best.subscribed && best.kind === 'video' &&
-      best.confidence >= settings.minConfidence && !skipped().includes(videoId);
+      best.confidence >= (settings.minConfidence ?? 0.75) && !skipped().includes(videoId);
     if (canRedirect) return autoRedirect(best, settings, videoId);
     const shown = results.filter(r => r.subscribed || settings.showButton);
     if (shown.length) showChips(shown, key);

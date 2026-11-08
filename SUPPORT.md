@@ -27,7 +27,6 @@ Log in at [floatplane.com](https://www.floatplane.com), then reopen the Detour p
 
 - **Stay this time:** click **Stay on YouTube** during the countdown.
 - **Stop redirecting:** in the popup, choose **Show a button** instead of **Redirect me**.
-- **Fewer wrong matches:** set **Title matching** to **Strict**.
 
 ## Privacy
 

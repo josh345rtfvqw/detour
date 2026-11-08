@@ -60,7 +60,6 @@ A banner under the Subscribe button lets you know the creator is also on Nebula 
 • Choose between automatic redirects or just a button
 • Open the other site in a new tab instead of leaving YouTube
 • Pick which platform wins when a video is on both
-• Set how strict title matching is before Detour redirects you
 • Light and dark themes follow YouTube and your system
 
 <b>How it works</b>

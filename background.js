@@ -5,7 +5,6 @@ if (typeof importScripts === 'function' && typeof bestMatch === 'undefined') imp
 const DEFAULTS = {
   autoRedirect: true,
   newTab: false,
-  minConfidence: 0.75,
   preferred: 'nebula',
   showButton: true,
   nebulaSubscribed: false,
@@ -57,7 +56,12 @@ async function detourFetch(url, init = {}) {
   return fetch(url, { ...init, headers: { ...(init.headers || {}), 'User-Agent': DETOUR_UA } });
 }
 
-const getSettings = async () => ({ ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)) });
+// Auto-redirect needs a title match of at least 75%. (Videos in the master list's videos table
+// are exact matches, so this only affects videos matched by title in the browser.) It used to be
+// a setting; it's fixed now, and any old saved value is ignored and cleared.
+const REDIRECT_MIN_CONFIDENCE = 0.75;
+chrome.storage.sync.remove('minConfidence').catch(() => {});
+const getSettings = async () => ({ ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)), minConfidence: REDIRECT_MIN_CONFIDENCE });
 
 async function getJSON(url, init = {}) {
   const res = await detourFetch(url, init);

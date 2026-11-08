@@ -64,7 +64,7 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 Confirmed matches are also remembered in the browser for 30 days, so revisits need no network requests.
 
 Videos are matched by title similarity, with a boost when release dates are within about a week.
-Auto-redirect only happens above the confidence threshold set in the settings (default 0.75).
+Auto-redirect only happens for a confident match: a video in the known-videos list, or a title match of at least 75%.
 Each video redirects at most once per tab, so pressing Back keeps you on YouTube.
 
 ## Privacy

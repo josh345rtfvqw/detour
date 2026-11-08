@@ -1,5 +1,5 @@
 const DEFAULTS = {
-  autoRedirect: true, newTab: false, minConfidence: 0.75, preferred: 'nebula',
+  autoRedirect: true, newTab: false, preferred: 'nebula',
   showButton: true, nebulaSubscribed: false, floatplaneCreators: [],
 };
 const $ = id => document.getElementById(id);
@@ -138,8 +138,6 @@ $('resetBanners').addEventListener('click', async () => {
   bindSwitch('showButton');
   bindRadios('mode', v => ({ autoRedirect: v === 'redirect' }), s => (s.autoRedirect ? 'redirect' : 'button'));
   bindRadios('preferred', v => ({ preferred: v }), s => s.preferred);
-  bindRadios('minConfidence', v => ({ minConfidence: Number(v) }),
-    s => ['0.6', '0.75', '0.9'].reduce((a, b) => (Math.abs(b - s.minConfidence) < Math.abs(a - s.minConfidence) ? b : a)));
   render();
   loadCreators();
 })();

@@ -306,5 +306,13 @@ const fpRoutes = [
   r = await env.send({ type: 'lookup', info: { videoId: 'v1video0001', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
   assert.equal(r.results[0].url, 'https://nebula.tv/videos/realengineering-why-planes');
   console.log('ok  older master list versions ignored safely');
+
+  // 26. Redirect threshold is fixed at 75%: an old saved strictness setting is ignored and cleared.
+  env = makeEnv({ nebulaSubscribed: true, minConfidence: 0.9 }, [...nebulaRoutes, [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'thresh00001', title: 'Why Planes Don\'t Fly Faster', channelId: 'UCR1IuLEqb6UEA_zQ81kwXfg', author: 'Real Engineering' } });
+  assert.equal(r.settings.minConfidence, 0.75);
+  await new Promise(res => setTimeout(res, 0));
+  assert.ok(!('minConfidence' in env.store.sync), 'old saved value cleared');
+  console.log('ok  redirect threshold fixed at 75% (old setting ignored and cleared)');
   console.log('\nall tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
