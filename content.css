@@ -31,6 +31,10 @@
   flex-shrink: 0;
   font-family: Roboto, Arial, sans-serif;
 }
+.detour-chips.detour-above {
+  display: flex; justify-content: flex-end; flex-wrap: wrap;
+  margin: 4px 0 8px;
+}
 .detour-chips.detour-floating { position: fixed; right: 20px; bottom: 20px; z-index: 9999; margin: 0; }
 .detour-chip {
   height: 36px;

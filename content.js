@@ -124,17 +124,23 @@
     return `${sub}Matched “${r.title}” (${Math.round(r.confidence * 100)}% confidence)`;
   }
 
-  // In priority order. (A comma-separated selector would return whichever comes first in the
-  // page, which is the outer #actions wrapper, not the button row inside it.)
-  const ACTIONS_ROW = 'ytd-watch-metadata #actions-inner';
-  const ACTIONS_FALLBACKS = ['ytd-watch-metadata #actions', '#top-row #actions'];
+  // The chip gets its own right-aligned row directly above the channel / Like / Share row
+  // (YouTube's #top-row), in the gap under the video. It doesn't go inside YouTube's button
+  // row, whose layout varies and which YouTube re-renders.
+  const TOP_ROW = 'ytd-watch-metadata #top-row';
   const firstMatch = list => list.map(s => document.querySelector(s)).find(Boolean) || null;
+  const placeAbove = box => {
+    const top = document.querySelector(TOP_ROW);
+    if (!top) return false;
+    if (box.nextElementSibling !== top) top.before(box);
+    return true;
+  };
 
   async function showChips(results, key) {
     clearUI();
-    // Wait for YouTube to build the Like / Share row before showing anything, so the chip
-    // appears once in its final place instead of jumping there from a fallback position.
-    const row = (await waitFor(() => document.querySelector(ACTIONS_ROW), key)) || firstMatch(ACTIONS_FALLBACKS);
+    // Wait for YouTube to build that row before showing anything, so the chip appears once in
+    // its final place instead of jumping there from a fallback position.
+    const top = await waitFor(() => document.querySelector(TOP_ROW), key);
     if (pageKey() !== key) return;
     const box = el('div', { class: 'detour-chips' });
     for (const r of results) {
@@ -148,16 +154,16 @@
       chipLabel(r),
       svg(ICON_OUT, 14)));
     }
-    if (row) row.prepend(box);
+    if (top) { box.classList.add('detour-above'); placeAbove(box); }
     else { box.classList.add('detour-floating'); document.body.append(box); } // row never appeared
     ui.push(box);
 
-    // YouTube sometimes re-renders the row shortly after load, dropping our node: put it back.
-    if (row) {
+    // YouTube sometimes re-renders the metadata shortly after load, dropping our node: put it back.
+    if (top) {
       let tries = 0;
       const keep = setInterval(() => {
         if (pageKey() !== key || !ui.includes(box) || ++tries > 30) return clearInterval(keep);
-        if (!box.isConnected) (document.querySelector(ACTIONS_ROW) || firstMatch(ACTIONS_FALLBACKS))?.prepend(box);
+        if (!box.isConnected) placeAbove(box);
       }, 500);
     }
   }

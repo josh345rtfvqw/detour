@@ -11,14 +11,14 @@ const shot = name => require('path').join(os.tmpdir(), `detour-${name}.png`);
 const fakeVideo = (vid, title, chId, author, lateRow) => `<!doctype html><html dark><body style="background:#0f0f0f;color:#fff;font-family:sans-serif;margin:0">
 <div id="movie_player" style="position:relative;width:800px;height:450px;background:#000"><video></video></div>
 <ytd-watch-metadata style="display:block;width:800px"><h1 class="ytd-watch-metadata">${title}</h1>
-<div id="top-row" style="display:flex;justify-content:space-between;align-items:center"><div id="owner">${author} [Subscribe]</div><div id="slot"></div></div></ytd-watch-metadata>
+<div id="slot"></div></ytd-watch-metadata>
 <script>
 const p = document.getElementById('movie_player');
 p.getPlayerResponse = () => ({videoDetails:{videoId:'${vid}',title:${JSON.stringify(title)},channelId:'${chId}',author:'${author}'},microformat:{playerMicroformatRenderer:{ownerProfileUrl:'http://www.youtube.com/@x',publishDate:'2024-03-02'}}});
 p.pauseVideo = () => { window.paused = true; };
 window.sawFloating = false;
 new MutationObserver(() => { if (document.querySelector('.detour-floating')) window.sawFloating = true; }).observe(document.documentElement, {subtree:true, childList:true, attributes:true});
-const addRow = () => { document.getElementById('slot').outerHTML = '<div id="actions"><div id="actions-inner" style="display:flex;gap:8px;align-items:center"><button>Like</button><button>Share</button><button>Save</button></div></div>'; };
+const addRow = () => { document.getElementById('slot').outerHTML = '<div id="top-row" style="display:flex;justify-content:space-between;align-items:center"><div id="owner">${author} [Subscribe]</div><div id="actions"><div id="actions-inner" style="display:flex;gap:8px;align-items:center"><button>Like</button><button>Share</button><button>Save</button></div></div></div>'; };
 ${lateRow ? 'setTimeout(addRow, 2500);' : 'addRow();'}
 </script></body></html>`;
 
@@ -60,12 +60,17 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
   // 1. Not subscribed, slow page: chip waits for the Like/Share row, never floats first
   const page = await ctx.newPage();
   await page.goto('https://www.youtube.com/watch?v=AAA');
-  await page.waitForSelector('#actions-inner .detour-chip', { timeout: 15000 });
+  await page.waitForSelector('.detour-chips.detour-above .detour-chip', { timeout: 15000 });
   const chip = await page.textContent('.detour-chip');
-  const firstInRow = await page.evaluate(() => document.querySelector('#actions-inner').firstElementChild.classList.contains('detour-chips'));
-  console.log('chip:', chip.trim(), '| first in actions row:', firstInRow, '| ever floating:', await page.evaluate(() => window.sawFloating));
+  const pos = await page.evaluate(() => {
+    const box = document.querySelector('.detour-chips'), top = document.querySelector('#top-row');
+    const b = box.querySelector('.detour-chip').getBoundingClientRect(), t = top.getBoundingClientRect();
+    return { aboveTopRow: box.nextElementSibling === top && b.bottom <= t.top, rightAligned: Math.abs(b.right - t.right) < 2 };
+  });
+  console.log('chip:', chip.trim(), '|', JSON.stringify(pos), '| ever floating:', await page.evaluate(() => window.sawFloating));
   assert.equal(chip.trim(), 'Also on Nebula');
-  assert.ok(firstInRow, 'chip should be the first item in the actions row');
+  assert.ok(pos.aboveTopRow, 'chip should sit directly above the channel / Like / Share row');
+  assert.ok(pos.rightAligned, 'chip should line up with the right edge, over Like / Share');
   assert.equal(await page.evaluate(() => window.sawFloating), false, 'chip must not appear floating before the row exists');
   await page.screenshot({ path: shot('video-chip') });
 
@@ -81,7 +86,7 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
 
   // 3. Back -> stays on YouTube, shows the subscribed badge instead
   await page.goBack();
-  await page.waitForSelector('#actions-inner .detour-chip', { timeout: 15000 });
+  await page.waitForSelector('.detour-chips.detour-above .detour-chip', { timeout: 15000 });
   assert.ok(page.url().includes('watch?v=BBB'), 'Back should stay on YouTube');
   assert.equal((await page.textContent('.detour-chip')).trim(), 'Watch on Nebula');
   console.log('after back: "Watch on Nebula" chip shown, still on', page.url());
