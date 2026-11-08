@@ -115,7 +115,7 @@ async function buildFloatplaneCreators({ get, log, handCreators }) {
     return { creators, authRequired: false };
   } catch (e) {
     const authRequired = /^40[13] /.test(e.message);
-    log(`floatplane creator list failed: ${e.message}${authRequired ? ' (refused: login or bot protection, see 'refused by' line)' : ''}`);
+    log(`floatplane creator list failed: ${e.message}${authRequired ? ' (refused: login or bot protection, see the "refused by" line)' : ''}`);
     return { creators, authRequired };
   }
 }
