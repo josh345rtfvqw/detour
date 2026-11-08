@@ -1,6 +1,6 @@
 // Content script on YouTube.
 // Video pages: ask the background whether the video is on Nebula/Floatplane, then either
-// auto-redirect or show a badge on the player. Channel pages: show a banner if the
+// auto-redirect or show a chip next to Like / Share. Channel pages: show a banner if the
 // channel is on one of them.
 (() => {
   const SKIP_KEY = 'detourSkip';
@@ -50,7 +50,6 @@
     }
     return s;
   };
-  const ICON_ARROW = ['M5 12h14', 'M13 6l6 6-6 6'];
   const ICON_OUT = ['M7 17L17 7', 'M8 7h9v9'];
   const ICON_X = ['M6 6l12 12', 'M18 6L6 18'];
   const mark = (platform, cls) => el('span', { class: `detour-mark ${cls || ''}` }, MARKS[platform]);
@@ -86,6 +85,24 @@
     return null;
   }
 
+  // Resolve with find()'s result once it's non-null, or null after `timeout` ms or when the
+  // user navigates away. Watches DOM changes so it reacts as soon as YouTube renders.
+  function waitFor(find, key, timeout = 15000) {
+    return new Promise(resolve => {
+      const found = find();
+      if (found) return resolve(found);
+      let done = false;
+      const finish = v => { if (done) return; done = true; obs.disconnect(); clearTimeout(t); resolve(v); };
+      const obs = new MutationObserver(() => {
+        if (pageKey() !== key) return finish(null);
+        const f = find();
+        if (f) finish(f);
+      });
+      obs.observe(document.documentElement, { childList: true, subtree: true });
+      const t = setTimeout(() => finish(find()), timeout);
+    });
+  }
+
   async function ask(type, info) {
     try {
       const resp = await chrome.runtime.sendMessage({ type, info });
@@ -94,43 +111,54 @@
     } catch (e) { console.warn('[detour]', e); return null; }
   }
 
-  // ------------------------------------------------------------ video page: player badge
+  // ------------------------------------------------------------ video page: chip in the actions row
 
-  function subtitle(r) {
-    if (r.kind === 'channel') return 'Video not found, open the channel';
-    return r.subscribed ? 'Included in your subscription' : `Also available on ${NAMES[r.platform]}`;
+  function chipLabel(r) {
+    if (r.kind === 'channel') return `${NAMES[r.platform]} channel`;
+    return r.subscribed ? `Watch on ${NAMES[r.platform]}` : `Also on ${NAMES[r.platform]}`;
   }
 
-  function showBadges(results) {
+  function chipTooltip(r) {
+    if (r.kind === 'channel') return `This video wasn’t found, but ${r.creator || 'the channel'} is on ${NAMES[r.platform]}`;
+    const sub = r.subscribed ? 'Included in your subscription. ' : '';
+    return `${sub}Matched “${r.title}” (${Math.round(r.confidence * 100)}% confidence)`;
+  }
+
+  // In priority order. (A comma-separated selector would return whichever comes first in the
+  // page, which is the outer #actions wrapper, not the button row inside it.)
+  const ACTIONS_ROW = 'ytd-watch-metadata #actions-inner';
+  const ACTIONS_FALLBACKS = ['ytd-watch-metadata #actions', '#top-row #actions'];
+  const firstMatch = list => list.map(s => document.querySelector(s)).find(Boolean) || null;
+
+  async function showChips(results, key) {
     clearUI();
-    const player = document.getElementById('movie_player');
-    const box = el('div', { class: `detour-badges${player ? '' : ' detour-floating'}` });
+    // Wait for YouTube to build the Like / Share row before showing anything, so the chip
+    // appears once in its final place instead of jumping there from a fallback position.
+    const row = (await waitFor(() => document.querySelector(ACTIONS_ROW), key)) || firstMatch(ACTIONS_FALLBACKS);
+    if (pageKey() !== key) return;
+    const box = el('div', { class: 'detour-chips' });
     for (const r of results) {
-      const link = el('a', {
-        class: `detour-badge detour-${r.platform}`,
+      box.append(el('a', {
+        class: `detour-chip detour-${r.platform}`,
         href: r.url, target: '_blank', rel: 'noopener',
-        title: r.kind === 'video' ? `Matched “${r.title}” (${Math.round(r.confidence * 100)}% confidence)` : `${r.creator || 'This channel'} is on ${NAMES[r.platform]}`,
+        title: chipTooltip(r),
         onclick: pause,
       },
-      mark(r.platform),
-      el('span', { class: 'detour-text' },
-        el('span', { class: 'detour-title' }, r.kind === 'video' ? `Watch on ${NAMES[r.platform]}` : `${r.creator || 'Channel'} on ${NAMES[r.platform]}`),
-        el('span', { class: 'detour-sub' }, subtitle(r))),
-      svg(ICON_ARROW));
-      const close = el('button', { class: 'detour-close', 'aria-label': 'Hide', onclick: e => { e.preventDefault(); e.stopPropagation(); clearUI(); } }, svg(ICON_X, 14));
-      box.append(el('div', { class: 'detour-badge-row' }, link, close));
+      el('span', { class: 'detour-dot', 'aria-hidden': 'true' }),
+      chipLabel(r),
+      svg(ICON_OUT, 14)));
     }
-    (player || document.body).append(box);
+    if (row) row.prepend(box);
+    else { box.classList.add('detour-floating'); document.body.append(box); } // row never appeared
     ui.push(box);
 
-    // Shrink to just the mark once the video has been playing a while; hovering expands it.
-    const video = player?.querySelector('video');
-    if (video) {
-      let t;
-      const compact = () => { clearTimeout(t); t = setTimeout(() => box.classList.add('detour-compact'), 6000); };
-      if (!video.paused) compact();
-      video.addEventListener('play', compact);
-      video.addEventListener('pause', () => { clearTimeout(t); box.classList.remove('detour-compact'); });
+    // YouTube sometimes re-renders the row shortly after load, dropping our node: put it back.
+    if (row) {
+      let tries = 0;
+      const keep = setInterval(() => {
+        if (pageKey() !== key || !ui.includes(box) || ++tries > 30) return clearInterval(keep);
+        if (!box.isConnected) (document.querySelector(ACTIONS_ROW) || firstMatch(ACTIONS_FALLBACKS))?.prepend(box);
+      }, 500);
     }
   }
 
@@ -177,7 +205,7 @@
       best.confidence >= settings.minConfidence && !skipped().includes(videoId);
     if (canRedirect) return autoRedirect(best, settings, videoId);
     const shown = results.filter(r => r.subscribed || settings.showButton);
-    if (shown.length) showBadges(shown);
+    if (shown.length) showChips(shown, key);
   }
 
   // ------------------------------------------------------------ channel page: banner
@@ -186,13 +214,27 @@
     return (await chrome.storage.local.get({ dismissedChannels: [] })).dismissedChannels;
   }
 
-  function showBanners(results, info) {
+  const CHANNEL_ACTIONS = 'yt-page-header-view-model yt-flexible-actions-view-model, #page-header yt-flexible-actions-view-model';
+  const CHANNEL_HEADER = ['yt-page-header-view-model', '#page-header'];
+
+  async function showBanners(results, info, key) {
     clearUI();
-    const anchor = document.querySelector('#tabs-container, tp-yt-app-toolbar#tabs-container, ytd-tabbed-page-header #tabs-inner-container');
-    const header = document.querySelector('#page-header, ytd-c4-tabbed-header-renderer');
+    // Place it inside the channel header, right under the Subscribe button row: that part of
+    // the page is in normal flow, so the tabs move down. (The tab bar itself is a fixed-height
+    // strip and must not be used.) Wait for that row to exist so the banner doesn't jump.
+    // Fallbacks: end of the header, then floating at the bottom.
+    const actions = await waitFor(() => document.querySelector(CHANNEL_ACTIONS), key, 8000);
+    if (pageKey() !== key) return;
+    const header = actions ? null : firstMatch(CHANNEL_HEADER);
+    const place = node => {
+      if (actions) actions.after(node);
+      else if (header) header.append(node);
+      else { node.classList.add('detour-floating'); document.body.append(node); }
+    };
+    let last = null;
     for (const r of results) {
       const id = `${r.platform}:${info.channelId || info.author}`;
-      const banner = el('div', { class: `detour-banner detour-${r.platform}${anchor || header ? '' : ' detour-floating'}`, role: 'region', 'aria-label': `${NAMES[r.platform]} link` },
+      const banner = el('div', { class: `detour-banner detour-${r.platform}`, role: 'region', 'aria-label': `${NAMES[r.platform]} link` },
         mark(r.platform, 'detour-mark-lg'),
         el('div', { class: 'detour-text' },
           el('span', { class: 'detour-title' }, `${info.author || r.creator} is also on ${NAMES[r.platform]}`),
@@ -209,9 +251,9 @@
           },
         }, svg(ICON_X)));
       banner.dataset.id = id;
-      if (anchor) anchor.before(banner);
-      else if (header) header.after(banner);
-      else document.body.append(banner);
+      if (last) last.after(banner); // keep multiple banners in order
+      else place(banner);
+      last = banner;
       ui.push(banner);
     }
   }
@@ -224,7 +266,7 @@
     const hidden = await dismissed();
     const shown = resp.results.filter(r => (r.subscribed || resp.settings.showButton) &&
       !hidden.includes(`${r.platform}:${info.channelId || info.author}`));
-    if (shown.length) showBanners(shown, info);
+    if (shown.length) showBanners(shown, info, key);
   }
 
   // ------------------------------------------------------------ navigation

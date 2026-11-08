@@ -5,15 +5,29 @@ const os = require('os');
 const ext = require('path').join(__dirname, '..');
 const shot = name => require('path').join(os.tmpdir(), `detour-${name}.png`);
 
-const fakeVideo = (vid, title, chId, author) => `<!doctype html><html dark><body style="background:#0f0f0f;color:#fff;font-family:sans-serif;margin:0">
+// Mimics YouTube's watch page: player, then ytd-watch-metadata > #top-row > #actions > #actions-inner.
+// With lateRow, the actions row only appears after 2.5s (as on a slow real load), and the page
+// records whether our UI was ever shown floating before it landed in the row.
+const fakeVideo = (vid, title, chId, author, lateRow) => `<!doctype html><html dark><body style="background:#0f0f0f;color:#fff;font-family:sans-serif;margin:0">
 <div id="movie_player" style="position:relative;width:800px;height:450px;background:#000"><video></video></div>
-<h1 class="ytd-watch-metadata">${title}</h1>
-<script>document.getElementById('movie_player').getPlayerResponse = () => ({videoDetails:{videoId:'${vid}',title:${JSON.stringify(title)},channelId:'${chId}',author:'${author}'},microformat:{playerMicroformatRenderer:{ownerProfileUrl:'http://www.youtube.com/@x',publishDate:'2024-03-02'}}});
-document.getElementById('movie_player').pauseVideo=()=>{window.paused=true};</script></body></html>`;
+<ytd-watch-metadata style="display:block;width:800px"><h1 class="ytd-watch-metadata">${title}</h1>
+<div id="top-row" style="display:flex;justify-content:space-between;align-items:center"><div id="owner">${author} [Subscribe]</div><div id="slot"></div></div></ytd-watch-metadata>
+<script>
+const p = document.getElementById('movie_player');
+p.getPlayerResponse = () => ({videoDetails:{videoId:'${vid}',title:${JSON.stringify(title)},channelId:'${chId}',author:'${author}'},microformat:{playerMicroformatRenderer:{ownerProfileUrl:'http://www.youtube.com/@x',publishDate:'2024-03-02'}}});
+p.pauseVideo = () => { window.paused = true; };
+window.sawFloating = false;
+new MutationObserver(() => { if (document.querySelector('.detour-floating')) window.sawFloating = true; }).observe(document.documentElement, {subtree:true, childList:true, attributes:true});
+const addRow = () => { document.getElementById('slot').outerHTML = '<div id="actions"><div id="actions-inner" style="display:flex;gap:8px;align-items:center"><button>Like</button><button>Share</button><button>Save</button></div></div>'; };
+${lateRow ? 'setTimeout(addRow, 2500);' : 'addRow();'}
+</script></body></html>`;
 
-const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><body style="background:${dark ? '#0f0f0f' : '#fff'};color:${dark ? '#fff' : '#0f0f0f'};font-family:sans-serif;margin:0;padding:24px">
-<div id="page-header"><h1>Real Engineering</h1></div>
-<div id="tabs-container">Home · Videos · Shorts</div>
+// Mimics YouTube's channel header: yt-page-header-view-model > yt-flexible-actions-view-model
+// (the Subscribe row), followed by the fixed-height tab bar.
+const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head><meta charset="utf-8"></head><body style="background:${dark ? '#0f0f0f' : '#fff'};color:${dark ? '#fff' : '#0f0f0f'};font-family:sans-serif;margin:0;padding:24px">
+<div id="page-header"><yt-page-header-view-model style="display:block"><h1>Real Engineering</h1>
+<yt-flexible-actions-view-model style="display:block"><button>Subscribe</button></yt-flexible-actions-view-model></yt-page-header-view-model></div>
+<div id="tabs-container" style="height:48px;overflow:hidden">Home · Videos · Shorts</div>
 <script>window.ytInitialData = {metadata:{channelMetadataRenderer:{title:'Real Engineering',externalId:'UCR1',vanityChannelUrl:'http://www.youtube.com/@RealEngineering'}}};</script>
 </body></html>`;
 
@@ -27,7 +41,7 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><body 
     if (u.startsWith('chrome-extension://')) return route.continue();
     const json = b => route.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     const html = b => route.fulfill({ contentType: 'text/html', body: b });
-    if (u.includes('youtube.com/watch?v=AAA')) return html(fakeVideo('AAA', "Why Planes Don't Fly Faster", 'UCR1', 'Real Engineering'));
+    if (u.includes('youtube.com/watch?v=AAA')) return html(fakeVideo('AAA', "Why Planes Don't Fly Faster", 'UCR1', 'Real Engineering', true));
     if (u.includes('youtube.com/watch?v=BBB')) return html(fakeVideo('BBB', "Why Planes Don't Fly Faster", 'UCR1', 'Real Engineering'));
     if (u.includes('youtube.com/@RealEngineering/videos')) return html(fakeChannel(false));
     if (u.includes('youtube.com/@RealEngineering')) return html(fakeChannel(true));
@@ -43,14 +57,17 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><body 
   const extId = sw.url().split('/')[2];
   const setOption = async fn => { const o = await ctx.newPage(); await o.goto(`chrome-extension://${extId}/options.html`); await fn(o); await o.waitForTimeout(500); await o.close(); };
 
-  // 1. Not subscribed -> badge on the player
+  // 1. Not subscribed, slow page: chip waits for the Like/Share row, never floats first
   const page = await ctx.newPage();
   await page.goto('https://www.youtube.com/watch?v=AAA');
-  await page.waitForSelector('#movie_player .detour-badge', { timeout: 15000 });
-  const badge = await page.textContent('.detour-badge');
-  console.log('player badge:', badge);
-  assert.ok(badge.includes('Watch on Nebula') && badge.includes('Also available on Nebula'));
-  await page.screenshot({ path: shot('video-badge') });
+  await page.waitForSelector('#actions-inner .detour-chip', { timeout: 15000 });
+  const chip = await page.textContent('.detour-chip');
+  const firstInRow = await page.evaluate(() => document.querySelector('#actions-inner').firstElementChild.classList.contains('detour-chips'));
+  console.log('chip:', chip.trim(), '| first in actions row:', firstInRow, '| ever floating:', await page.evaluate(() => window.sawFloating));
+  assert.equal(chip.trim(), 'Also on Nebula');
+  assert.ok(firstInRow, 'chip should be the first item in the actions row');
+  assert.equal(await page.evaluate(() => window.sawFloating), false, 'chip must not appear floating before the row exists');
+  await page.screenshot({ path: shot('video-chip') });
 
   // 2. Subscribe -> countdown, video paused, then redirect
   await setOption(o => o.check('#nebulaSubscribed'));
@@ -64,15 +81,15 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><body 
 
   // 3. Back -> stays on YouTube, shows the subscribed badge instead
   await page.goBack();
-  await page.waitForSelector('.detour-badge', { timeout: 15000 });
+  await page.waitForSelector('#actions-inner .detour-chip', { timeout: 15000 });
   assert.ok(page.url().includes('watch?v=BBB'), 'Back should stay on YouTube');
-  assert.ok((await page.textContent('.detour-badge')).includes('Included in your subscription'));
-  console.log('after back: badge shown, still on', page.url());
+  assert.equal((await page.textContent('.detour-chip')).trim(), 'Watch on Nebula');
+  console.log('after back: "Watch on Nebula" chip shown, still on', page.url());
 
   // 4. Button-only mode -> no redirect
   await setOption(o => o.check('input[name=mode][value=button]'));
   await page.goto('https://www.youtube.com/watch?v=AAA&t=1');
-  await page.waitForSelector('.detour-badge', { timeout: 15000 });
+  await page.waitForSelector('.detour-chip', { timeout: 15000 });
   await page.waitForTimeout(3500);
   assert.ok(page.url().includes('watch?v=AAA'), 'button mode must not redirect');
   console.log('button mode: no redirect');
@@ -81,9 +98,13 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><body 
   await page.goto('https://www.youtube.com/@RealEngineering');
   await page.waitForSelector('.detour-banner', { timeout: 15000 });
   const darkBg = await page.$eval('.detour-banner', e => getComputedStyle(e).backgroundColor);
-  const beforeTabs = await page.evaluate(() => document.querySelector('.detour-banner').nextElementSibling?.id);
-  console.log('channel banner (dark):', await page.textContent('.detour-banner'), '|', darkBg, '| before:', beforeTabs);
-  assert.equal(beforeTabs, 'tabs-container');
+  const where = await page.evaluate(() => {
+    const b = document.querySelector('.detour-banner');
+    return { afterSubscribe: b.previousElementSibling?.tagName.toLowerCase(), inTabs: !!b.closest('#tabs-container') };
+  });
+  console.log('channel banner (dark):', await page.textContent('.detour-banner'), '|', darkBg, '|', JSON.stringify(where));
+  assert.equal(where.afterSubscribe, 'yt-flexible-actions-view-model', 'banner goes right under the Subscribe row');
+  assert.equal(where.inTabs, false, 'banner must not be inside the tab bar');
   assert.ok(await page.$eval('.detour-banner a', a => a.href === 'https://nebula.tv/realengineering'));
   await page.screenshot({ path: shot('channel-dark') });
 

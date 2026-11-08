@@ -24,46 +24,39 @@
 .detour-title { font-size: 14px; font-weight: 600; line-height: 1.25; }
 .detour-sub { font-size: 12px; line-height: 1.3; }
 
-/* ---------- video page: badge on the player (player is always dark) ---------- */
-.detour-badges {
-  position: absolute;
-  top: 16px; right: 16px;
-  z-index: 60;
-  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+/* ---------- video page: chip in the Like / Share / Save row ---------- */
+.detour-chips {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  font-family: Roboto, Arial, sans-serif;
 }
-.detour-badges.detour-floating { position: fixed; top: auto; bottom: 20px; right: 20px; z-index: 9999; }
-.detour-badge-row { position: relative; }
-.detour-badge {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px 10px 10px;
-  border-radius: 12px;
-  background: var(--detour-tint);
-  color: #fff !important;
+.detour-chips.detour-floating { position: fixed; right: 20px; bottom: 20px; z-index: 9999; margin: 0; }
+.detour-chip {
+  height: 36px;
+  padding: 0 14px 0 12px;
+  border-radius: 18px;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--detour-tint-light);
+  box-shadow: inset 0 0 0 1px var(--detour-accent);
+  color: #0f0f0f !important;
+  font: 500 14px/36px Roboto, Arial, sans-serif;
   text-decoration: none !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .5);
-  transition: padding .2s, gap .2s;
+  white-space: nowrap;
 }
-.detour-badge .detour-sub { color: #c8c8c8; }
-.detour-badge:hover { filter: brightness(1.15); }
-.detour-badge:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.detour-badge-row .detour-close {
-  position: absolute; top: -8px; right: -8px;
-  width: 22px; height: 22px; padding: 0;
-  border-radius: 50%; border: 0;
-  background: #fff; color: #0f0f0f;
-  display: none; align-items: center; justify-content: center;
-  cursor: pointer;
-}
-.detour-badge-row:hover .detour-close, .detour-close:focus-visible { display: inline-flex; }
-
-/* After the video has played a while, shrink to just the mark until hovered. */
-.detour-badges.detour-compact .detour-badge:not(:hover):not(:focus-visible) { padding: 6px; gap: 0; }
-.detour-badges.detour-compact .detour-badge:not(:hover):not(:focus-visible) > :not(.detour-mark) { display: none; }
+html[dark] .detour-chip { background: var(--detour-tint); color: #f1f1f1 !important; }
+.detour-chips.detour-floating .detour-chip { box-shadow: inset 0 0 0 1px var(--detour-accent), 0 4px 16px rgba(0, 0, 0, .35); }
+.detour-chip:hover { filter: brightness(1.12); }
+.detour-chip:focus-visible { outline: 2px solid var(--detour-accent); outline-offset: 2px; }
+.detour-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--detour-accent); flex-shrink: 0; }
 
 /* ---------- channel page: banner ---------- */
 .detour-banner {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
   display: flex; align-items: center; gap: 14px;
-  margin: 12px 0;
+  margin: 16px 0 4px;
   padding: 12px 12px 12px 14px;
   border-radius: 14px;
   background: var(--detour-tint-light);
@@ -73,7 +66,8 @@
 .detour-banner .detour-text { flex: 1; }
 html[dark] .detour-banner { background: var(--detour-tint); color: #f1f1f1; }
 html[dark] .detour-banner .detour-sub { color: #c8c8c8; }
-.detour-banner.detour-floating { position: fixed; left: 20px; right: 20px; bottom: 20px; z-index: 9999; margin: 0; box-shadow: 0 4px 20px rgba(0, 0, 0, .4); }
+.detour-banner + .detour-banner { margin-top: 8px; }
+.detour-banner.detour-floating { position: fixed; left: 20px; right: auto; bottom: 20px; z-index: 9999; width: calc(100vw - 40px); margin: 0; box-shadow: 0 4px 20px rgba(0, 0, 0, .4); }
 .detour-banner .detour-title { font-size: 15px; }
 .detour-banner .detour-sub { font-size: 13px; }
 
