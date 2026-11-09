@@ -1,0 +1,17 @@
+name: Probe Nebula channels
+on: { push: { branches: [probe-nebula-channels] } }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          A=https://content.api.nebula.app
+          g(){ echo "=== $1"; curl -s -w '\nHTTP %{http_code}\n' -A 'Detour-probe' "$1" | head -c ${2:-1500}; echo; }
+          g "$A/video_channels/?page_size=2"
+          n=0; next="$A/video_channels/?page_size=100"; while [ -n "$next" ] && [ "$next" != null ]; do B=$(curl -s -A Detour-probe "$next"); n=$((n+$(echo "$B" | jq '.results|length'))); next=$(echo "$B" | jq -r .next); sleep 0.5; done; echo "TOTAL video_channels=$n"
+          curl -s -A Detour-probe "$A/video_channels/?page_size=100" | jq -c '.results[0] | {keys: keys, slug, title, type, share_url, website}'
+          n=0; next="$A/podcast_channels/?page_size=100"; while [ -n "$next" ] && [ "$next" != null ]; do B=$(curl -s -A Detour-probe "$next"); n=$((n+$(echo "$B" | jq '.results|length // 0'))); next=$(echo "$B" | jq -r '.next // empty'); sleep 0.5; done; echo "TOTAL podcast_channels=$n"
+          echo "=== channels.rss"
+          curl -s -w '\nHTTP %{http_code}\n' -A Detour-probe https://rss.nebula.app/video/channels.rss > ch.rss; head -c 2500 ch.rss; echo; grep -c '<item>' ch.rss; tail -c 300 ch.rss
+          echo "=== explore page"
+          curl -s -A Mozilla/5.0 https://nebula.tv/explore/channels | grep -o 'content.api.nebula.app[^"'"'"' \\]*' | sort -u | head -20
