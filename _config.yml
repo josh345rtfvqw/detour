@@ -23,6 +23,7 @@ exclude:
   - store/chrome-web-store.md
   - store/firefox-addons.md
   - store/assets/make-store-images.js
+  - store/assets/make-social-card.js
   - "*.zip"
   # The extension's own files aren't part of the site.
   - manifest.json
