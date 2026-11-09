@@ -50,7 +50,7 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 ```json
 {
   "version": 3,
-  "videos":   { "<YouTube video ID>":   { "nebula": "<video slug>", "floatplane": "<post id>" } },
+  "videos":   { "<YouTube video ID>":   { "nebula": "<video slug> or <podcast>/<episode>", "floatplane": "<post id>" } },
   "channels": { "<YouTube channel ID>": { "name": "…", "nebula": "<slug>", "floatplane": "<creator id>/<channel id>" } },
   "nebula":     { "creators": { "<slug>": { "name": "…", "catalog": true } } },
   "floatplane": { "creators": { "<creator id>": { "name": "…", "urlname": "…", "channels": { … }, "catalog": true } } }
@@ -58,9 +58,10 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 ```
 
 - **`videos` and `channels`** have one column per platform. A column is missing when there's no match. The list holds IDs only, and the extension builds the links.
-- **Creator catalogues** hold every video of every Nebula channel (`data/nebula/<slug>.json`) and every video post of every Floatplane creator (`data/floatplane/<id>.json`). The first run pulls each creator's whole history, and the daily run only adds newer videos. The extension downloads a creator's catalogue when you watch them and matches locally, without contacting Nebula or Floatplane.
+- **Creator catalogues** hold every video of every Nebula channel (`data/nebula/<slug>.json`), every episode of the Nebula podcasts listed in [`data/nebula-podcasts.json`](data/nebula-podcasts.json) (`data/nebula-podcasts/<slug>.json`), and every video post of every Floatplane creator (`data/floatplane/<id>.json`). The first run pulls each creator's whole history, and the daily run only adds newer videos. The extension downloads a creator's catalogue when you watch them and matches locally, without contacting Nebula or Floatplane.
 - **Matching** works the same way for both platforms. Each creator's latest YouTube uploads, from YouTube's public RSS feeds, are matched by title and date against their catalogue. Floatplane's YouTube links (`@handles`, `/user/…`) are resolved to channel IDs once and remembered in [`data/youtube-channels.json`](data/youtube-channels.json).
-- **Hand-edited inputs:** [`data/floatplane-creators.json`](data/floatplane-creators.json) and [`data/overrides.json`](data/overrides.json), which can set or remove (`null`) a platform column for a YouTube video. Saving either file on `main` rebuilds the list straight away.
+- **Podcasts** aren't on Nebula's creator wall, so they're listed by hand. Each one is linked to its creator's YouTube channel by name. When the name doesn't match, add `"creators": ["<wall slug>"]` or `"youtube": ["<channel link>"]` for that show. A YouTube upload that's on Nebula both as a video and as a podcast episode links to the video.
+- **Hand-edited inputs:** [`data/floatplane-creators.json`](data/floatplane-creators.json), [`data/nebula-podcasts.json`](data/nebula-podcasts.json) and [`data/overrides.json`](data/overrides.json), which can set or remove (`null`) a platform column for a YouTube video. Saving any of these files on `main` rebuilds the list straight away.
 
 **Anonymous only.** The Action never logs in anywhere and never sends cookies or credentials. If Floatplane refuses its creator list, the Action still fetches each creator's posts using the creator IDs it already knows. If Floatplane refuses those too, Floatplane is skipped for that run and the previous data is kept. Either way, Floatplane matching also works live in each user's browser, with their own session.
 

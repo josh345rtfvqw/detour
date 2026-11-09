@@ -1,7 +1,7 @@
 name: Update known-videos list
 
 # Rebuilds the master list in data/ (served at https://josh345rtfvqw.github.io/detour/data/):
-# known.json plus per-creator catalogues in data/nebula/ and data/floatplane/. The first run
+# known.json plus per-creator catalogues in data/nebula/, data/nebula-podcasts/ and data/floatplane/. The first run
 # pulls every creator's whole history; daily runs only fetch videos newer than what's stored.
 # Commits when anything changes; GitHub Pages then republishes it.
 # Runs daily, on demand, and when the hand-edited data files change.
@@ -19,6 +19,7 @@ on:
     paths:
       - data/floatplane-creators.json
       - data/overrides.json
+      - data/nebula-podcasts.json
       - scripts/build-known.js
       - match.js
 

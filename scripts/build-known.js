@@ -3,15 +3,17 @@
 // .github/workflows/update-list.yml, or by hand:  node scripts/build-known.js
 //
 // data/known.json (version 3) is keyed by YouTube, the anchor for every lookup:
-//   videos     { "<YouTube video ID>":   { nebula: "<video slug>", floatplane: "<post id>" } }
+//   videos     { "<YouTube video ID>":   { nebula: "<video slug>" | "<podcast>/<episode>", floatplane: "<post id>" } }
 //   channels   { "<YouTube channel ID>": { name, nebula: "<channel slug>", floatplane: "<creator id>[/<channel id>]" } }
 //   nebula.creators      { "<slug>": { name, alt?, catalog } }            reference data
+//   nebula.podcasts      { "<podcast slug>": { name, catalog } }
 //   floatplane.creators  { "<creator id>": { name, urlname, channels: { "<id>": { name, urlname } }, catalog } }
 // A platform column is absent when there's no match. catalog: true means a full catalogue file
 // exists. IDs only, never URLs: the extension builds the links.
 //
 // Per-creator catalogues (every video, for matching videos not yet in `videos`):
 //   data/nebula/<slug>.json      [{ s: slug, t: title, d: date }]
+//   data/nebula-podcasts/<slug>.json  [{ s: episode slug, t: title, d: date }]
 //   data/floatplane/<id>.json    [{ i: post id, t: title, d: date, c: channel id }]
 // Catalogues are incremental: the first run pages back through each creator's whole history;
 // later runs only fetch videos newer than what's stored.
@@ -23,7 +25,10 @@
 // (@handles, /user/…) are resolved to channel IDs once and remembered in
 // data/youtube-channels.json. Unresolvable links are logged and left out.
 //
-// Inputs edited by hand: data/floatplane-creators.json, data/overrides.json
+// Inputs edited by hand: data/floatplane-creators.json, data/overrides.json, data/nebula-podcasts.json
+//   nebula-podcasts: { "<podcast slug>": { "creators"?: ["<creator wall slug>"], "youtube"?: ["<YouTube channel link>"] } }
+//   A podcast is linked to its creator's YouTube channel by name; list "creators" or "youtube"
+//   when the name doesn't match the creator wall.
 //   overrides: { "videos": { "<YouTube video ID>": { "nebula": "<slug>" | null, "floatplane": "<post id>" | null } } }
 //   A value sets that column; null removes a wrong match (keep the null, or it can come back).
 //
@@ -34,7 +39,7 @@
 // already known; if the posts endpoint refuses too, Floatplane is skipped for that run.
 const fs = require('fs');
 const path = require('path');
-const { bestMatch, tokens, parseCreatorWall, decodeHtml, SLUG } = require('../match.js');
+const { bestMatch, tokens, parseCreatorWall, decodeHtml, normalizeName, SLUG } = require('../match.js');
 const { fpNameKey } = require('../floatplane-defaults.js');
 
 const UA = 'DetourListBuilder/1.0 (+https://github.com/josh345rtfvqw/detour)';
@@ -43,6 +48,8 @@ const FP = 'https://www.floatplane.com';
 const FP_ID = /^\w{1,64}$/;
 const YT_VIDEO = /^[\w-]{11}$/;
 const YT_CHANNEL = /^UC[\w-]{22}$/;
+const NEBULA_PODCAST_EPISODE = /^[\w-]{1,100}\/[\w-]{1,100}$/; // "<show>/<episode>"
+const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const MIN_CONFIDENCE = 0.85; // stricter than the extension: pre-matches are shared with every user
 const MAX_VIDEOS = 100000;
 const MAX_PAGES = 1000;      // safety stop per creator
@@ -148,6 +155,33 @@ async function updateNebulaCatalog({ get, sleep, delayMs, slug, existing }) {
     if (url && delayMs) await sleep(delayMs);
   }
   return [...fresh, ...existing];
+}
+
+// Newest-first pages of a Nebula podcast's episodes, stopping at the first one stored. Podcasts
+// are a different content type ("podcast_channel") with their own episodes endpoint, and their
+// episodes live at nebula.tv/<show>/<episode>/ rather than nebula.tv/videos/<slug>.
+async function updateNebulaPodcast({ get, sleep, delayMs, slug, existing }) {
+  const show = await get(`${NEBULA_API}/content/${slug}/`);
+  if (show.type !== 'podcast_channel' || typeof show.id !== 'string') throw new Error(`not a podcast: ${slug}`);
+  const known = new Set(existing.map(e => e.s));
+  let url = `${NEBULA_API}/podcast_channels/${encodeURIComponent(show.id)}/podcast_episodes/?page_size=100`;
+  const fresh = [];
+  for (let page = 0; url && page < MAX_PAGES; page++) {
+    const body = await get(url);
+    let reachedKnown = false;
+    for (const v of body.results || []) {
+      const fromUrl = (urlPath(v.share_url || '').match(/^\/[\w-]+\/([\w-]+)\/?$/) || [])[1];
+      const s = fromUrl || (SLUG.test(v.slug || '') ? v.slug : null);
+      if (!s || typeof v.title !== 'string') continue;
+      if (known.has(s)) { reachedKnown = true; break; }
+      fresh.push({ s, t: v.title, d: (v.published_at || '').slice(0, 10) });
+      known.add(s);
+    }
+    if (reachedKnown) break;
+    url = body.next && body.next.startsWith(NEBULA_API) ? body.next : null;
+    if (url && delayMs) await sleep(delayMs);
+  }
+  return { title: typeof show.title === 'string' ? show.title : slug, creator: typeof show.creator === 'string' ? show.creator : '', episodes: [...fresh, ...existing] };
 }
 
 // Newest-first pages of a Floatplane creator's video posts, stopping at the first one stored.
@@ -306,6 +340,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   const handlesFile = path.join(dataDir, 'youtube-channels.json');
   const handles = readJson(handlesFile, {});           // "@handle" / "user:x" / "c:x" -> UC id
   const nebulaDir = path.join(dataDir, 'nebula');
+  const nebulaPodcastDir = path.join(dataDir, 'nebula-podcasts');
   const fpDir = path.join(dataDir, 'floatplane');
   const channels = {};                                  // UC id -> { name, nebula, floatplane }
   const setChannel = (uc, name, col, val) => {
@@ -453,12 +488,48 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   writeIfChanged(handlesFile, sortObject(handles));
   log(`youtube channels: ${Object.keys(handles).length} resolved links (${resolvedNew} new)${unresolved.length ? `, unresolved: ${[...new Set(unresolved)].join(', ')}` : ''}; floatplane: ${matched.floatplane} new pre-matched videos`);
 
+  // 3b. Nebula podcasts (hand-listed in data/nebula-podcasts.json; the creator wall doesn't list
+  //     them). Each show is linked to YouTube through its creator's wall entry (by name, or the
+  //     "creators" listed for it) plus any "youtube" links given. This runs after the video
+  //     pre-matches, which skip uploads already matched, so a video match always wins.
+  const podcastList = readJson(path.join(dataDir, 'nebula-podcasts.json'), {});
+  const wallByName = {}, wallBySlug = {};
+  for (const c of nebCreators) {
+    if (!c.ytId) continue;
+    (wallByName[normalizeName(c.name)] ||= []).push(c.ytId);
+    wallBySlug[c.slug] = c.ytId;
+  }
+  let podNew = 0, podFailed = 0;
+  const podMatchedBefore = matched.nebula;
+  const podcastIndex = {};
+  await mapLimit(Object.entries(isObj(podcastList) ? podcastList : {}).filter(([s]) => SLUG.test(s)), 2, async ([slug, cfg]) => {
+    cfg = isObj(cfg) ? cfg : {};
+    const file = path.join(nebulaPodcastDir, `${slug}.json`);
+    const existing = readJson(file, []);
+    let show = { title: previousRaw.nebula?.podcasts?.[slug]?.name || slug, creator: '', episodes: existing };
+    try {
+      show = await updateNebulaPodcast({ get, sleep, delayMs, slug, existing });
+      podNew += show.episodes.length - existing.length;
+      writeIfChanged(file, show.episodes);
+    } catch (e) { podFailed++; }
+    const ucs = new Set();
+    for (const part of show.creator.split(/\s*(?:&|,|\band\b)\s*/i)) for (const uc of wallByName[normalizeName(part)] || []) ucs.add(uc);
+    for (const s of Array.isArray(cfg.creators) ? cfg.creators : []) if (wallBySlug[s]) ucs.add(wallBySlug[s]);
+    for (const link of Array.isArray(cfg.youtube) ? cfg.youtube : []) { const uc = await resolve(String(link)); if (uc) ucs.add(uc); }
+    podcastIndex[slug] = { name: show.title, catalog: show.episodes.length > 0 };
+    const cands = show.episodes.map(e => ({ title: e.t, date: e.d, id: `${slug}/${e.s}` }));
+    for (const uc of ucs) await preMatch(uc, 'nebula', cands);
+    if (delayMs) await sleep(delayMs);
+  });
+  writeIfChanged(handlesFile, sortObject(handles));
+  log(`nebula podcasts: ${Object.keys(podcastIndex).length} shows, ${podNew} new episodes (${podFailed} failed), ${matched.nebula - podMatchedBefore} new pre-matched videos`);
+
   if (useApi) log(`youtube backfill: ${yt.videos} uploads from ${yt.channels} channels in ${yt.calls} API requests${yt.stopped ? `; stopped early: ${yt.stopped}` : ''}`);
 
   // 4. Manual overrides win.
   for (const [id, row] of Object.entries(overrides.videos || {})) {
     if (!YT_VIDEO.test(id) || !row || typeof row !== 'object') continue;
-    for (const [col, valid] of [['nebula', SLUG], ['floatplane', FP_ID]]) {
+    for (const [col, valid] of [['nebula', { test: v => SLUG.test(v) || NEBULA_PODCAST_EPISODE.test(v) }], ['floatplane', FP_ID]]) {
       if (!(col in row)) continue;
       if (row[col] === null) { if (videos[id]) delete videos[id][col]; }
       else if (typeof row[col] === 'string' && valid.test(row[col])) (videos[id] ||= {})[col] = row[col];
@@ -480,7 +551,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     version: 3,
     videos: sortObject(Object.fromEntries(videoEntries.slice(Math.max(0, videoEntries.length - MAX_VIDEOS)))),
     channels: sortObject(channels),
-    nebula: { creators: sortObject(nebulaIndex) },
+    nebula: { creators: sortObject(nebulaIndex), podcasts: sortObject(podcastIndex) },
     floatplane: { creators: sortObject(fpIndex) },
   };
   // Only bump "generated" when the index changes, so quiet days don't rewrite it.
@@ -490,7 +561,8 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   writeIfChanged(knownFile, out);
   if (Object.keys(failures).length) log(`request failures (after retries): ${JSON.stringify(failures)}`);
   const vcount = col => Object.values(out.videos).filter(r => r[col]).length;
-  log(`index ${changed ? 'updated' : 'unchanged'}: ${Object.keys(out.videos).length} videos (${vcount('nebula')} Nebula, ${vcount('floatplane')} Floatplane), ${Object.keys(out.channels).length} channels; catalogues: ${Object.values(nebulaIndex).filter(c => c.catalog).length} Nebula, ${Object.values(fpIndex).filter(c => c.catalog).length} Floatplane`);
+  const pcount = Object.values(out.videos).filter(r => NEBULA_PODCAST_EPISODE.test(r.nebula || '')).length;
+  log(`index ${changed ? 'updated' : 'unchanged'}: ${Object.keys(out.videos).length} videos (${vcount('nebula')} Nebula incl. ${pcount} podcast episodes, ${vcount('floatplane')} Floatplane), ${Object.keys(out.channels).length} channels; catalogues: ${Object.values(nebulaIndex).filter(c => c.catalog).length} Nebula, ${Object.values(fpIndex).filter(c => c.catalog).length} Floatplane`);
   return { changed, data: out, nebNew, fpNew, matched };
 }
 

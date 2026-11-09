@@ -240,10 +240,15 @@ const fpRoutes = [
   assert.equal(r.results[0].confidence, 1);
   assert.ok(!env.calls.some(c => /nebula\.(app|tv)/.test(c.url)), 'no Nebula requests for a known video');
   console.log('ok  master list hit needs no Nebula requests');
+  env = makeEnv({ nebulaSubscribed: true }, [[MASTER, v3({ videos: { podcastvid1: { nebula: 'modulus/finding-failures' } } })],
+    [/nebula|talent/, new Error()], [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'podcastvid1', title: 'Anything', author: 'Someone' } });
+  assert.equal(r.results[0].url, 'https://nebula.tv/modulus/finding-failures/');
+  console.log('ok  master list podcast episodes link to nebula.tv/<show>/<episode>/');
 
   // 20. A tampered master list can't inject links: bad URLs are dropped, live lookup used instead.
   env = makeEnv({ nebulaSubscribed: true }, [[MASTER, v3({
-    videos: { x2xxxxxxxxx: { nebula: '../evil', floatplane: 'javascript:alert(1)' }, bad: { nebula: 'y' } },
+    videos: { x2xxxxxxxxx: { nebula: '../evil', floatplane: 'javascript:alert(1)' }, bad: { nebula: 'y' }, x3xxxxxxxxx: { nebula: 'a/b/c' } },
     channels: { notachannel: { nebula: 'x' }, UCR1IuLEqb6UEA_zQ81kwXfg: { nebula: '../evil' } },
     nebula: { creators: { '../evil': { name: 'X' } } }, floatplane: { creators: { 'bad id!': { name: 'Evil' }, ok1: { name: 42 } } } })],
     ...nebulaRoutes, [/floatplane/, new Error()]]);

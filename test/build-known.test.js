@@ -220,5 +220,30 @@ const baseState = () => ({
   r = await build({ ...opts(bf2), fetchFn: bfFetch, backfill: true, youtubeApiKey: '' });
   assert.equal(r.data.videos.oldbridge01, undefined, 'no key: falls back to RSS');
   console.log('ok  backfill pages through the full upload list');
+
+  // ---- Nebula podcasts: own endpoint, linked to the creator's YouTube channel by name ----
+  const pd = tmp();
+  fs.writeFileSync(path.join(pd, 'nebula-podcasts.json'), JSON.stringify({ modulus: {}, otherpod: { creators: ['realengineering'] }, notapod: {} }));
+  const pState = baseState();
+  pState.feeds[RE_UC] = [['ytvideo0001', 'Why Planes Don&#39;t Fly Faster', '2026-11-03'], ['ytpodcast01', 'Finding Failures, Saving Lives', '2021-06-10'], ['ytpodcast02', 'Inside the Bridge Inspectors', '2026-10-20']];
+  const pNet = makeNet(pState);
+  const podFetch = async (url, init) => {
+    if (url.endsWith('/content/modulus/')) return ok({ id: 'podcast_channel:abc', type: 'podcast_channel', title: 'Modulus', creator: 'Real Engineering & Real Science' });
+    if (url.endsWith('/content/otherpod/')) return ok({ id: 'podcast_channel:def', type: 'podcast_channel', title: 'Other Pod', creator: 'Someone Else' });
+    if (url.endsWith('/content/notapod/')) return ok({ id: 'video_channel:x', type: 'video_channel' });
+    if (url.includes('/podcast_channels/podcast_channel%3Aabc/podcast_episodes/')) return ok({ results: [
+      { title: 'Finding Failures, Saving Lives', published_at: '2021-06-10T05:00:00Z', share_url: 'https://nebula.tv/modulus/finding-failures-saving-lives/' },
+      { title: 'Why Planes Don’t Fly Faster', published_at: '2026-11-02T05:00:00Z', share_url: 'https://nebula.tv/modulus/why-planes/' }], next: null });
+    if (url.includes('/podcast_channels/podcast_channel%3Adef/podcast_episodes/')) return ok({ results: [
+      { title: 'Inside the Bridge Inspectors', published_at: '2026-10-20T05:00:00Z', share_url: 'https://nebula.tv/otherpod/bridge-inspectors/' }], next: null });
+    return pNet.fetchFn(url, init);
+  };
+  r = await build({ ...opts(pd), fetchFn: podFetch });
+  assert.equal(r.data.videos.ytpodcast01.nebula, 'modulus/finding-failures-saving-lives', 'podcast episode matched via creator name');
+  assert.equal(r.data.videos.ytpodcast02.nebula, 'otherpod/bridge-inspectors', 'podcast linked through a listed creator');
+  assert.equal(r.data.videos.ytvideo0001.nebula, 'realengineering-why-planes', 'a video match wins over a podcast episode');
+  assert.deepEqual(readJ(pd, 'nebula-podcasts/modulus.json').map(e => e.s), ['finding-failures-saving-lives', 'why-planes']);
+  assert.deepEqual(r.data.nebula.podcasts, { modulus: { name: 'Modulus', catalog: true }, notapod: { name: 'notapod', catalog: false }, otherpod: { name: 'Other Pod', catalog: true } });
+  console.log('ok  Nebula podcasts: catalogued and pre-matched, videos first');
   console.log('\nall build-known tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

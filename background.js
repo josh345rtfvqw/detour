@@ -106,6 +106,7 @@ async function pruneCaches(prefix, keep) {
 const DATA_BASE = 'https://josh345rtfvqw.github.io/detour/data';
 const MASTER_URL = `${DATA_BASE}/known.json`;
 const FP_POST_ID = /^\w{1,64}$/;
+const NEBULA_PODCAST_EPISODE = /^[\w-]{1,100}\/[\w-]{1,100}$/; // "<show>/<episode>" in the master list
 const YT_VIDEO_ID = /^[\w-]{11}$/;
 
 const YT_CHANNEL_ID = /^UC[\w-]{22}$/;
@@ -113,7 +114,7 @@ const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 const str = v => (typeof v === 'string' ? v : '');
 
 // Master list, version 3. Keyed by YouTube, the anchor for every lookup:
-//   videos   { "<YouTube video ID>":   { nebula: "<video slug>", floatplane: "<post id>" } }
+//   videos   { "<YouTube video ID>":   { nebula: "<video slug>" | "<podcast>/<episode>", floatplane: "<post id>" } }
 //   channels { "<YouTube channel ID>": { name, nebula: "<slug>", floatplane: "<creator id>[/<channel id>]" } }
 //   nebula.creators { "<slug>": { name, alt?, catalog } }
 //   floatplane.creators { "<creator id>": { name, urlname, channels: { "<id>": { name, urlname } }, catalog } }
@@ -125,6 +126,7 @@ function parseMasterV3(d) {
   for (const [id, row] of Object.entries(isObj(d.videos) ? d.videos : {})) {
     if (!YT_VIDEO_ID.test(id) || !isObj(row)) continue;
     if (SLUG.test(str(row.nebula))) videos.nebula[id] = `https://nebula.tv/videos/${row.nebula}`;
+    else if (NEBULA_PODCAST_EPISODE.test(str(row.nebula))) videos.nebula[id] = `https://nebula.tv/${row.nebula}/`;
     if (FP_POST_ID.test(str(row.floatplane))) videos.floatplane[id] = `${FP}/post/${row.floatplane}`;
   }
 
