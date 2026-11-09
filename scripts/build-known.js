@@ -646,7 +646,6 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     floatplane_videos: rows.filter(r => r.floatplane).length,
     youtube_channels: Object.keys(channels).length,
     nebula_creators: Object.keys(nebulaIndex).length,
-    nebula_creators_on_youtube: Object.values(channels).filter(c => c.nebula).length,
     nebula_podcasts: Object.keys(podcastIndex).length,
     floatplane_creators: Object.keys(fpIndex).length,
   };
