@@ -3,6 +3,7 @@
 // .github/workflows/update-list.yml, or by hand:  node scripts/build-known.js
 //
 // data/known.json (version 3) is keyed by YouTube, the anchor for every lookup:
+//   counts     totals for checking at a glance (videos, creators, channels); not used by the extension
 //   videos     { "<YouTube video ID>":   { nebula: "<video slug>" | "<podcast>/<episode>", floatplane: "<post id>" } }
 //   channels   { "<YouTube channel ID>": { name, nebula: "<channel slug>", floatplane: "<creator id>[/<channel id>]" } }
 //   nebula.creators      { "<slug>": { name, alt?, catalog } }            reference data
@@ -635,9 +636,24 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     for (const ch of (c.channels || []).filter(ch => FP_ID.test(ch.id || ''))) chs[ch.id] = { name: ch.title, urlname: ch.urlname || null };
     fpIndex[c.id] = { name: c.title, urlname: c.urlname || null, channels: chs, catalog: (fpCatalog[c.id] || []).length > 0 };
   }
+  const keptVideos = Object.fromEntries(videoEntries.slice(Math.max(0, videoEntries.length - MAX_VIDEOS)));
+  const rows = Object.values(keptVideos);
+  // Totals, for checking the list at a glance. The extension ignores them.
+  const counts = {
+    videos: rows.length,
+    nebula_videos: rows.filter(r => r.nebula && !NEBULA_PODCAST_EPISODE.test(r.nebula)).length,
+    nebula_podcast_episodes: rows.filter(r => NEBULA_PODCAST_EPISODE.test(r.nebula || '')).length,
+    floatplane_videos: rows.filter(r => r.floatplane).length,
+    youtube_channels: Object.keys(channels).length,
+    nebula_creators: Object.keys(nebulaIndex).length,
+    nebula_creators_on_youtube: Object.values(channels).filter(c => c.nebula).length,
+    nebula_podcasts: Object.keys(podcastIndex).length,
+    floatplane_creators: Object.keys(fpIndex).length,
+  };
   const data = {
     version: 3,
-    videos: sortObject(Object.fromEntries(videoEntries.slice(Math.max(0, videoEntries.length - MAX_VIDEOS)))),
+    counts,
+    videos: sortObject(keptVideos),
     channels: sortObject(channels),
     nebula: { creators: sortObject(nebulaIndex), podcasts: sortObject(podcastIndex) },
     floatplane: { creators: sortObject(fpIndex) },
@@ -648,9 +664,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   const out = { version: 3, generated: changed ? now.toISOString() : (previousRaw.generated || now.toISOString()), ...data };
   writeIfChanged(knownFile, out);
   if (Object.keys(failures).length) log(`request failures (after retries): ${JSON.stringify(failures)}`);
-  const vcount = col => Object.values(out.videos).filter(r => r[col]).length;
-  const pcount = Object.values(out.videos).filter(r => NEBULA_PODCAST_EPISODE.test(r.nebula || '')).length;
-  log(`index ${changed ? 'updated' : 'unchanged'}: ${Object.keys(out.videos).length} videos (${vcount('nebula')} Nebula incl. ${pcount} podcast episodes, ${vcount('floatplane')} Floatplane), ${Object.keys(out.channels).length} channels; catalogues: ${Object.values(nebulaIndex).filter(c => c.catalog).length} Nebula, ${Object.values(fpIndex).filter(c => c.catalog).length} Floatplane`);
+  log(`index ${changed ? 'updated' : 'unchanged'}: ${counts.videos} videos (${counts.nebula_videos} Nebula videos, ${counts.nebula_podcast_episodes} Nebula podcast episodes, ${counts.floatplane_videos} Floatplane), ${counts.youtube_channels} channels; catalogues: ${Object.values(nebulaIndex).filter(c => c.catalog).length} Nebula, ${Object.values(fpIndex).filter(c => c.catalog).length} Floatplane`);
   return { changed, data: out, nebNew, fpNew, matched };
 }
 

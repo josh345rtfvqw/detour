@@ -50,6 +50,7 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 ```json
 {
   "version": 3,
+  "counts":   { "videos": 24683, "nebula_videos": …, "nebula_creators": …, "floatplane_creators": …, … },
   "videos":   { "<YouTube video ID>":   { "nebula": "<video slug> or <podcast>/<episode>", "floatplane": "<post id>" } },
   "channels": { "<YouTube channel ID>": { "name": "…", "nebula": "<slug>", "floatplane": "<creator id>/<channel id>" } },
   "nebula":     { "creators": { "<slug>": { "name": "…", "catalog": true } } },
@@ -57,6 +58,7 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 }
 ```
 
+- **`counts`** gives the totals (videos per platform, podcast episodes, creators, YouTube channels) for checking the list at a glance. The extension doesn't use it.
 - **`videos` and `channels`** have one column per platform. A column is missing when there's no match. The list holds IDs only, and the extension builds the links.
 - **Nebula channels and podcasts** come from Nebula's channel and podcast lists (the ones behind [nebula.tv/explore/channels](https://nebula.tv/explore/channels)). Nebula's [newest-channels feed](https://rss.nebula.app/video/channels.rss) is checked too, so a new channel is picked up even if the list can't be read. Neither list says which YouTube channel a Nebula channel belongs to. The creator wall supplies that for most creators. For the rest, the builder tries the YouTube handle with the same name as the Nebula slug, and only uses it if the YouTube channel's name matches. To link one by hand, add `"channels": { "<nebula slug>": "<YouTube channel link>" }` to [`data/overrides.json`](data/overrides.json).
 - **Creator catalogues** hold every video of every Nebula channel (`data/nebula/<slug>.json`), every episode of every Nebula podcast (`data/nebula-podcasts/<slug>.json`), and every video post of every Floatplane creator (`data/floatplane/<id>.json`). The first run pulls each creator's whole history, and the daily run only adds newer videos. The extension downloads a creator's catalogue when you watch them and matches locally, without contacting Nebula or Floatplane.

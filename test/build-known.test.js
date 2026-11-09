@@ -288,6 +288,8 @@ const baseState = () => ({
   const cNet2 = { calls: [] };
   r = await build({ ...opts(cd), fetchFn: async (u, i) => { cNet2.calls.push(u); return chanFetch(u, i); } });
   assert.ok(!cNet2.calls.some(u => u.startsWith('https://www.youtube.com/@')), 'guesses not repeated');
+  assert.deepEqual(ck.counts, { videos: Object.keys(ck.videos).length, nebula_videos: 3, nebula_podcast_episodes: 0, floatplane_videos: 1,
+    youtube_channels: Object.keys(ck.channels).length, nebula_creators: 4, nebula_creators_on_youtube: 3, nebula_podcasts: 1, floatplane_creators: 1 });
   console.log('ok  Nebula channel list and channels feed; off-wall channels linked by verified handle');
   console.log('\nall build-known tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
