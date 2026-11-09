@@ -16,7 +16,10 @@ the platform, you get a link to the channel instead. Channel-only matches never 
 
 ## Install
 
-**Chrome / Edge / Brave**
+**Chrome / Edge / Brave:** install from the
+[Chrome Web Store](https://chromewebstore.google.com/detail/detour/lofobnkomhhicgcpejnlcibekkaiaeed).
+
+To run from source instead:
 1. Go to `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and pick this folder.
 
