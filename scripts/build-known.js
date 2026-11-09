@@ -18,6 +18,11 @@
 // Catalogues are incremental: the first run pages back through each creator's whole history;
 // later runs only fetch videos newer than what's stored.
 //
+// Nebula channels come from Nebula's channel list (behind nebula.tv/explore/channels) plus its
+// newest-channels feed; podcasts from its podcast list. The creator wall links channels to
+// YouTube; channels not on it are linked by a same-named YouTube handle whose channel name
+// matches (remembered as "guess:<slug>" in data/youtube-channels.json), or by overrides.json.
+//
 // Matching is the same for both platforms: each creator's latest YouTube uploads (public RSS
 // feed) are matched by title and date against their catalogue. A backfill run (BACKFILL=1 with
 // YOUTUBE_API_KEY set) instead pages through each channel's whole upload list with the YouTube
@@ -31,6 +36,7 @@
 //   when the name doesn't match the creator wall.
 //   overrides: { "videos": { "<YouTube video ID>": { "nebula": "<slug>" | null, "floatplane": "<post id>" | null } } }
 //   A value sets that column; null removes a wrong match (keep the null, or it can come back).
+//   overrides also takes "channels": { "<nebula slug>": "<YouTube channel link>" }.
 //
 // Everything is fetched anonymously: no logins, cookies or credentials, ever. The one exception is
 // the optional YouTube Data API key for backfill runs, sent only to www.googleapis.com in a header. If a source refuses,
@@ -155,6 +161,31 @@ async function updateNebulaCatalog({ get, sleep, delayMs, slug, existing }) {
     if (url && delayMs) await sleep(delayMs);
   }
   return [...fresh, ...existing];
+}
+
+// Every Nebula video channel or podcast: the list behind nebula.tv/explore/channels.
+async function listNebula({ get, sleep, delayMs, kind }) {
+  const out = [];
+  let url = `${NEBULA_API}/${kind}/?page_size=100`;
+  for (let page = 0; url && page < MAX_PAGES; page++) {
+    const body = await get(url);
+    if (!Array.isArray(body.results)) throw new Error('unexpected response');
+    for (const c of body.results) {
+      if (!SLUG.test(c.slug || '') || typeof c.title !== 'string') continue;
+      out.push({ slug: c.slug, name: c.title, aliases: (Array.isArray(c.slug_aliases) ? c.slug_aliases : []).filter(s => typeof s === 'string' && SLUG.test(s)) });
+    }
+    url = body.next && body.next.startsWith(NEBULA_API) ? body.next : null;
+    if (url && delayMs) await sleep(delayMs);
+  }
+  return out;
+}
+
+// Nebula's feed of its newest channels (rss.nebula.app/video/channels.rss).
+function parseNebulaChannelsFeed(xml) {
+  return xml.split('<item>').slice(1).map(it => ({
+    slug: (it.match(/<link>https:\/\/nebula\.tv\/([\w-]+)\/?<\/link>/) || [])[1],
+    name: decodeHtml((it.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '').replace(/^<!\[CDATA\[|\]\]>$/g, '').trim(),
+  })).filter(c => c.slug && SLUG.test(c.slug) && c.name).map(c => ({ ...c, aliases: [] }));
 }
 
 // Newest-first pages of a Nebula podcast's episodes, stopping at the first one stored. Podcasts
@@ -386,37 +417,59 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     } catch (e) { /* feed unavailable today */ }
   };
 
-  // 1. Nebula: creators, full catalogues, YouTube channels, pre-matches.
-  let nebCreators = [];
+  // 1. Nebula channels: every channel from Nebula's channel list (the one behind
+  //    nebula.tv/explore/channels), plus its newest-channels feed so a new channel is picked up
+  //    even if the list fails. The creator wall supplies YouTube channel IDs; channels not on the
+  //    wall are linked to YouTube in step 3a. Then full catalogues and pre-matches.
+  const prevByCreator = {};
+  for (const [uc, row] of Object.entries(previousRaw.channels || {})) if (typeof row?.nebula === 'string') prevByCreator[row.nebula] = uc;
+  const nebChannels = new Map();                        // slug -> { slug, name, aliases, ytId }
+  const addChannel = c => { if (!nebChannels.has(c.slug)) nebChannels.set(c.slug, { slug: c.slug, name: c.name, aliases: c.aliases || [], ytId: null }); };
+  let listOk = false;
   try {
-    nebCreators = parseCreatorWall(await get('https://talent.nebula.tv/creators/', 'text'));
-    log(`creator wall: ${nebCreators.length} creators (${nebCreators.filter(c => c.ytId).length} with a YouTube channel)`);
-  } catch (e) { log(`creator wall failed: ${e.message}`); }
-  if (!nebCreators.length && previousRaw.version === 3) {
-    // Keep yesterday's creators if the wall couldn't be read.
-    const prevByCreator = {};
-    for (const [uc, row] of Object.entries(previousRaw.channels || {})) if (row.nebula) prevByCreator[row.nebula] = uc;
-    nebCreators = Object.entries(previousRaw.nebula?.creators || {}).map(([slug, c]) => ({ name: c.name, slug, alt: c.alt || null, ytId: prevByCreator[slug] || null }));
+    (await listNebula({ get, sleep, delayMs, kind: 'video_channels' })).forEach(addChannel);
+    listOk = nebChannels.size > 0;
+  } catch (e) { log(`nebula channel list failed: ${e.message}`); }
+  let feedNew = [];
+  try {
+    const fromFeed = parseNebulaChannelsFeed(await get('https://rss.nebula.app/video/channels.rss', 'text'));
+    feedNew = fromFeed.filter(c => !nebChannels.has(c.slug)).map(c => c.slug);
+    fromFeed.forEach(addChannel);
+  } catch (e) { log(`nebula channels feed failed: ${e.message}`); }
+  if (!listOk && previousRaw.version === 3) {
+    // Keep yesterday's channels if the list couldn't be read.
+    for (const [slug, c] of Object.entries(previousRaw.nebula?.creators || {})) if (SLUG.test(slug) && typeof c?.name === 'string') addChannel({ slug, name: c.name });
   }
+  let wall = [];
+  try { wall = parseCreatorWall(await get('https://talent.nebula.tv/creators/', 'text')); }
+  catch (e) { log(`creator wall failed: ${e.message}`); }
+  // A wall card links a YouTube channel to a Nebula channel (its link, or its talent page slug).
+  const bySlugOrAlias = new Map();
+  for (const c of nebChannels.values()) for (const s of [c.slug, ...c.aliases]) if (!bySlugOrAlias.has(s)) bySlugOrAlias.set(s, c);
+  let wallLinked = 0;
+  for (const w of wall) {
+    let c = [w.slug, w.alt].map(s => bySlugOrAlias.get(s)).find(Boolean);
+    if (!c && !listOk) { addChannel({ slug: w.slug, name: w.name }); c = nebChannels.get(w.slug); }
+    if (c && w.ytId && !c.ytId) { c.ytId = w.ytId; wallLinked++; }
+  }
+  for (const c of nebChannels.values()) if (!c.ytId && YT_CHANNEL.test(prevByCreator[c.slug] || '') && !wall.length) c.ytId = prevByCreator[c.slug];
+  log(`nebula channels: ${nebChannels.size}${listOk ? '' : ' (channel list unavailable)'}${feedNew.length ? `, new in the channels feed: ${feedNew.join(', ')}` : ''}; creator wall: ${wall.length} cards, ${wallLinked} linked to YouTube`);
+  const nebCreators = [...nebChannels.values()];
 
   let nebNew = 0, nebFailed = 0;
-  const nebCatalog = {};
+  const nebCatalog = {};                                // slug -> catalogue entries
   await mapLimit(nebCreators, 2, async c => {
-    const episodes = [];
-    for (const slug of [...new Set([c.slug, c.alt].filter(s => s && SLUG.test(s)))]) {
-      const file = path.join(nebulaDir, `${slug}.json`);
-      const existing = readJson(file, []);
-      try {
-        const updated = await updateNebulaCatalog({ get, sleep, delayMs, slug, existing });
-        nebNew += updated.length - existing.length;
-        writeIfChanged(file, updated);
-        episodes.push(...updated);
-      } catch (e) { nebFailed++; episodes.push(...existing); }
-    }
-    nebCatalog[c.slug] = episodes.length > 0;
+    const file = path.join(nebulaDir, `${c.slug}.json`);
+    const existing = readJson(file, []);
+    try {
+      const updated = await updateNebulaCatalog({ get, sleep, delayMs, slug: c.slug, existing });
+      nebNew += updated.length - existing.length;
+      writeIfChanged(file, updated);
+      nebCatalog[c.slug] = updated;
+    } catch (e) { nebFailed++; nebCatalog[c.slug] = existing; }
     if (c.ytId) {
       setChannel(c.ytId, c.name, 'nebula', c.slug);
-      await preMatch(c.ytId, 'nebula', episodes.map(e => ({ title: e.t, date: e.d, id: e.s })));
+      await preMatch(c.ytId, 'nebula', nebCatalog[c.slug].map(e => ({ title: e.t, date: e.d, id: e.s })));
     }
     if (delayMs) await sleep(delayMs);
   });
@@ -488,11 +541,46 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   writeIfChanged(handlesFile, sortObject(handles));
   log(`youtube channels: ${Object.keys(handles).length} resolved links (${resolvedNew} new)${unresolved.length ? `, unresolved: ${[...new Set(unresolved)].join(', ')}` : ''}; floatplane: ${matched.floatplane} new pre-matched videos`);
 
-  // 3b. Nebula podcasts (hand-listed in data/nebula-podcasts.json; the creator wall doesn't list
-  //     them). Each show is linked to YouTube through its creator's wall entry (by name, or the
+  // 3a. Nebula channels the creator wall doesn't link to YouTube: a link set in
+  //     overrides.json ("channels": { "<nebula slug>": "<YouTube channel link>" }), else the
+  //     YouTube handle with the same name as the slug, accepted only if that YouTube channel's
+  //     name matches the Nebula channel's. Guesses are remembered either way ("guess:<slug>" in
+  //     data/youtube-channels.json, "" for no match; delete the entry to try again).
+  const ytName = html => decodeHtml((html.match(/<meta property="og:title" content="([^"]*)"/) || [])[1] || '').trim();
+  const taken = new Set(Object.keys(channels).filter(uc => channels[uc].nebula));
+  let guessed = 0, guessedNew = 0;
+  for (const c of nebCreators.filter(c => !c.ytId)) {
+    const link = isObj(overrides.channels) && typeof overrides.channels[c.slug] === 'string' ? overrides.channels[c.slug] : null;
+    let uc = link ? await resolve(link) : null;
+    if (!uc) {
+      const key = `guess:${c.slug}`;
+      if (!(key in handles)) {
+        handles[key] = '';
+        try {
+          const html = await get(`https://www.youtube.com/@${c.slug}`, 'text');
+          const found = channelIdFromPage(html);
+          if (found && normalizeName(ytName(html)) === normalizeName(c.name)) { handles[key] = found; guessedNew++; }
+        } catch (e) { if (!/^404 /.test(e.message)) delete handles[key]; /* not a definite miss: try again next run */ }
+        if (delayMs) await sleep(delayMs);
+      }
+      uc = handles[key] || null;
+    }
+    if (!uc || taken.has(uc)) continue;
+    c.ytId = uc; taken.add(uc); guessed++;
+    setChannel(uc, c.name, 'nebula', c.slug);
+    await preMatch(uc, 'nebula', (nebCatalog[c.slug] || []).map(e => ({ title: e.t, date: e.d, id: e.s })));
+  }
+  writeIfChanged(handlesFile, sortObject(handles));
+  log(`nebula channels not on the creator wall: ${guessed} linked to YouTube (${guessedNew} new), ${nebCreators.filter(c => !c.ytId).length} without a YouTube channel`);
+
+  // 3b. Nebula podcasts: every show in Nebula's podcast list, plus any listed in
+  //     data/nebula-podcasts.json (which also holds per-show settings). Each show is linked to YouTube through its creator's wall entry (by name, or the
   //     "creators" listed for it) plus any "youtube" links given. This runs after the video
   //     pre-matches, which skip uploads already matched, so a video match always wins.
-  const podcastList = readJson(path.join(dataDir, 'nebula-podcasts.json'), {});
+  const podcastList = { ...readJson(path.join(dataDir, 'nebula-podcasts.json'), {}) };
+  try {
+    for (const p of await listNebula({ get, sleep, delayMs, kind: 'podcast_channels' })) if (!isObj(podcastList[p.slug])) podcastList[p.slug] = {};
+  } catch (e) { log(`nebula podcast list failed: ${e.message}`); for (const s of Object.keys(previousRaw.nebula?.podcasts || {})) podcastList[s] ||= {}; }
   const wallByName = {}, wallBySlug = {};
   for (const c of nebCreators) {
     if (!c.ytId) continue;
@@ -540,7 +628,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   // 5. The index.
   const videoEntries = Object.entries(videos).filter(([, r]) => r.nebula || r.floatplane);
   const nebulaIndex = {};
-  for (const c of nebCreators) nebulaIndex[c.slug] = { name: c.name, ...(c.alt && c.alt !== c.slug ? { alt: c.alt } : {}), catalog: !!nebCatalog[c.slug] };
+  for (const c of nebCreators) nebulaIndex[c.slug] = { name: c.name, catalog: (nebCatalog[c.slug] || []).length > 0 };
   const fpIndex = {};
   for (const c of fpCreators.filter(c => FP_ID.test(c.id || ''))) {
     const chs = {};

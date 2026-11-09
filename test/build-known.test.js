@@ -245,5 +245,49 @@ const baseState = () => ({
   assert.deepEqual(readJ(pd, 'nebula-podcasts/modulus.json').map(e => e.s), ['finding-failures-saving-lives', 'why-planes']);
   assert.deepEqual(r.data.nebula.podcasts, { modulus: { name: 'Modulus', catalog: true }, notapod: { name: 'notapod', catalog: false }, otherpod: { name: 'Other Pod', catalog: true } });
   console.log('ok  Nebula podcasts: catalogued and pre-matched, videos first');
+
+  // ---- Nebula channel list + newest-channels feed; channels off the wall linked by handle ----
+  const NEW_UC = 'UCnewnewnewnewnewnewnewn', IMP_UC = 'UCimpostorimpostorimpost', OV_UC = 'UCoverrideoverrideoverri';
+  const cd = tmp();
+  fs.writeFileSync(path.join(cd, 'overrides.json'), JSON.stringify({ channels: { setbyhand: `https://www.youtube.com/channel/${OV_UC}` } }));
+  const cState = baseState();
+  cState.feeds[NEW_UC] = [['ytnewchan01', 'The History of Soup', '2026-11-05']];
+  cState.feeds[OV_UC] = [['ytoverride1', 'Hand Linked Video', '2026-11-05']];
+  const cNet = makeNet(cState);
+  const ytPage = (uc, name) => ok(`<meta property="og:title" content="${name}"><link rel="canonical" href="https://www.youtube.com/channel/${uc}">`);
+  const chanFetch = async (url, init) => {
+    if (url === 'https://content.api.nebula.app/video_channels/?page_size=100') return ok({ results: [
+      { slug: 'realengineering', title: 'Real Engineering', slug_aliases: [] },
+      { slug: 'impostor', title: 'Impostor Channel' },
+      { slug: 'setbyhand', title: 'Set By Hand' }], next: 'https://content.api.nebula.app/video_channels/?offset=3&page_size=100' });
+    if (url === 'https://content.api.nebula.app/video_channels/?offset=3&page_size=100') return ok({ results: [{ slug: 'evil/../x', title: 'Bad' }], next: 'https://evil.example/next' });
+    if (url === 'https://content.api.nebula.app/podcast_channels/?page_size=100') return ok({ results: [{ slug: 'listedpod', title: 'Listed Pod' }], next: null });
+    if (url === 'https://rss.nebula.app/video/channels.rss') return ok('<rss><channel><item><title>Soup Emporium</title><link>https://nebula.tv/soupemporium/</link></item></channel></rss>');
+    if (url.endsWith('/content/soupemporium/')) return ok({ id: 'chan-soup' });
+    if (url.includes('video_channels/chan-soup/video_episodes')) return ok({ results: [{ title: 'The History of Soup', published_at: '2026-11-04', share_url: 'https://nebula.tv/videos/soupemporium-history' }], next: null });
+    if (url === 'https://www.youtube.com/@soupemporium') return ytPage(NEW_UC, 'Soup Emporium');
+    if (url === 'https://www.youtube.com/@impostor') return ytPage(IMP_UC, 'Someone Else Entirely');
+    if (url.endsWith('/content/setbyhand/')) return ok({ id: 'chan-hand' });
+    if (url.includes('video_channels/chan-hand/video_episodes')) return ok({ results: [{ title: 'Hand Linked Video', published_at: '2026-11-04', share_url: 'https://nebula.tv/videos/hand-linked' }], next: null });
+    if (url.endsWith('/content/listedpod/')) return ok({ id: 'podcast_channel:lp', type: 'podcast_channel', title: 'Listed Pod', creator: 'Nobody' });
+    return cNet.fetchFn(url, init);
+  };
+  r = await build({ ...opts(cd), fetchFn: chanFetch });
+  const ck = r.data;
+  assert.deepEqual(Object.keys(ck.nebula.creators).sort(), ['impostor', 'realengineering', 'setbyhand', 'soupemporium'], 'channel list + feed, invalid slugs dropped');
+  assert.deepEqual(ck.channels[RE_UC], { name: 'Real Engineering', nebula: 'realengineering' }, 'wall still supplies YouTube IDs');
+  assert.deepEqual(ck.channels[NEW_UC], { name: 'Soup Emporium', nebula: 'soupemporium' }, 'new channel from the feed, linked by matching handle');
+  assert.equal(ck.videos.ytnewchan01.nebula, 'soupemporium-history');
+  assert.ok(!ck.channels[IMP_UC], 'a handle whose YouTube name differs is not linked');
+  assert.equal(ck.channels[OV_UC].nebula, 'setbyhand', 'override link used');
+  assert.equal(ck.videos.ytoverride1.nebula, 'hand-linked');
+  assert.ok(ck.nebula.podcasts.listedpod, 'podcast list read from Nebula');
+  const guesses = readJ(cd, 'youtube-channels.json');
+  assert.equal(guesses['guess:soupemporium'], NEW_UC);
+  assert.equal(guesses['guess:impostor'], '', 'misses remembered');
+  const cNet2 = { calls: [] };
+  r = await build({ ...opts(cd), fetchFn: async (u, i) => { cNet2.calls.push(u); return chanFetch(u, i); } });
+  assert.ok(!cNet2.calls.some(u => u.startsWith('https://www.youtube.com/@')), 'guesses not repeated');
+  console.log('ok  Nebula channel list and channels feed; off-wall channels linked by verified handle');
   console.log('\nall build-known tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

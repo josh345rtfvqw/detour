@@ -21,6 +21,7 @@ on:
       - data/overrides.json
       - data/nebula-podcasts.json
       - scripts/build-known.js
+      - scripts/build-known.js
       - match.js
 
 permissions:
