@@ -193,5 +193,32 @@ const baseState = () => ({
   r = await build({ ...opts(v2), fetchFn: async () => notFound });
   assert.deepEqual(r.data.videos.oldvideo001, { nebula: 'old-slug' });
   console.log('ok  migrates a version-2 index');
+
+  // ---- backfill: whole upload list from the YouTube Data API ----
+  const bf = tmp();
+  const bfState = baseState();
+  bfState.nebEpisodes.push({ title: 'The Old Bridge Collapse Explained', published_at: '2019-03-01', share_url: 'https://nebula.tv/videos/realengineering-old-bridge' });
+  const bfNet = makeNet(bfState);
+  const apiCalls = [];
+  const item = (videoId, title, date) => ({ snippet: { title, publishedAt: date, resourceId: { videoId } }, contentDetails: { videoId, videoPublishedAt: date } });
+  const bfFetch = async (url, init) => {
+    if (url.startsWith('https://www.googleapis.com/youtube/v3/playlistItems')) {
+      apiCalls.push({ url, key: init.headers['X-Goog-Api-Key'] });
+      const u = new URL(url);
+      if (u.searchParams.get('playlistId') !== 'UU' + RE_UC.slice(2)) return notFound;
+      return u.searchParams.get('pageToken') === 'p2'
+        ? ok({ items: [item('oldbridge01', 'The Old Bridge Collapse Explained', '2019-03-02T10:00:00Z'), item('privatevid1', 'Private video', '2019-01-01T00:00:00Z')] })
+        : ok({ items: [item('ytvideo0001', 'Why Planes Don\'t Fly Faster', '2026-11-03T10:00:00Z')], nextPageToken: 'p2' });
+    }
+    return bfNet.fetchFn(url, init);
+  };
+  r = await build({ ...opts(bf), fetchFn: bfFetch, backfill: true, youtubeApiKey: 'test-key' });
+  assert.deepEqual(r.data.videos.oldbridge01, { nebula: 'realengineering-old-bridge' }, 'older video matched from the API upload list');
+  assert.equal(r.data.videos.privatevid1, undefined);
+  assert.ok(apiCalls.length >= 2 && apiCalls.every(c => c.key === 'test-key' && !c.url.includes('test-key')), 'key sent in a header, never in the URL');
+  const bf2 = tmp();
+  r = await build({ ...opts(bf2), fetchFn: bfFetch, backfill: true, youtubeApiKey: '' });
+  assert.equal(r.data.videos.oldbridge01, undefined, 'no key: falls back to RSS');
+  console.log('ok  backfill pages through the full upload list');
   console.log('\nall build-known tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

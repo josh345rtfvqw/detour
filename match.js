@@ -92,4 +92,4 @@ function parseCreatorWall(html) {
   return creators;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizeTitle, titleSimilarity, scoreCandidate, bestMatch, normalizeName, decodeHtml, parseCreatorWall, SLUG };
+if (typeof module !== 'undefined') module.exports = { normalizeTitle, tokens, titleSimilarity, scoreCandidate, bestMatch, normalizeName, decodeHtml, parseCreatorWall, SLUG };

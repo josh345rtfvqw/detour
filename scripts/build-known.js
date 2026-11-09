@@ -17,7 +17,9 @@
 // later runs only fetch videos newer than what's stored.
 //
 // Matching is the same for both platforms: each creator's latest YouTube uploads (public RSS
-// feed) are matched by title and date against their catalogue. Floatplane's YouTube links
+// feed) are matched by title and date against their catalogue. A backfill run (BACKFILL=1 with
+// YOUTUBE_API_KEY set) instead pages through each channel's whole upload list with the YouTube
+// Data API (playlistItems, 1 quota unit per 50 videos), so older videos get matched too. Floatplane's YouTube links
 // (@handles, /user/…) are resolved to channel IDs once and remembered in
 // data/youtube-channels.json. Unresolvable links are logged and left out.
 //
@@ -25,13 +27,14 @@
 //   overrides: { "videos": { "<YouTube video ID>": { "nebula": "<slug>" | null, "floatplane": "<post id>" | null } } }
 //   A value sets that column; null removes a wrong match (keep the null, or it can come back).
 //
-// Everything is fetched anonymously: no logins, cookies or credentials, ever. If a source refuses,
+// Everything is fetched anonymously: no logins, cookies or credentials, ever. The one exception is
+// the optional YouTube Data API key for backfill runs, sent only to www.googleapis.com in a header. If a source refuses,
 // that part is skipped (logged once, not retried in a loop) and the previous data is kept. If
 // Floatplane's creator list is refused, each creator's posts are still fetched using the IDs
 // already known; if the posts endpoint refuses too, Floatplane is skipped for that run.
 const fs = require('fs');
 const path = require('path');
-const { bestMatch, parseCreatorWall, decodeHtml, SLUG } = require('../match.js');
+const { bestMatch, tokens, parseCreatorWall, decodeHtml, SLUG } = require('../match.js');
 const { fpNameKey } = require('../floatplane-defaults.js');
 
 const UA = 'DetourListBuilder/1.0 (+https://github.com/josh345rtfvqw/detour)';
@@ -64,6 +67,40 @@ function parseYouTubeFeed(xml) {
     title: decodeHtml((e.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '').trim(),
     date: (e.match(/<published>([^<]+)<\/published>/) || [])[1],
   })).filter(v => v.videoId && v.title);
+}
+
+// Index candidates by title token, so matching a YouTube title only scores candidates that share
+// a word with it. Others score 0 anyway, so results are identical, just much faster for creators
+// with thousands of videos on both sides.
+function indexCandidates(cands) {
+  const byToken = new Map();
+  cands.forEach((c, i) => { for (const t of new Set(tokens(c.title))) { if (!byToken.has(t)) byToken.set(t, []); byToken.get(t).push(i); } });
+  return title => {
+    const hit = new Set();
+    for (const t of new Set(tokens(title))) for (const i of byToken.get(t) || []) hit.add(i);
+    return [...hit].map(i => cands[i]);
+  };
+}
+
+// A channel's whole upload list from the YouTube Data API ("UU…" uploads playlist).
+async function fetchAllUploads({ get, uc, apiKey }) {
+  const out = [];
+  let pageToken = '', pages = 0;
+  do {
+    const q = new URLSearchParams({ part: 'snippet,contentDetails', maxResults: '50', playlistId: 'UU' + uc.slice(2) });
+    if (pageToken) q.set('pageToken', pageToken);
+    const res = await get(`https://www.googleapis.com/youtube/v3/playlistItems?${q}`, 'json', { 'X-Goog-Api-Key': apiKey });
+    pages++;
+    for (const it of res.items || []) {
+      const videoId = it.contentDetails?.videoId || it.snippet?.resourceId?.videoId;
+      const title = String(it.snippet?.title || '').trim();
+      if (YT_VIDEO.test(videoId || '') && title && title !== 'Private video' && title !== 'Deleted video') {
+        out.push({ videoId, title, date: it.contentDetails?.videoPublishedAt || it.snippet?.publishedAt });
+      }
+    }
+    pageToken = res.nextPageToken || '';
+  } while (pageToken && pages < MAX_PAGES);
+  return { videos: out, pages };
 }
 
 // A YouTube link as a lookup key: "channel:UC…" needs no request; anything else ("@handle",
@@ -227,18 +264,19 @@ function readPrevious(previous) {
 
 // ------------------------------------------------------------------ build
 
-async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'data'), now = new Date(), log = console.log, delayMs = 400, retryBaseMs = 2000 } = {}) {
+async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'data'), now = new Date(), log = console.log, delayMs = 400, retryBaseMs = 2000,
+  backfill = process.env.BACKFILL === '1' || process.env.BACKFILL === 'true', youtubeApiKey = process.env.YOUTUBE_API_KEY || '' } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const failures = {};          // "host status" -> count, for the log
   const refusalsLogged = new Set();
   // GET with polite retries: on 429 (rate limited) or 5xx, wait (Retry-After if given, else
   // exponential back-off) and try again, up to 4 times. Refusals are logged once per host.
-  const get = async (url, type = 'json') => {
+  const get = async (url, type = 'json', extraHeaders = {}) => {
     const host = (() => { try { return new URL(url).hostname; } catch { return '?'; } })();
     for (let attempt = 0; ; attempt++) {
       let res;
       // Anonymous requests only: no cookies or credentials are ever sent.
-      const headers = { 'User-Agent': UA, 'Accept': type === 'json' ? 'application/json' : '*/*' };
+      const headers = { 'User-Agent': UA, 'Accept': type === 'json' ? 'application/json' : '*/*', ...extraHeaders };
       try { res = await fetchFn(url, { headers }); }
       catch (e) { if (attempt < 3) { await sleep(retryBaseMs * 2 ** attempt); continue; } failures[`${host} network`] = (failures[`${host} network`] || 0) + 1; throw e; }
       if (res.ok) return type === 'json' ? res.json() : res.text();
@@ -275,14 +313,39 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     const row = (channels[uc] ||= { name });
     if (!row[col]) row[col] = val;
   };
-  // Pre-match a YouTube channel's latest uploads against a catalogue.
+  // Pre-match a YouTube channel's uploads against a catalogue: the latest ~15 from the RSS feed,
+  // or on a backfill run the whole upload list (each channel fetched once per run).
   let matched = { nebula: 0, floatplane: 0 };
+  const useApi = backfill && !!youtubeApiKey;
+  if (backfill && !youtubeApiKey) log('backfill requested but YOUTUBE_API_KEY is not set: using RSS feeds (latest uploads only)');
+  const yt = { calls: 0, videos: 0, channels: 0, stopped: '' };
+  const uploadsCache = new Map();
+  const uploadsOf = async uc => {
+    if (useApi && !yt.stopped) {
+      if (!uploadsCache.has(uc)) {
+        uploadsCache.set(uc, (async () => {
+          try {
+            const r = await fetchAllUploads({ get, uc, apiKey: youtubeApiKey });
+            yt.calls += r.pages; yt.videos += r.videos.length; yt.channels++;
+            return r.videos;
+          } catch (e) {
+            if (/^403 /.test(e.message)) yt.stopped = 'refused (quota used up or key not allowed)';
+            return null;
+          }
+        })());
+      }
+      const all = await uploadsCache.get(uc);
+      if (all) return all;
+    }
+    return parseYouTubeFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${uc}`, 'text'));
+  };
   const preMatch = async (uc, col, cands) => {
     if (!cands.length) return;
     try {
-      const feed = parseYouTubeFeed(await get(`https://www.youtube.com/feeds/videos.xml?channel_id=${uc}`, 'text'));
-      for (const v of feed.filter(v => !videos[v.videoId]?.[col])) {
-        const m = bestMatch(v.title, v.date, cands);
+      const uploads = await uploadsOf(uc);
+      const near = indexCandidates(cands);
+      for (const v of uploads.filter(v => !videos[v.videoId]?.[col])) {
+        const m = bestMatch(v.title, v.date, near(v.title));
         if (m && m.confidence >= MIN_CONFIDENCE) { (videos[v.videoId] ||= {})[col] = m.id; matched[col]++; }
       }
     } catch (e) { /* feed unavailable today */ }
@@ -389,6 +452,8 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   }
   writeIfChanged(handlesFile, sortObject(handles));
   log(`youtube channels: ${Object.keys(handles).length} resolved links (${resolvedNew} new)${unresolved.length ? `, unresolved: ${[...new Set(unresolved)].join(', ')}` : ''}; floatplane: ${matched.floatplane} new pre-matched videos`);
+
+  if (useApi) log(`youtube backfill: ${yt.videos} uploads from ${yt.channels} channels in ${yt.calls} API requests${yt.stopped ? `; stopped early: ${yt.stopped}` : ''}`);
 
   // 4. Manual overrides win.
   for (const [id, row] of Object.entries(overrides.videos || {})) {

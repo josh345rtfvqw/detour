@@ -9,6 +9,11 @@ on:
   schedule:
     - cron: '23 5 * * *'
   workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Backfill: match every YouTube upload, not just the latest (needs the YOUTUBE_API_KEY secret)'
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -38,6 +43,9 @@ jobs:
           node-version: 22
       - name: Build the list
         run: node scripts/build-known.js
+        env:
+          BACKFILL: ${{ inputs.backfill && '1' || '' }}
+          YOUTUBE_API_KEY: ${{ inputs.backfill && secrets.YOUTUBE_API_KEY || '' }}
       - name: Commit if changed
         run: |
           git add -A data
