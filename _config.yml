@@ -24,6 +24,9 @@ exclude:
   - store/firefox-addons.md
   - store/assets/make-store-images.js
   - store/assets/make-social-card.js
+  - store/assets/make-promo-video.js
+  - store/assets/mock-site.js
+  - store/assets/promo-video.mp4
   - "*.zip"
   # The extension's own files aren't part of the site.
   - manifest.json

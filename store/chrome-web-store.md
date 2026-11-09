@@ -70,6 +70,7 @@ English
 | Screenshots | At least 1, up to 5 | 1280×800 | `store/assets/screenshot-1-video.png` … `screenshot-5-settings.png` |
 | Small promo tile | Optional (needed for featuring) | 440×280 | `store/assets/promo-small-440x280.png` |
 | Marquee promo tile | Optional | 1400×560 | `store/assets/promo-marquee-1400x560.png` |
+| Promo video | Optional | YouTube link | `store/assets/promo-video.mp4` (1920×1080, 34 s, silent). Upload it to YouTube, then paste the link |
 
 Upload the screenshots in this order:
 1. **Watch it where you already subscribe:** the "Watch on Nebula" chip next to the video title.
@@ -82,6 +83,31 @@ The images show the real extension running on a generic mock video site. They av
 
 ```bash
 PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 node store/assets/make-store-images.js
+```
+
+### Promo video
+
+The store takes a YouTube link, not a file. Upload `store/assets/promo-video.mp4` to YouTube (Unlisted is fine), then paste the video's link into **Store listing → Global promo video**.
+
+Suggested YouTube title and description:
+
+```
+Detour: watch YouTube videos on Nebula and Floatplane
+```
+
+```
+Detour is a free browser extension. When a YouTube video is also on Nebula or Floatplane, it shows a "Watch on Nebula" or "Watch on Floatplane" button, or takes you there automatically if you subscribe.
+
+Chrome Web Store: https://chromewebstore.google.com/detail/detour/lofobnkomhhicgcpejnlcibekkaiaeed
+Source code: https://github.com/josh345rtfvqw/detour
+
+The video shows the real extension on a mock video site with made-up creators. Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula or Floatplane.
+```
+
+The video is silent. To regenerate it after UI changes (about 3 minutes):
+
+```bash
+PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 node store/assets/make-promo-video.js
 ```
 
 ### Additional fields
@@ -188,5 +214,6 @@ No account needed. 1) Click the Detour toolbar icon, turn on "Nebula", choose "S
 - [ ] Pay the one-time $5 developer registration fee, if you haven't already.
 - [ ] Upload the release zip (for example `detour-0.3.9.zip` from GitHub Releases).
 - [ ] Upload the five screenshots and the promo tiles from `store/assets/`.
+- [ ] Optional: upload `store/assets/promo-video.mp4` to YouTube and paste its link as the promo video.
 - [ ] Enable GitHub Pages (Settings → Pages → Deploy from a branch → `main`, `/ (root)`), then check that the homepage, privacy and support URLs open in a private window.
 - [ ] Expect review to take a few days. Host permissions on youtube.com can mean a closer manual review.
