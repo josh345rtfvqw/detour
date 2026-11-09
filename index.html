@@ -6,8 +6,8 @@ title: Detour
 <section class="hero">
   <div class="wrap hero-inner">
     <img class="hero-icon" src="{{ '/icons/icon.svg' | relative_url }}" alt="" width="112" height="112">
-    <h1>Watch it where you<br>already subscribe</h1>
-    <p class="lede">Detour shows you when a YouTube video or channel is also on <strong>Nebula</strong> or <strong>Floatplane</strong>. Then it takes you there with one click, or automatically if you subscribe.</p>
+    <h1>YouTube videos on<br>Nebula and Floatplane</h1>
+    <p class="lede">Detour checks whether the YouTube video or channel you’re on is also on <strong>Nebula</strong> or <strong>Floatplane</strong>, and links to it there. If you subscribe, it can open it there for you.</p>
     <div class="cta">
       {% if site.chrome_url != "" %}<a class="btn primary" href="{{ site.chrome_url }}">Add to Chrome</a>{% endif %}
       {% if site.firefox_url != "" %}<a class="btn primary" href="{{ site.firefox_url }}">Add to Firefox</a>{% endif %}
@@ -22,32 +22,32 @@ title: Detour
   <div class="feature">
     <div class="feature-text">
       <span class="kicker">On a video</span>
-      <h2>A button right next to the title</h2>
-      <p>When a video is also on Nebula or Floatplane, a “Watch on Nebula” or “Watch on Floatplane” button appears beside the title. It uses the platform’s colours and matches YouTube’s light or dark theme.</p>
+      <h2>A button next to the title</h2>
+      <p>If the video is also on Nebula or Floatplane, a “Watch on Nebula” or “Watch on Floatplane” button appears beside the title, in light or dark to match YouTube.</p>
     </div>
     <img class="shot" src="{{ '/store/assets/ui-video.png' | relative_url }}" alt="A video page with a Watch on Nebula button next to the video title" width="2360" height="1280" loading="lazy">
   </div>
   <div class="feature flip">
     <div class="feature-text">
       <span class="kicker">If you subscribe</span>
-      <h2>Or go there automatically</h2>
-      <p>Tick the subscriptions you have, and Detour can take you straight to the same video. A 3-second countdown lets you stay on YouTube instead, and pressing Back never sends you round in circles.</p>
+      <h2>Automatic redirects</h2>
+      <p>Tick the services you subscribe to and Detour can open the video there instead. There’s a 3-second countdown with a button to stay on YouTube, and pressing Back returns you to YouTube without redirecting again.</p>
     </div>
     <img class="shot" src="{{ '/store/assets/ui-redirect.png' | relative_url }}" alt="A countdown reading Opening on Nebula in 3 seconds, with Go now and Stay on YouTube buttons" width="2360" height="1280" loading="lazy">
   </div>
   <div class="feature">
     <div class="feature-text">
       <span class="kicker">On a channel</span>
-      <h2>Find creators’ channels too</h2>
-      <p>A banner under the Subscribe button tells you the creator is also on Nebula or Floatplane, with a link to their channel there. Dismiss it once and it stays hidden for that channel.</p>
+      <h2>Channel pages</h2>
+      <p>A banner under the Subscribe button links to the creator’s Nebula or Floatplane channel. If you dismiss it, it stays hidden for that channel.</p>
     </div>
     <img class="shot" src="{{ '/store/assets/ui-channel.png' | relative_url }}" alt="A channel page with a banner saying the creator is also on Nebula" width="2360" height="1280" loading="lazy">
   </div>
   <div class="feature flip">
     <div class="feature-text">
-      <span class="kicker">Your settings</span>
-      <h2>You decide how it works</h2>
-      <p>Choose redirects or just a button. Pick which platform wins when a video is on both. Detour never redirects on a guess: if it can’t find the exact video, it links to the channel instead.</p>
+      <span class="kicker">Settings</span>
+      <h2>Redirect or button</h2>
+      <p>Choose between redirects and a button, and which service to use when a video is on both. Detour only redirects when it has found the same video. Otherwise it links to the creator’s channel.</p>
     </div>
     <img class="shot portrait" src="{{ '/store/assets/ui-settings.png' | relative_url }}" alt="Detour's settings popup with Nebula and Floatplane subscriptions" width="800" height="1280" loading="lazy">
   </div>
@@ -55,8 +55,8 @@ title: Detour
 
 <section class="wrap privacy-band">
   <div class="band">
-    <h2>Private by design</h2>
-    <p>Detour has no server and collects no analytics. It talks only to Nebula and Floatplane, directly from your browser, and only for creators who are on those platforms. Your Floatplane login never leaves floatplane.com.</p>
+    <h2>Privacy</h2>
+    <p>Detour sends requests to Nebula and Floatplane only for creators who are on those services, and downloads its list of known videos from this site. It doesn’t collect usage data, and your Floatplane login stays with floatplane.com.</p>
     <a class="btn ghost" href="{{ '/PRIVACY.html' | relative_url }}">Read the privacy policy</a>
   </div>
 </section>

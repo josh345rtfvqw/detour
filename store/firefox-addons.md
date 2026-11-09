@@ -37,17 +37,17 @@ If `detour` is free, use it. Otherwise use the slug above.
 ### Summary (max 250)
 
 ```
-See when a YouTube video or channel is also on Nebula or Floatplane, and watch it there instead: a button next to the video title, or an automatic redirect if you subscribe. No server, no analytics.
+See when a YouTube video or channel is also on Nebula or Floatplane, and watch it there instead: a button next to the video title, or an automatic redirect if you subscribe.
 ```
 
-(198 characters)
+(173 characters)
 
 ### Description
 
 AMO supports basic formatting in this field: line breaks, bullet lists and links.
 
 ```
-Detour shows you when a YouTube video or channel is also on Nebula or Floatplane, so you can watch it where you already pay to support the creator.
+Detour shows when a YouTube video or channel is also on Nebula or Floatplane, and links to it there.
 
 <b>On a video</b>
 A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe to that platform, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
@@ -55,20 +55,20 @@ A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's 
 <b>On a channel</b>
 A banner under the Subscribe button lets you know the creator is also on Nebula or Floatplane, with a link to their channel there. Dismiss it once and it stays hidden for that channel.
 
-<b>You're in control</b>
-• Tell Detour which subscriptions you have: Nebula, and the individual Floatplane creators you support
-• Choose between automatic redirects or just a button
+<b>Settings</b>
+• Tick the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
+• Choose between automatic redirects and a button
 • Open the other site in a new tab instead of leaving YouTube
 • Pick which platform wins when a video is on both
 • Light and dark themes follow YouTube and your system
 
 <b>How it works</b>
-Detour matches the YouTube channel to the creator's Nebula or Floatplane channel, then compares video titles and release dates to find the same video. If the exact video can't be found, you get a link to the creator's channel instead, and Detour never redirects you on a guess.
+Detour matches the YouTube channel to the creator's Nebula or Floatplane channel, then compares video titles and release dates to find the same video. If the exact video can't be found, you get a link to the creator's channel instead, and Detour doesn't redirect.
 
-<b>Private by design</b>
-Detour has no server and collects no analytics. It talks only to Nebula and Floatplane, directly from your browser, and only for creators who are on those platforms. Your Floatplane login stays with floatplane.com. Firefox will ask you to allow this when you install, because Detour sends the titles of those creators' videos to Nebula and Floatplane to find matches.
+<b>Privacy</b>
+Detour sends requests to Nebula and Floatplane only for creators who are on those services. It doesn't collect usage data, and your Floatplane login stays with floatplane.com. Firefox will ask you to allow this when you install, because Detour sends the titles of those creators' videos to Nebula and Floatplane to find matches.
 
-<b>Open source</b>
+<b>Source code</b>
 <a href="https://github.com/josh345rtfvqw/detour">github.com/josh345rtfvqw/detour</a>
 
 Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula or Floatplane.

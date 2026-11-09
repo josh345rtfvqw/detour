@@ -30,4 +30,4 @@ Log in at [floatplane.com](https://www.floatplane.com), then reopen the Detour p
 
 ## Privacy
 
-Detour has no server and collects no analytics. Read the [privacy policy](PRIVACY.md).
+Detour doesn't collect usage data. See the [privacy policy](PRIVACY.md).

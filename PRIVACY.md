@@ -5,9 +5,8 @@
 Detour is a browser extension that shows when a YouTube video or channel is also on Nebula or Floatplane, and can take you there. This policy explains what data Detour handles, where it goes, and what it stores.
 
 **In short:**
-- Detour has no server and collects no analytics.
-- Its developer never receives any of your data.
-- Detour talks only to Nebula and Floatplane, directly from your browser, and only to provide its feature.
+- Detour doesn't collect analytics or usage data, and the developer receives none of your data.
+- Detour sends requests to Nebula and Floatplane, and downloads a list of known videos from GitHub Pages.
 
 ## Data Detour sends, and to whom
 
