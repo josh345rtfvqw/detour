@@ -49,6 +49,11 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
     if (u.includes('/content/realengineering/')) return json({ id: 'c1' });
     if (u.includes('video_channels/c1/video_episodes')) return json({ results: [{ title: 'Why Planes Don’t Fly Faster', published_at: '2024-03-01', share_url: 'https://nebula.tv/videos/why-planes' }] });
     if (u.includes('nebula.tv/videos/why-planes')) return html('<h1>NEBULA PAGE</h1>');
+    if (u.includes('github.io/detour/data/known.json')) return json({ version: 3, videos: {},
+      channels: { UCR1IuLEqb6UEA_zQ81kwXfg: { name: 'Real Engineering', nebula: 'realengineering' } },
+      nebula: { creators: { realengineering: { name: 'Real Engineering', catalog: false } } },
+      floatplane: { creators: { lttid: { name: 'LinusTechTips', urlname: 'linustechtips', channels: {}, catalog: false },
+        l1t: { name: 'Level1Techs', urlname: 'level1techs', channels: {}, catalog: false } } } });
     if (u.includes('floatplane')) return route.fulfill({ status: 401, body: '{}' });
     return route.fulfill({ status: 404, body: '' });
   });
@@ -140,6 +145,16 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
   assert.deepEqual(ua.condition.tabIds, [-1], 'only the extension\'s own requests, not the user\'s tabs');
   assert.ok(['floatplane.com', 'nebula.app', 'nebula.tv'].every(d => ua.condition.requestDomains.includes(d)));
   console.log('User-Agent rule:', ua.action.requestHeaders[0].value);
+  // Settings popup: Floatplane creators listed from the master list, with no Floatplane login.
+  const opts = await ctx.newPage();
+  const pageErrors = [];
+  opts.on('pageerror', e => pageErrors.push(e.message));
+  await opts.goto(`chrome-extension://${extId}/options.html`);
+  await opts.waitForSelector('#fpList .creator', { timeout: 10000 });
+  const names = await opts.$$eval('#fpList .creator .name', els => els.map(e => e.textContent));
+  assert.deepEqual(names.sort(), ['Level1Techs', 'LinusTechTips']);
+  assert.deepEqual(pageErrors, [], 'no errors on the settings page');
+  console.log('settings popup lists Floatplane creators:', names.join(', '));
   console.log('\ne2e passed');
   await ctx.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
