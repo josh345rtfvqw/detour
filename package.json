@@ -1,6 +1,6 @@
 {
   "name": "detour",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "See when a YouTube video is also on Nebula or Floatplane, and open it there, automatically if you subscribe.",
   "license": "MIT",
