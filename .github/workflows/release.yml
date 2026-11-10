@@ -4,7 +4,8 @@ name: Release
 #  1. Actions tab -> Release -> "Run workflow" on main. Tags the commit as
 #     v<manifest version> and publishes the release.
 #  2. Push a tag like v0.2.0 (matching "version" in manifest.json).
-# Either way the tests run first and the built zip is attached to the release.
+# Either way the tests run first and the built zip is attached to the release. Notes come
+# from .github/release-notes/v<version>.md when it exists (re-running updates them).
 on:
   workflow_dispatch:
   push:
@@ -54,9 +55,15 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
           ZIP: ${{ steps.build.outputs.zip }}
         run: |
+          # Release notes come from .github/release-notes/<tag>.md if it exists, else GitHub
+          # generates them from the commits.
+          notes=".github/release-notes/$TAG.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists; replacing its zip"
             gh release upload "$TAG" "$ZIP" --clobber
+            if [ -f "$notes" ]; then gh release edit "$TAG" --notes-file "$notes"; fi
+          elif [ -f "$notes" ]; then
+            gh release create "$TAG" "$ZIP" --target "$GITHUB_SHA" --title "Detour $TAG" --notes-file "$notes"
           else
             gh release create "$TAG" "$ZIP" --target "$GITHUB_SHA" --title "Detour $TAG" --generate-notes
           fi
