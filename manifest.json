@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Detour",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "See when a YouTube video is also on Nebula or Floatplane, and open it there, automatically if you subscribe.",
   "permissions": [
     "storage",
