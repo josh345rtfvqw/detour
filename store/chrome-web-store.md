@@ -9,10 +9,10 @@ Copy each field into the Chrome Web Store Developer Dashboard. Character limits 
 ### Name (max 75)
 
 ```
-Detour
+Detour: Nebula & Floatplane for YouTube
 ```
 
-Keeping other companies' names out of the extension name avoids trademark problems in review. The platforms are named in the summary and description, which is allowed.
+The name comes from the manifest, so it's already set in the package. It names the platforms for search, in the common "X for YouTube" style, which describes what the extension works with without suggesting it's made by them. The description's last line says Detour isn't affiliated with any of them. The toolbar and popup still say "Detour" (the manifest's `short_name`).
 
 ### Summary (max 132)
 

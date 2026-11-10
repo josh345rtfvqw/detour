@@ -23,7 +23,7 @@ Fields for [addons.mozilla.org/developers](https://addons.mozilla.org/developers
 ### Name (max 50)
 
 ```
-Detour
+Detour: Nebula & Floatplane for YouTube
 ```
 
 ### Add-on URL
