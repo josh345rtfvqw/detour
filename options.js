@@ -104,11 +104,15 @@ async function loadCreators() {
     if (resp && !resp.error) creators = resp.creators;
     else console.warn('[detour] creator list:', resp?.error);
   } catch (e) { console.warn('[detour] creator list:', e); }
-  // Whatever went wrong, fall back to the built-in list rather than showing nothing.
-  if (!creators?.length) creators = FLOATPLANE_DEFAULTS.map(c => ({ ...c }));
+  creators ||= [];
   renderCreators(creators);
-  // Only the built-in list is showing: say so, and how to get the full one.
-  if (creators.every(c => c.builtin)) {
+  if (!creators.length) {
+    const note = document.createElement('div');
+    note.className = 'empty';
+    note.innerHTML = 'Couldn’t load the creator list. Check your connection, or <a href="https://www.floatplane.com" target="_blank" rel="noopener">log in to Floatplane</a>.';
+    $('fpList').append(note);
+  } else if (creators.every(c => c.builtin)) {
+    // Only the master list's creators: say so, and how to get the full live list.
     const note = document.createElement('div');
     note.className = 'empty';
     note.innerHTML = 'Showing known creators. <a href="https://www.floatplane.com" target="_blank" rel="noopener">Log in to Floatplane</a> to see everyone.';

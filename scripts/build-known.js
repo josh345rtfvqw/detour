@@ -46,8 +46,7 @@
 // already known; if the posts endpoint refuses too, Floatplane is skipped for that run.
 const fs = require('fs');
 const path = require('path');
-const { bestMatch, tokens, parseCreatorWall, decodeHtml, normalizeName, SLUG } = require('../match.js');
-const { fpNameKey } = require('../floatplane-defaults.js');
+const { bestMatch, tokens, parseCreatorWall, decodeHtml, normalizeName, fpNameKey, SLUG } = require('../match.js');
 
 const UA = 'DetourListBuilder/1.0 (+https://github.com/josh345rtfvqw/detour)';
 const NEBULA_API = 'https://content.api.nebula.app';

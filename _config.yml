@@ -35,6 +35,5 @@ exclude:
   - content.css
   - page.js
   - match.js
-  - floatplane-defaults.js
   - options.html
   - options.js

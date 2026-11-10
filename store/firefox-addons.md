@@ -118,7 +118,7 @@ HOW TO TEST (no account needed)
 2. Open a YouTube video from a creator on Nebula (for example a recent Real Engineering, Wendover Productions or Half as Interesting upload). A "Watch on Nebula" chip appears at the right of the video title.
 3. Open that creator's YouTube channel page: a banner appears under the Subscribe button.
 4. Switch the popup to "Redirect me" and open another of their videos: a 3-second countdown appears, then the Nebula page opens. Pressing Back stays on YouTube.
-Floatplane matching uses the user's floatplane.com session for the creator list; without logging in, a built-in list of known creators is used and links go to channels.
+Floatplane matching uses the user's floatplane.com session for the creator list; without logging in, Detour's own creator list (downloaded from its GitHub Pages site) is used and links go to channels.
 
 NETWORK REQUESTS (all from the background script, all disclosed in the privacy policy)
 - talent.nebula.tv/creators: Nebula's public creator list (YouTube channel ID -> Nebula channel).

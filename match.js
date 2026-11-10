@@ -92,4 +92,8 @@ function parseCreatorWall(html) {
   return creators;
 }
 
-if (typeof module !== 'undefined') module.exports = { normalizeTitle, tokens, titleSimilarity, scoreCandidate, bestMatch, normalizeName, decodeHtml, parseCreatorWall, SLUG };
+// Key for a Floatplane subscription saved by creator name (older versions did this for creators
+// whose Floatplane ID wasn't known). Still read, so those saved subscriptions keep working.
+const fpNameKey = title => 'name:' + String(title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+if (typeof module !== 'undefined') module.exports = { normalizeTitle, tokens, titleSimilarity, scoreCandidate, bestMatch, normalizeName, decodeHtml, parseCreatorWall, fpNameKey, SLUG };

@@ -1,6 +1,6 @@
 // Background: looks up whether a YouTube video exists on Nebula / Floatplane.
 // Chrome runs this as a service worker (needs importScripts); Firefox loads match.js first.
-if (typeof importScripts === 'function' && typeof bestMatch === 'undefined') importScripts('match.js', 'floatplane-defaults.js');
+if (typeof importScripts === 'function' && typeof bestMatch === 'undefined') importScripts('match.js');
 
 const DEFAULTS = {
   autoRedirect: true,
@@ -301,8 +301,8 @@ async function lookupNebula(info, settings) {
 // ---------------------------------------------------------------- Floatplane
 // Uses the user's own floatplane.com login cookies (credentials: 'include').
 
-// Floatplane's live creator list, merged with the built-in defaults (floatplane-defaults.js).
-// If the live list can't be loaded, the defaults alone are used.
+// Floatplane's live creator list, merged with the master list's creators. If the live list
+// can't be loaded (not logged in), the master list's creators are used on their own.
 async function loadFloatplaneCreators() {
   let live = [];
   try {
@@ -315,19 +315,16 @@ async function loadFloatplaneCreators() {
         channels: (c.channels || []).map(ch => ({ id: ch.id, title: ch.title, urlname: ch.urlname, links: Object.values(ch.socialLinks || {}) })),
       }));
     });
-  } catch (e) { console.warn('[detour] using built-in Floatplane creators', e); }
+  } catch (e) { console.warn('[detour] using the master list\'s Floatplane creators', e); }
   const byId = new Map(live.map(c => [c.id, c]));
   const byName = new Map(live.map(c => [fpNameKey(c.title), c]));
-  // Known creators: the master list's (updated without a release) plus any built-in ones it
-  // doesn't have yet (e.g. creators whose Floatplane ID isn't known).
-  const fromMaster = (await masterOrEmpty()).floatplane.creators || [];
-  const known = [...fromMaster, ...FLOATPLANE_DEFAULTS.filter(d =>
-    !fromMaster.some(m => m.id === d.id || fpNameKey(m.title) === fpNameKey(d.title)))];
+  // Known creators come from the master list, which is updated without a release.
+  const known = (await masterOrEmpty()).floatplane.creators || [];
   for (const d of known) {
-    // Same creator if the ID matches, or (for defaults without a known ID) the name does.
+    // Same creator if the ID matches, else if the name does.
     const c = byId.get(d.id) || byName.get(fpNameKey(d.title));
     if (!c) { byId.set(d.id, d); continue; }
-    // Live data wins, but keep the defaults' YouTube links and channels where live has none.
+    // Live data wins, but keep the master list's YouTube links and channels where live has none.
     if (!c.links.some(l => /youtube/.test(l))) c.links = [...c.links, ...d.links];
     for (const dch of d.channels) {
       const ch = c.channels.find(x => x.id === dch.id);

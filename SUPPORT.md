@@ -21,7 +21,7 @@ Detour couldn't confidently match the video's title, so it links to the channel 
 
 ### I only see a few Floatplane creators
 
-Log in at [floatplane.com](https://www.floatplane.com), then reopen the Detour popup. Without a login, Detour shows its built-in list of known creators.
+Log in at [floatplane.com](https://www.floatplane.com), then reopen the Detour popup. Without a login, Detour shows the creators in its own list, which is updated daily.
 
 ### It redirected me when I didn't want it to
 
