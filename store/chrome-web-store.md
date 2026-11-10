@@ -212,7 +212,7 @@ No account needed. 1) Click the Detour toolbar icon, turn on "Nebula", choose "S
 ## Before submitting
 
 - [ ] Pay the one-time $5 developer registration fee, if you haven't already.
-- [ ] Upload the release zip (for example `detour-0.3.9.zip` from GitHub Releases).
+- [ ] Upload the release zip (`detour-<version>.zip` from GitHub Releases).
 - [ ] Upload the five screenshots and the promo tiles from `store/assets/`.
 - [ ] Optional: upload `store/assets/promo-video.mp4` to YouTube and paste its link as the promo video.
 - [ ] Enable GitHub Pages (Settings → Pages → Deploy from a branch → `main`, `/ (root)`), then check that the homepage, privacy and support URLs open in a private window.

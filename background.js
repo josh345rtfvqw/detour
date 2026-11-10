@@ -116,7 +116,7 @@ const str = v => (typeof v === 'string' ? v : '');
 // Master list, version 3. Keyed by YouTube, the anchor for every lookup:
 //   videos   { "<YouTube video ID>":   { nebula: "<video slug>" | "<podcast>/<episode>", floatplane: "<post id>" } }
 //   channels { "<YouTube channel ID>": { name, nebula: "<slug>", floatplane: "<creator id>[/<channel id>]" } }
-//   nebula.creators { "<slug>": { name, alt?, catalog } }
+//   nebula.creators { "<slug>": { name, catalog } }
 //   floatplane.creators { "<creator id>": { name, urlname, channels: { "<id>": { name, urlname } }, catalog } }
 // It holds IDs only. Links are built here, and every ID is validated before use. The result
 // uses the same shapes the lookups already work with:
@@ -140,7 +140,7 @@ function parseMasterV3(d) {
 
   const nebCreators = Object.entries(isObj(d.nebula?.creators) ? d.nebula.creators : {})
     .filter(([slug, c]) => SLUG.test(slug) && isObj(c) && typeof c.name === 'string')
-    .map(([slug, c]) => ({ name: c.name, slug, alt: SLUG.test(str(c.alt)) ? c.alt : null, ytId: nebYt[slug] || null, catalog: c.catalog === true }));
+    .map(([slug, c]) => ({ name: c.name, slug, alt: null, ytId: nebYt[slug] || null, catalog: c.catalog === true }));
 
   const fpCreators = Object.entries(isObj(d.floatplane?.creators) ? d.floatplane.creators : {})
     .filter(([id, c]) => FP_POST_ID.test(id) && isObj(c) && typeof c.name === 'string')
@@ -151,7 +151,7 @@ function parseMasterV3(d) {
     }));
 
   return {
-    nebula: { videos: videos.nebula, creators: nebCreators, catalogs: nebCreators.filter(c => c.catalog).flatMap(c => [c.slug, c.alt].filter(Boolean)) },
+    nebula: { videos: videos.nebula, creators: nebCreators, catalogs: nebCreators.filter(c => c.catalog).map(c => c.slug) },
     floatplane: { videos: videos.floatplane, creators: fpCreators, catalogs: fpCreators.filter(c => c.catalog).map(c => c.id) },
   };
 }

@@ -6,7 +6,7 @@
 //   counts     totals for checking at a glance (videos, creators, channels); not used by the extension
 //   videos     { "<YouTube video ID>":   { nebula: "<video slug>" | "<podcast>/<episode>", floatplane: "<post id>" } }
 //   channels   { "<YouTube channel ID>": { name, nebula: "<channel slug>", floatplane: "<creator id>[/<channel id>]" } }
-//   nebula.creators      { "<slug>": { name, alt?, catalog } }            reference data
+//   nebula.creators      { "<slug>": { name, catalog } }                  reference data
 //   nebula.podcasts      { "<podcast slug>": { name, catalog } }
 //   floatplane.creators  { "<creator id>": { name, urlname, channels: { "<id>": { name, urlname } }, catalog } }
 // A platform column is absent when there's no match. catalog: true means a full catalogue file
@@ -71,7 +71,6 @@ const writeIfChanged = (file, data) => {
 };
 const urlPath = u => { try { return new URL(u).pathname; } catch { return ''; } };
 const nebulaSlugFromUrl = u => (urlPath(u).match(/^\/videos\/([\w-]+)\/?$/) || [])[1] || null;
-const fpPostFromUrl = u => (urlPath(u).match(/^\/post\/(\w+)\/?$/) || [])[1] || null;
 
 // YouTube's public per-channel feed: the latest ~15 uploads.
 function parseYouTubeFeed(xml) {
@@ -80,6 +79,15 @@ function parseYouTubeFeed(xml) {
     title: decodeHtml((e.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '').trim(),
     date: (e.match(/<published>([^<]+)<\/published>/) || [])[1],
   })).filter(v => v.videoId && v.title);
+}
+
+// Delete <dir>/<slug>.json files whose slug isn't in `keep`. Returns the slugs removed.
+function pruneDir(dir, keep) {
+  let files = [];
+  try { files = fs.readdirSync(dir); } catch { return []; }
+  const gone = files.filter(f => f.endsWith('.json') && !keep.has(f.slice(0, -5)));
+  for (const f of gone) fs.unlinkSync(path.join(dir, f));
+  return gone.map(f => f.slice(0, -5));
 }
 
 // Index candidates by title token, so matching a YouTube title only scores candidates that share
@@ -312,17 +320,12 @@ async function buildFloatplaneCreators({ get, log, handCreators, previousIndex }
 
 // ------------------------------------------------------------------ previous data
 
-// The previous index, read in any version, as { videos: { yt: { nebula, floatplane } } }.
+// The previous index's videos, as { yt: { nebula, floatplane } }.
 function readPrevious(previous) {
   const videos = {};
-  const add = (id, col, val) => { if (YT_VIDEO.test(id) && val) (videos[id] ||= {})[col] = val; };
+  const add = (id, col, val) => { if (YT_VIDEO.test(id) && typeof val === 'string' && val) (videos[id] ||= {})[col] = val; };
   if (previous.version === 3) {
-    for (const [id, row] of Object.entries(previous.videos || {})) { add(id, 'nebula', row.nebula); add(id, 'floatplane', row.floatplane); }
-  } else {
-    const neb = previous.version === 2 ? previous.nebula?.videos : previous.nebula;
-    const fp = previous.version === 2 ? previous.floatplane?.videos : previous.floatplane;
-    for (const [id, url] of Object.entries(neb || {})) add(id, 'nebula', typeof url === 'string' && nebulaSlugFromUrl(url));
-    for (const [id, url] of Object.entries(fp || {})) add(id, 'floatplane', typeof url === 'string' && fpPostFromUrl(url));
+    for (const [id, row] of Object.entries(previous.videos || {})) { add(id, 'nebula', row?.nebula); add(id, 'floatplane', row?.floatplane); }
   }
   return { videos };
 }
@@ -473,7 +476,11 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     }
     if (delayMs) await sleep(delayMs);
   });
-  log(`nebula: ${nebNew} new catalogue videos (${nebFailed} channels failed), ${matched.nebula} new pre-matched videos`);
+  // Catalogue files for channels Nebula no longer lists (renamed or gone): removed, but only
+  // when the channel list was read, so a failed request never deletes anything.
+  let pruned = [];
+  if (listOk) pruned = pruneDir(nebulaDir, new Set(nebChannels.keys()));
+  log(`nebula: ${nebNew} new catalogue videos (${nebFailed} channels failed), ${matched.nebula} new pre-matched videos${pruned.length ? `; removed catalogues: ${pruned.join(', ')}` : ''}`);
 
   // 2. Floatplane: creators (live list, else hand-edited / previous IDs), then each creator's
   //    newest posts. A refused creator list doesn't stop the post fetches; a refused post fetch
@@ -578,8 +585,11 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   //     "creators" listed for it) plus any "youtube" links given. This runs after the video
   //     pre-matches, which skip uploads already matched, so a video match always wins.
   const podcastList = { ...readJson(path.join(dataDir, 'nebula-podcasts.json'), {}) };
+  let podListOk = false;
   try {
-    for (const p of await listNebula({ get, sleep, delayMs, kind: 'podcast_channels' })) if (!isObj(podcastList[p.slug])) podcastList[p.slug] = {};
+    const shows = await listNebula({ get, sleep, delayMs, kind: 'podcast_channels' });
+    for (const p of shows) if (!isObj(podcastList[p.slug])) podcastList[p.slug] = {};
+    podListOk = shows.length > 0;
   } catch (e) { log(`nebula podcast list failed: ${e.message}`); for (const s of Object.keys(previousRaw.nebula?.podcasts || {})) podcastList[s] ||= {}; }
   const wallByName = {}, wallBySlug = {};
   for (const c of nebCreators) {
@@ -610,6 +620,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     if (delayMs) await sleep(delayMs);
   });
   writeIfChanged(handlesFile, sortObject(handles));
+  if (podListOk) pruneDir(nebulaPodcastDir, new Set(Object.keys(podcastIndex)));
   log(`nebula podcasts: ${Object.keys(podcastIndex).length} shows, ${podNew} new episodes (${podFailed} failed), ${matched.nebula - podMatchedBefore} new pre-matched videos`);
 
   if (useApi) log(`youtube backfill: ${yt.videos} uploads from ${yt.channels} channels in ${yt.calls} API requests${yt.stopped ? `; stopped early: ${yt.stopped}` : ''}`);

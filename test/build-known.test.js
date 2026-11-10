@@ -184,15 +184,9 @@ const baseState = () => ({
   r = await build({ ...opts(rlDir), fetchFn: async (u, i) => (u.includes('video_episodes') && hits++ < 2 ? { ok: false, status: 429, headers: { get: () => null } } : rl.fetchFn(u, i)) });
   assert.equal(r.nebNew, 1, '429 retried');
   r = await build({ ...opts(rlDir), fetchFn: async () => { throw new Error('offline'); } });
+  assert.ok(fs.existsSync(path.join(rlDir, 'nebula', 'realengineering.json')), 'nothing pruned when Nebula is unreachable');
   assert.deepEqual(r.data.channels[RE_UC], { name: 'Real Engineering', nebula: 'realengineering' }, 'previous creators kept when offline');
   console.log('ok  rate limits retried, network outage survived');
-
-  // ---- reads an older version-2 index ----
-  const v2 = tmp();
-  fs.writeFileSync(path.join(v2, 'known.json'), JSON.stringify({ version: 2, nebula: { videos: { oldvideo001: 'https://nebula.tv/videos/old-slug' } }, floatplane: { videos: {} } }));
-  r = await build({ ...opts(v2), fetchFn: async () => notFound });
-  assert.deepEqual(r.data.videos.oldvideo001, { nebula: 'old-slug' });
-  console.log('ok  migrates a version-2 index');
 
   // ---- backfill: whole upload list from the YouTube Data API ----
   const bf = tmp();
@@ -272,8 +266,12 @@ const baseState = () => ({
     if (url.endsWith('/content/listedpod/')) return ok({ id: 'podcast_channel:lp', type: 'podcast_channel', title: 'Listed Pod', creator: 'Nobody' });
     return cNet.fetchFn(url, init);
   };
+  fs.mkdirSync(path.join(cd, 'nebula'), { recursive: true });
+  fs.writeFileSync(path.join(cd, 'nebula', 'oldspelling.json'), '[]');
   r = await build({ ...opts(cd), fetchFn: chanFetch });
   const ck = r.data;
+  assert.ok(!fs.existsSync(path.join(cd, 'nebula', 'oldspelling.json')), 'catalogue of a channel Nebula no longer lists is removed');
+  assert.ok(fs.existsSync(path.join(cd, 'nebula', 'soupemporium.json')));
   assert.deepEqual(Object.keys(ck.nebula.creators).sort(), ['impostor', 'realengineering', 'setbyhand', 'soupemporium'], 'channel list + feed, invalid slugs dropped');
   assert.deepEqual(ck.channels[RE_UC], { name: 'Real Engineering', nebula: 'realengineering' }, 'wall still supplies YouTube IDs');
   assert.deepEqual(ck.channels[NEW_UC], { name: 'Soup Emporium', nebula: 'soupemporium' }, 'new channel from the feed, linked by matching handle');

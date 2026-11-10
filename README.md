@@ -6,9 +6,9 @@ A Chrome/Firefox extension. On a YouTube video page it checks whether the same v
 is on **Nebula** or **Floatplane**. Then it either:
 
 - **redirects automatically**, if you've said you subscribe there (3-second countdown with a "Stay on YouTube" option), or
-- **shows a "Watch on Nebula / Floatplane" badge** in the corner of the player. It shrinks to a small icon while the video plays and expands again on hover.
+- **shows a "Watch on Nebula / Floatplane" button** next to the video title.
 
-On **channel pages** it shows a banner above the tabs when the channel is on Nebula or Floatplane.
+On **channel pages** it shows a banner under the Subscribe button when the channel is on Nebula or Floatplane.
 You can dismiss the banner for each channel. Colours follow the platform and YouTube's light or dark theme.
 
 You pick which in the settings. If the video itself can't be matched, but the channel is on
@@ -117,11 +117,11 @@ runs the tests, and publishes a release with the zip attached.
 Pushing a tag also works:
 
 ```bash
-git tag v0.2.0
+git tag v<version>
 ```
 
 ```bash
-git push origin v0.2.0
+git push origin v<version>
 ```
 
 The Release workflow checks that the tag matches the manifest, runs the tests,
