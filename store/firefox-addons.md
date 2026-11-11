@@ -164,7 +164,7 @@ AMO has no promo tiles.
 ## 5. Version notes (for v0.4.0)
 
 ```
-• Known-videos list: thousands of YouTube videos already matched to their Nebula and Floatplane versions, updated daily, so most matches are instant and need no requests to Nebula or Floatplane
+• Known-videos list: thousands of YouTube videos already matched to their Nebula and Floatplane versions, updated hourly, so most matches are instant and need no requests to Nebula or Floatplane
 • Full video catalogues for Nebula and Floatplane creators, downloaded only for the creators you watch, so older videos match too
 • All 20 Floatplane creators matched to their YouTube channels
 • Confirmed matches are remembered for 30 days

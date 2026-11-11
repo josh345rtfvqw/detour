@@ -1,5 +1,5 @@
 // Builds the master list the extension downloads from GitHub Pages
-// (https://josh345rtfvqw.github.io/detour/data/...). Run daily by
+// (https://josh345rtfvqw.github.io/detour/data/...). Run hourly by
 // .github/workflows/update-list.yml, or by hand:  node scripts/build-known.js
 //
 // data/known.json (version 3) is keyed by YouTube, the anchor for every lookup:

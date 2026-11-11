@@ -157,7 +157,8 @@ function parseMasterV3(d) {
 }
 
 function loadMaster() {
-  return cached('masterList3', 12 * 3600 * 1000, async () => {
+  // Checked hourly. The request is conditional, so an unchanged list isn't downloaded again.
+  return cached('masterList3', 3600 * 1000, async () => {
     // Plain fetch (no custom headers) so the cross-origin request needs no preflight.
     const res = await fetch(MASTER_URL, { credentials: 'omit', cache: 'no-cache' });
     if (!res.ok) throw new Error(`master list ${res.status}`);
@@ -176,7 +177,7 @@ async function loadCatalog(kind, name) {
   const master = await masterOrEmpty();
   if (!master[kind].catalogs.includes(name)) return null;
   try {
-    return await cached(`cat:${kind}:${name}`, 12 * 3600 * 1000, async () => {
+    return await cached(`cat:${kind}:${name}`, 3600 * 1000, async () => {
       const res = await fetch(`${DATA_BASE}/${kind}/${name}.json`, { credentials: 'omit', cache: 'no-cache' });
       if (!res.ok) throw new Error(`catalogue ${res.status}`);
       const list = await res.json();

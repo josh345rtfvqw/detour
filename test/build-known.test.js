@@ -119,7 +119,7 @@ const baseState = () => ({
   assert.equal(r.fpNew, 1);
   assert.deepEqual(readJ(dir, 'floatplane/ltt.json').map(p => p.i), ['p3', 'p2', 'p1']);
   assert.equal(net.calls.filter(c => c.url.includes('content/creator?id=ltt')).length, 1, 'stops at the first known post');
-  console.log('ok  daily run fetches only the newest posts');
+  console.log('ok  later runs fetch only the newest posts');
 
   // ---- null override removes a wrong match ----
   fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ videos: { tlvideo0001: { floatplane: null } } }));
@@ -136,7 +136,7 @@ const baseState = () => ({
   assert.equal(readJ(dir, 'floatplane/ltt.json').length, 3);
   console.log('ok  Floatplane refusal: previous creators, channels and catalogues kept');
 
-  // ---- Creator list refused but posts allowed: the daily post fetch still runs ----
+  // ---- Creator list refused but posts allowed: the post fetch still runs ----
   state.fpRefuse = false;
   state.fpListRefuse = true;
   state.fpPosts.ltt = [{ id: 'p4', title: 'Even Newer', releaseDate: '2026-11-12T10:00:00Z', channel: 'chMain' }, ...state.fpPosts.ltt];

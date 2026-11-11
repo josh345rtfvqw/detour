@@ -2,12 +2,12 @@ name: Update known-videos list
 
 # Rebuilds the master list in data/ (served at https://josh345rtfvqw.github.io/detour/data/):
 # known.json plus per-creator catalogues in data/nebula/, data/nebula-podcasts/ and data/floatplane/. The first run
-# pulls every creator's whole history; daily runs only fetch videos newer than what's stored.
+# pulls every creator's whole history; later runs only fetch videos newer than what's stored.
 # Commits when anything changes; GitHub Pages then republishes it.
-# Runs daily, on demand, and when the hand-edited data files change.
+# Runs hourly, on demand, and when the hand-edited data files change.
 on:
   schedule:
-    - cron: '23 5 * * *'
+    - cron: '17 * * * *'   # hourly; a run takes about 15 minutes
   workflow_dispatch:
     inputs:
       backfill:
