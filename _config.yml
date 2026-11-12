@@ -10,7 +10,7 @@ repo_url: https://github.com/josh345rtfvqw/detour
 # Store listings: leave empty until each listing is live. The site then shows a
 # "coming soon" note instead of a broken link.
 chrome_url: "https://chromewebstore.google.com/detail/detour/lofobnkomhhicgcpejnlcibekkaiaeed"
-firefox_url: ""
+firefox_url: "https://addons.mozilla.org/firefox/addon/detour-nebula-floatplane/"
 
 exclude:
   - node_modules

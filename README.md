@@ -23,10 +23,13 @@ To run from source instead:
 1. Go to `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and pick this folder.
 
-**Firefox (140+)**
+**Firefox (140+):** install from
+[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/detour-nebula-floatplane/).
+
+To run from source instead:
 1. Go to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on…** and pick `manifest.json`. Temporary add-ons are removed
-   when Firefox restarts. For a permanent install, sign the add-on through addons.mozilla.org.
+   when Firefox restarts.
 3. If YouTube shows nothing, open the add-on's permissions in `about:addons` and allow all sites it lists.
 
 Then click the extension icon:

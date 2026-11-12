@@ -1,5 +1,7 @@
 # Firefox Add-ons (AMO) listing
 
+Live at https://addons.mozilla.org/firefox/addon/detour-nebula-floatplane/
+
 Fields for [addons.mozilla.org/developers](https://addons.mozilla.org/developers/), in the order the submission flow asks for them. Character limits are noted where AMO has them.
 
 ---
