@@ -51,7 +51,6 @@
     return s;
   };
   const ICON_OUT = ['M7 17L17 7', 'M8 7h9v9'];
-  const ICON_X = ['M6 6l12 12', 'M18 6L6 18'];
   const mark = (platform, cls) => el('span', { class: `detour-mark ${cls || ''}` }, MARKS[platform]);
 
   function clearUI() {
@@ -229,10 +228,6 @@
 
   // ------------------------------------------------------------ channel page: banner
 
-  async function dismissed() {
-    return (await chrome.storage.local.get({ dismissedChannels: [] })).dismissedChannels;
-  }
-
   const CHANNEL_ACTIONS = 'yt-page-header-view-model yt-flexible-actions-view-model, #page-header yt-flexible-actions-view-model';
   const CHANNEL_HEADER = ['yt-page-header-view-model', '#page-header'];
 
@@ -252,7 +247,6 @@
     };
     let last = null;
     for (const r of results) {
-      const id = `${r.platform}:${info.channelId || info.author}`;
       const banner = el('div', { class: `detour-banner detour-${r.platform}`, role: 'region', 'aria-label': `${NAMES[r.platform]} link` },
         mark(r.platform, 'detour-mark-lg'),
         el('div', { class: 'detour-text' },
@@ -260,16 +254,7 @@
           el('span', { class: 'detour-sub' }, r.subscribed
             ? 'You subscribe there, so you can watch their videos without ads.'
             : `Their videos are on ${NAMES[r.platform]} too.`)),
-        el('a', { class: 'detour-action', href: r.url, target: '_blank', rel: 'noopener' }, `Open on ${NAMES[r.platform]}`, svg(ICON_OUT, 14)),
-        el('button', {
-          class: 'detour-close', 'aria-label': 'Don’t show for this channel',
-          onclick: async () => {
-            banner.remove();
-            const list = await dismissed();
-            await chrome.storage.local.set({ dismissedChannels: [...new Set([...list, id])].slice(-500) });
-          },
-        }, svg(ICON_X)));
-      banner.dataset.id = id;
+        el('a', { class: 'detour-action', href: r.url, target: '_blank', rel: 'noopener' }, `Open on ${NAMES[r.platform]}`, svg(ICON_OUT, 14)));
       if (last) last.after(banner); // keep multiple banners in order
       else place(banner);
       last = banner;
@@ -282,9 +267,7 @@
     if (!info) return;
     const resp = await ask('lookupChannel', info);
     if (!resp || pageKey() !== key) return;
-    const hidden = await dismissed();
-    const shown = resp.results.filter(r => (r.subscribed || resp.settings.showButton) &&
-      !hidden.includes(`${r.platform}:${info.channelId || info.author}`));
+    const shown = resp.results.filter(r => r.subscribed || resp.settings.showButton);
     if (shown.length) showBanners(shown, info, key);
   }
 

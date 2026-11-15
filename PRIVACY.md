@@ -51,10 +51,9 @@ How Nebula and Floatplane handle the requests they receive is covered by their o
 ## Data Detour stores
 
 Detour stores the following in your browser's extension storage:
-- **Your settings**, including which subscriptions you've ticked and how Detour should behave. If you use Chrome sync or Firefox Sync, your browser syncs these settings to your account.
+- **Your settings**, including which subscriptions you've selected and how Detour should behave. If you use Chrome sync or Firefox Sync, your browser syncs these settings to your account.
 - **A cache of the Nebula and Floatplane creator and video lists, and of Detour's list of known videos**, so they aren't downloaded on every page. Video lists for at most 60 channels are kept. Older ones are deleted automatically.
 - **Matches Detour has confirmed** (a YouTube video ID and the Nebula/Floatplane link it matched), for 30 days and at most 2,000 videos. Revisiting a video then sends nothing to Nebula or Floatplane. This is kept only in your browser and never shared.
-- **The channels whose banner you've dismissed.**
 
 Apart from those confirmed matches, Detour keeps no history of the videos or pages you visit.
 

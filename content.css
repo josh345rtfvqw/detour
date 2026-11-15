@@ -93,14 +93,6 @@ html[dark] .detour-banner .detour-sub { color: #c8c8c8; }
   white-space: nowrap;
 }
 .detour-action:hover { filter: brightness(1.12); }
-.detour-banner .detour-close {
-  width: 36px; height: 36px; padding: 0;
-  border-radius: 50%; border: 0;
-  background: transparent; color: inherit; opacity: .75;
-  display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer;
-}
-.detour-banner .detour-close:hover { opacity: 1; background: rgba(127, 127, 127, .2); }
 
 /* ---------- auto-redirect countdown ---------- */
 .detour-toast {

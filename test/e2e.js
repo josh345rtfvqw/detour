@@ -125,13 +125,7 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
   assert.notEqual(darkBg, lightBg);
   await page.screenshot({ path: shot('channel-light') });
 
-  // 7. Dismiss -> stays hidden for that channel
-  await page.click('.detour-banner .detour-close');
-  await page.waitForTimeout(500);
-  await page.goto('https://www.youtube.com/@RealEngineering');
-  await page.waitForTimeout(3000);
-  assert.equal(await page.$('.detour-banner'), null, 'dismissed banner should stay hidden');
-  console.log('dismissed banner stays hidden');
+  assert.equal(await page.$('.detour-banner .detour-close, .detour-banner button'), null, 'banner has no close button');
 
   // 8. A header rule gives the extension's own requests to Nebula / Floatplane a User-Agent of
   //    "<browser UA> Detour/<version> (+repo)". (Playwright's interception sees requests before

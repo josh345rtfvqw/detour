@@ -9,7 +9,7 @@ is on **Nebula** or **Floatplane**. Then it either:
 - **shows a "Watch on Nebula / Floatplane" button** next to the video title.
 
 On **channel pages** it shows a banner under the Subscribe button when the channel is on Nebula or Floatplane.
-You can dismiss the banner for each channel. Colours follow the platform and YouTube's light or dark theme.
+Colours follow the platform and YouTube's light or dark theme.
 
 You pick which in the settings. If the video itself can't be matched, but the channel is on
 the platform, you get a link to the channel instead. Channel-only matches never auto-redirect.
@@ -33,8 +33,8 @@ To run from source instead:
 3. If YouTube shows nothing, open the add-on's permissions in `about:addons` and allow all sites it lists.
 
 Then click the extension icon:
-- tick **I subscribe to Nebula** if you do;
-- tick the **Floatplane creators** you subscribe to. To list them, log in at floatplane.com first;
+- turn on **Nebula** if you subscribe;
+- select the **Floatplane creators** you subscribe to. To list them, log in at floatplane.com first;
 - choose **Redirect automatically** or **Just show a button**.
 
 ## How it finds videos

@@ -33,10 +33,10 @@ ON A VIDEO
 A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe to that platform, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
 
 ON A CHANNEL
-A banner under the Subscribe button lets you know the creator is also on Nebula or Floatplane, with a link to their channel there. Dismiss it once and it stays hidden for that channel.
+A banner under the Subscribe button lets you know the creator is also on Nebula or Floatplane, with a link to their channel there.
 
 SETTINGS
-• Tick the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
+• Select the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
 • Choose between automatic redirects and a button
 • Open the other site in a new tab instead of leaving YouTube
 • Light and dark themes follow YouTube and your system
@@ -129,7 +129,7 @@ Detour helps people who subscribe to Nebula or Floatplane watch YouTube videos o
 
 **storage**
 ```
-Saves the user's settings (which subscriptions they have, redirect or button mode, new-tab preference), a cache of Nebula and Floatplane creator and video lists so they aren't re-downloaded on every page, and the channels whose banner the user dismissed.
+Saves the user's settings (which subscriptions they have, redirect or button mode, new-tab preference), and a cache of Nebula and Floatplane creator and video lists so they aren't re-downloaded on every page.
 ```
 
 **declarativeNetRequestWithHostAccess**

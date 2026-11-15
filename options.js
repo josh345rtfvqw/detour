@@ -137,11 +137,6 @@ $('clearCache').addEventListener('click', async () => {
   status('Creator and video data refreshed.');
 });
 
-$('resetBanners').addEventListener('click', async () => {
-  await chrome.storage.local.remove('dismissedChannels');
-  status('Hidden channel banners will show again.');
-});
-
 (async () => {
   settings = { ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)) };
   $('version').textContent = `v${chrome.runtime.getManifest().version}`;

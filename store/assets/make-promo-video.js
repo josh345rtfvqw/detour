@@ -146,7 +146,7 @@ html,body{margin:0;width:${W}px;height:${H}px;overflow:hidden;background:#0d0d14
 </div>
 
 <div class="scene" id="s-settings">
-  <div class="cap"><h1>You choose how it works</h1><p>Tick your subscriptions. Pick redirects or just a button.</p></div>
+  <div class="cap"><h1>You choose how it works</h1><p>Select your subscriptions. Pick redirects or just a button.</p></div>
   <div class="popup" id="p-pop"><img src="${img.settings}"></div>
 </div>
 

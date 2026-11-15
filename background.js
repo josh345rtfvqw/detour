@@ -360,7 +360,7 @@ function floatplaneMatches(creators, info) {
   return out;
 }
 
-// Subscribed if the user ticked this creator by its ID, or by name (built-in entries whose
+// Subscribed if the user selected this creator by its ID, or by name (built-in entries whose
 // Floatplane ID isn't known are remembered by name, and still count once the live list loads).
 const isFpSubscribed = (c, list) => list.includes(c.id) || list.includes(fpNameKey(c.title));
 const fpKnown = c => !!c.urlname && !String(c.id).startsWith('name:');
@@ -470,11 +470,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     if (msg.type === 'lookupChannel') return { results: await lookupChannel(msg.info), settings: await getSettings() };
     if (msg.type === 'fpCreators') return { creators: await loadFloatplaneCreators() };
     if (msg.type === 'clearCache') {
-      // Refresh data, but keep the user's dismissed channel banners.
       recent.clear();
-      const { dismissedChannels } = await chrome.storage.local.get('dismissedChannels');
       await chrome.storage.local.clear();
-      if (dismissedChannels) await chrome.storage.local.set({ dismissedChannels });
       return { ok: true };
     }
     // Auto-redirect in a new tab: opened from here, because window.open from a timer in the

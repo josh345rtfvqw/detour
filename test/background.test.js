@@ -184,14 +184,12 @@ const fpRoutes = [
   assert.equal(r.results[0].url, 'https://www.floatplane.com/post/post1');
   console.log('ok  failed lookups are retried, not cached');
 
-  // 15. "Refresh data" keeps dismissed banners.
+  // 15. "Refresh data" clears cached data.
   env = makeEnv({}, []);
-  env.store.local.dismissedChannels = ['nebula:UCabc'];
   env.store.local.nebulaCreators = { t: 1, v: [] };
   await env.send({ type: 'clearCache' });
-  assert.deepEqual(env.store.local.dismissedChannels, ['nebula:UCabc']);
   assert.equal(env.store.local.nebulaCreators, undefined);
-  console.log('ok  refresh keeps dismissed banners');
+  console.log('ok  refresh clears cached data');
 
   // 16. New-tab redirects open via the background, only for Nebula/Floatplane URLs.
   r = await env.send({ type: 'openTab', url: 'https://nebula.tv/videos/x' });

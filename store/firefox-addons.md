@@ -55,10 +55,10 @@ Detour shows when a YouTube video or channel is also on Nebula or Floatplane, an
 A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe to that platform, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
 
 <b>On a channel</b>
-A banner under the Subscribe button lets you know the creator is also on Nebula or Floatplane, with a link to their channel there. Dismiss it once and it stays hidden for that channel.
+A banner under the Subscribe button lets you know the creator is also on Nebula or Floatplane, with a link to their channel there.
 
 <b>Settings</b>
-• Tick the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
+• Select the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
 • Choose between automatic redirects and a button
 • Open the other site in a new tab instead of leaving YouTube
 • Light and dark themes follow YouTube and your system
@@ -115,7 +115,7 @@ AMO reviewers read the code. This field helps them test quickly and understand t
 Detour shows a link to (or optionally redirects to) the same video on Nebula or Floatplane when a user is on YouTube. Everything ships in the package; there is no build step, minification or remote code. Source: https://github.com/josh345rtfvqw/detour
 
 HOW TO TEST (no account needed)
-1. Install, open the toolbar popup, tick "I subscribe to Nebula", choose "Show a button".
+1. Install, open the toolbar popup, turn on "Nebula", choose "Show a button".
 2. Open a YouTube video from a creator on Nebula (for example a recent Real Engineering, Wendover Productions or Half as Interesting upload). A "Watch on Nebula" chip appears at the right of the video title.
 3. Open that creator's YouTube channel page: a banner appears under the Subscribe button.
 4. Switch the popup to "Redirect me" and open another of their videos: a 3-second countdown appears, then the Nebula page opens. Pressing Back stays on YouTube.
@@ -129,7 +129,7 @@ NETWORK REQUESTS (all from the background script, all disclosed in the privacy p
 Nothing is sent anywhere else, and nothing is sent for creators who aren't on Nebula or Floatplane.
 
 PERMISSIONS
-- storage: settings, cached creator/video lists, dismissed banners.
+- storage: settings and cached creator/video lists.
 - declarativeNetRequestWithHostAccess: one session rule that sets User-Agent to "<browser UA> Detour/<version> (+repo URL)" on the extension's own requests (tabIds: [-1]) to floatplane.com / nebula.app / nebula.tv, as Floatplane asks API clients to identify themselves. In Firefox, fetch() also sets it directly. User browsing is not modified.
 - Host permissions: youtube.com (content script UI), and the Nebula / Floatplane hosts above.
 
@@ -156,7 +156,7 @@ These are the same five screenshots as for Chrome. Suggested captions, which AMO
 2. Subscribers can be redirected automatically, with a countdown.
 3. Channel pages link to the creator on Nebula or Floatplane.
 4. Works with Nebula and Floatplane, in light and dark themes.
-5. Tick your subscriptions and choose redirects or just a button.
+5. Select your subscriptions and choose redirects or just a button.
 
 AMO has no promo tiles.
 

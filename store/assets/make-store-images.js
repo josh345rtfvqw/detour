@@ -100,7 +100,7 @@ p{margin:-22px 0 0;font-size:20px;color:#c9cbe0;text-align:center}
     ['2-redirect', { headline: 'Or go there automatically', sub: 'Subscribers can be redirected, with a countdown and a “Stay on YouTube” option.', shot: shots.redirect, ...full }],
     ['3-channel', { headline: 'Find creators’ channels too', sub: 'A banner on the channel page links to the creator on Nebula or Floatplane.', shot: shots.channel, ...full }],
     ['4-floatplane', { headline: 'Nebula and Floatplane', sub: 'Works with both, in YouTube’s light and dark themes.', shot: shots.floatplane, ...full }],
-    ['5-settings', { headline: 'You decide how it works', sub: 'Tick your subscriptions, then choose redirects or just a button.', shot: shots.settings, shotW: 340, shotH: 544, popup: true }],
+    ['5-settings', { headline: 'You decide how it works', sub: 'Select your subscriptions, then choose redirects or just a button.', shot: shots.settings, shotW: 340, shotH: 544, popup: true }],
   ];
   for (const [name, opts] of items) {
     await out.setContent(frame(opts));
