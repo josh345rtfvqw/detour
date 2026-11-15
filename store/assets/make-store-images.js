@@ -83,7 +83,7 @@ p{margin:-22px 0 0;font-size:20px;color:#c9cbe0;text-align:center}
 
   // 5. Settings popup (real options page, popup width, dark)
   const opt = await ctx.newPage();
-  await opt.setViewportSize({ width: 400, height: 640 });
+  await opt.setViewportSize({ width: 380, height: 640 });
   await opt.emulateMedia({ colorScheme: 'dark' });
   await opt.goto(`chrome-extension://${extId}/options.html`);
   await opt.waitForSelector('.creator', { state: 'attached' });
@@ -91,19 +91,23 @@ p{margin:-22px 0 0;font-size:20px;color:#c9cbe0;text-align:center}
   await opt.evaluate(() => document.activeElement.blur());
   await opt.waitForSelector('.creator');
   await opt.waitForTimeout(300);
-  await shoot(opt, 'settings', { x: 0, y: 0, width: 400, height: 640 });
+  // Capture exactly the popup: its fixed width and its height with the creator list open.
+  const popH = Math.ceil(await opt.evaluate(() => document.querySelector('.wrap').getBoundingClientRect().height));
+  await shoot(opt, 'settings', { x: 0, y: 0, width: 380, height: popH });
   await ctx.close();
 
   // Compose 1280x800 store screenshots
   const browser = await chromium.launch();
   const out = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   const full = { shotW: 1062, shotH: 576 }; // 1180x640 page scaled to fit under the caption
+  const popScale = Math.min(544 / popH, 1.2); // the popup, as large as fits under the caption
+  const popupSize = { shotW: Math.round(380 * popScale), shotH: Math.round(popH * popScale) };
   const items = [
     ['1-video', { headline: 'Watch it where you already subscribe', sub: 'A “Watch on Nebula” button appears right next to the video title.', shot: shots.video, ...full }],
     ['2-redirect', { headline: 'Or go there automatically', sub: 'Subscribers can be redirected, with a countdown and a “Stay on YouTube” option.', shot: shots.redirect, ...full }],
     ['3-channel', { headline: 'Find creators’ channels too', sub: 'A banner on the channel page links to the creator on Nebula or Floatplane.', shot: shots.channel, ...full }],
     ['4-floatplane', { headline: 'Nebula and Floatplane', sub: 'Works with both, in YouTube’s light and dark themes.', shot: shots.floatplane, ...full }],
-    ['5-settings', { headline: 'You decide how it works', sub: 'Select your subscriptions, then choose redirects or just a button.', shot: shots.settings, shotW: 340, shotH: 544, popup: true }],
+    ['5-settings', { headline: 'You decide how it works', sub: 'Select your subscriptions, then choose redirects or just a button.', shot: shots.settings, ...popupSize, popup: true }],
   ];
   for (const [name, opts] of items) {
     await out.setContent(frame(opts));

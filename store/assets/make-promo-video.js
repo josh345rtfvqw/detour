@@ -80,7 +80,7 @@ async function capture() {
 
   // Settings popup.
   const opt = await ctx.newPage();
-  await opt.setViewportSize({ width: 400, height: 640 });
+  await opt.setViewportSize({ width: 380, height: 640 });
   await opt.emulateMedia({ colorScheme: 'dark' });
   await opt.goto(`chrome-extension://${extId}/options.html`);
   await opt.waitForSelector('.creator', { state: 'attached' });
@@ -88,7 +88,9 @@ async function capture() {
   await opt.evaluate(() => document.activeElement.blur());
   await opt.waitForSelector('.creator');
   await opt.waitForTimeout(300);
-  await shoot(opt, 'settings', { clip: { x: 0, y: 0, width: 400, height: 640 } });
+  // Capture exactly the popup: its fixed width and its height with the creator list open.
+  box.popH = Math.ceil(await opt.evaluate(() => document.querySelector('.wrap').getBoundingClientRect().height));
+  await shoot(opt, 'settings', { clip: { x: 0, y: 0, width: 380, height: box.popH } });
   await ctx.close();
   return { img, box };
 }
@@ -119,7 +121,7 @@ html,body{margin:0;width:${W}px;height:${H}px;overflow:hidden;background:#0d0d14
 .title h1{margin:0;font-size:120px;font-weight:800;letter-spacing:-.035em;line-height:1}
 .title p{margin:0;font-size:40px;color:#d6d8f0;font-weight:500;text-align:center;line-height:1.35}
 .title small{font-size:20px;color:#9a9cb8;font-weight:500}
-.popup{position:absolute;left:50%;top:252px;width:400px;height:640px;margin-left:-200px;transform-origin:50% 0;border-radius:16px;overflow:hidden;box-shadow:0 40px 110px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.1)}
+.popup{position:absolute;left:50%;top:252px;width:380px;height:${box.popH}px;margin-left:-190px;transform-origin:50% 0;border-radius:16px;overflow:hidden;box-shadow:0 40px 110px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.1)}
 .popup img{width:100%;height:100%}
 </style></head><body><div class="bg"></div>
 
