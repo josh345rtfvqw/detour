@@ -11,11 +11,6 @@ async function save(patch) {
   render();
 }
 
-function status(text) {
-  $('status').textContent = text;
-  clearTimeout(status.t);
-  status.t = setTimeout(() => { $('status').textContent = ''; }, 2500);
-}
 
 // Things that depend on more than one setting.
 function render() {
@@ -130,11 +125,20 @@ $('fpRow').addEventListener('click', () => {
   if (open) $('fpFilter').focus();
 });
 
+// The button shows its own progress: Refresh → Refreshing… → Done → Refresh.
 $('clearCache').addEventListener('click', async () => {
-  status('Refreshing…');
-  await chrome.runtime.sendMessage({ type: 'clearCache' });
-  await loadCreators();
-  status('Creator and video data refreshed.');
+  const btn = $('clearCache');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing…';
+  try {
+    await chrome.runtime.sendMessage({ type: 'clearCache' });
+    await loadCreators();
+    btn.textContent = 'Done';
+  } catch (e) {
+    console.warn('[detour] refresh failed', e);
+    btn.textContent = 'Try again';
+  }
+  setTimeout(() => { btn.textContent = 'Refresh'; btn.disabled = false; }, 1500);
 });
 
 (async () => {

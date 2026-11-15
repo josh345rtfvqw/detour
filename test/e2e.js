@@ -155,6 +155,13 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
   assert.deepEqual(names.sort(), ['Level1Techs', 'LinusTechTips']);
   assert.deepEqual(pageErrors, [], 'no errors on the settings page');
   console.log('settings popup lists Floatplane creators:', names.join(', '));
+  // Refresh button shows its own progress, then goes back to "Refresh".
+  assert.equal((await opts.textContent('#clearCache')).trim(), 'Refresh');
+  await opts.click('#clearCache');
+  await opts.waitForFunction(() => document.querySelector('#clearCache').textContent === 'Done', null, { timeout: 10000 });
+  await opts.waitForFunction(() => document.querySelector('#clearCache').textContent === 'Refresh', null, { timeout: 5000 });
+  assert.ok(await opts.$eval('.title-row #version', e => /^v\d/.test(e.textContent)), 'version shown next to the title');
+  console.log('refresh button: Refresh -> Done -> Refresh; version in the header');
   console.log('\ne2e passed');
   await ctx.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
