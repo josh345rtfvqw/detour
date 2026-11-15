@@ -83,6 +83,9 @@ async function capture() {
   await opt.setViewportSize({ width: 400, height: 640 });
   await opt.emulateMedia({ colorScheme: 'dark' });
   await opt.goto(`chrome-extension://${extId}/options.html`);
+  await opt.waitForSelector('.creator', { state: 'attached' });
+  await opt.click('#fpRow'); // open the Floatplane creator list
+  await opt.evaluate(() => document.activeElement.blur());
   await opt.waitForSelector('.creator');
   await opt.waitForTimeout(300);
   await shoot(opt, 'settings', { clip: { x: 0, y: 0, width: 400, height: 640 } });

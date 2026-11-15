@@ -97,6 +97,15 @@ async function installMockSite(ctx) {
     if (u.includes('youtube.com/watch?v=FP1')) return html(route, videoPage({ vid: 'FP1', title: 'I Built the Quietest PC Possible', chId: FP_ID, author: 'Example Labs', subs: '860K', dark: false, hue: 190 }));
     if (u.includes('youtube.com/@ExampleEngineering')) return html(route, channelPage({ chId: NEB_ID, author: 'Example Engineering', handle: 'ExampleEngineering', dark: true, hue: 235 }));
     if (u.includes('talent.nebula.tv/creators')) return html(route, CREATOR_WALL);
+    // Detour's own list (known.json): made-up creators, so the settings popup has a full list.
+    if (u.includes('github.io/detour/data/known.json')) return json(route, {
+      version: 3, videos: {},
+      channels: { [NEB_ID]: { name: 'Example Engineering', nebula: 'exampleengineering' }, [FP_ID]: { name: 'Example Labs', floatplane: 'exlabs' } },
+      nebula: { creators: { exampleengineering: { name: 'Example Engineering', catalog: false } } },
+      floatplane: { creators: Object.fromEntries([['exlabs', 'Example Labs'], ['benchnotes', 'Bench Notes'], ['circuitcorner', 'Circuit Corner'],
+        ['garagebuilds', 'Garage Builds'], ['retrorigs', 'Retro Rigs'], ['sounddesk', 'Sound Desk'], ['trailmix', 'Trail Mix'], ['workshopweekly', 'Workshop Weekly']]
+        .map(([id, name]) => [id, { name, urlname: id, channels: {}, catalog: false }])) },
+    });
     if (u.includes('/content/exampleengineering/')) return json(route, { id: 'c1' });
     if (u.includes('video_channels/c1/video_episodes')) return json(route, { results: [
       { title: 'Why Bridges Don’t Collapse (Most of the Time)', published_at: '2026-11-04', share_url: 'https://nebula.tv/videos/exampleengineering-bridges' },

@@ -86,6 +86,9 @@ p{margin:-22px 0 0;font-size:20px;color:#c9cbe0;text-align:center}
   await opt.setViewportSize({ width: 400, height: 640 });
   await opt.emulateMedia({ colorScheme: 'dark' });
   await opt.goto(`chrome-extension://${extId}/options.html`);
+  await opt.waitForSelector('.creator', { state: 'attached' });
+  await opt.click('#fpRow'); // open the Floatplane creator list
+  await opt.evaluate(() => document.activeElement.blur());
   await opt.waitForSelector('.creator');
   await opt.waitForTimeout(300);
   await shoot(opt, 'settings', { x: 0, y: 0, width: 400, height: 640 });
