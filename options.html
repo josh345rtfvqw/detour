@@ -46,26 +46,25 @@
   }
   /* Fixed width, so the popup doesn't change size with its content. On the full options page
      (opened in a tab) it stays centred at the same width. */
-  .wrap { box-sizing: border-box; width: 380px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+  .wrap { box-sizing: border-box; width: 380px; margin: 0 auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 
-  header { display: flex; align-items: center; gap: 12px; }
-  .logo { width: 36px; height: 36px; flex-shrink: 0; display: block; }
-  header h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
-  header p { margin: 0; color: var(--muted); font-size: 12.5px; }
+  header { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+  .logo { width: 24px; height: 24px; flex-shrink: 0; display: block; }
+  header h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
 
-  h2 { margin: 0 0 8px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
-  .row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 56px; }
-  .row + .row, .row + .sub, .sub + .row { border-top: 1px solid var(--line); }
-  .row .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .row .title { font-weight: 600; }
-  .row .desc { color: var(--muted); font-size: 12.5px; }
-  .row.stack { flex-direction: column; align-items: stretch; gap: 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 0 12px; min-height: 44px; }
+  /* Dividers drawn inside the row, so every row is exactly its own height. */
+  .row + .row, .row + .sub, .sub + .row { box-shadow: inset 0 1px 0 var(--line); }
+  .row .label { flex: 1; min-width: 0; }
+  .platform .label { font-weight: 600; }
+  .row.mode { min-height: 48px; padding-right: 8px; }
+  .row.mode .label { font-weight: 600; }
 
   .mark {
-    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
     display: inline-flex; align-items: center; justify-content: center;
-    color: #fff; font-weight: 700; font-size: 16px;
+    color: #fff; font-weight: 700; font-size: 12px;
   }
   .mark.nebula { background: var(--nebula); }
   .mark.floatplane { background: var(--floatplane); }
@@ -94,27 +93,26 @@
   /* Segmented control: radio inputs laid over their labels. */
   fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
   legend { padding: 0; font-weight: 600; margin-bottom: 8px; }
-  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding: 4px; border-radius: 10px; background: var(--field); }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; padding: 3px; border-radius: 9px; background: var(--field); width: 188px; flex-shrink: 0; }
   .seg label {
-    position: relative; text-align: center; padding: 7px 8px; border-radius: 7px;
+    position: relative; text-align: center; padding: 5px 6px; border-radius: 7px; font-size: 12.5px; white-space: nowrap;
     font-weight: 500; color: var(--muted); cursor: pointer; user-select: none;
   }
   .seg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
   .seg label:has(input:checked) { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
-  .hint { color: var(--muted); font-size: 12.5px; margin: 6px 2px 0; }
 
   /* Floatplane creator picker */
-  .sub { padding: 10px 14px 14px; background: var(--card); }
-  .search { position: relative; margin-bottom: 8px; }
+  .sub { padding: 8px 12px 10px; background: var(--card); }
+  .search { position: relative; margin-bottom: 4px; }
   .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); }
   .search input {
-    width: 100%; height: 36px; padding: 0 10px 0 32px; border-radius: 9px;
+    width: 100%; height: 32px; padding: 0 10px 0 32px; border-radius: 8px;
     border: 1px solid var(--line); background: var(--field); color: var(--text); font: inherit;
   }
-  #fpList { max-height: 240px; overflow: auto; margin: 0 -6px; }
-  .creator { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 8px; cursor: pointer; }
+  #fpList { max-height: 216px; overflow: auto; margin: 0 -6px; }
+  .creator { display: flex; align-items: center; gap: 10px; padding: 4px 6px; min-height: 36px; border-radius: 8px; cursor: pointer; }
   .creator:hover { background: var(--field); }
-  .creator img, .creator .ph { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; object-fit: cover; background: var(--line); }
+  .creator img, .creator .ph { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; object-fit: cover; background: var(--line); }
   .creator .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .empty { padding: 14px 6px; color: var(--muted); font-size: 13px; }
   .empty a { color: var(--floatplane); font-weight: 600; }
@@ -127,99 +125,76 @@
   .sub[hidden] { display: none; }
   @media (prefers-color-scheme: dark) { .count { color: #4dc3f5; } }
 
-  button.ghost {
-    flex-shrink: 0; height: 34px; padding: 0 12px; border-radius: 9px;
-    border: 1px solid var(--line); background: var(--card); color: var(--text);
-    font: 500 13px system-ui, sans-serif; cursor: pointer;
-  }
-  button.ghost:hover { background: var(--field); }
-  .head { flex: 1; min-width: 0; }
-  .title-row { display: flex; align-items: baseline; gap: 8px; }
-  .meta { margin-left: auto; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .meta { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .meta a { color: var(--muted); }
-  #clearCache { min-width: 104px; }
-  button.ghost:disabled { cursor: default; color: var(--muted); }
+  /* Refresh: an icon button that shows its own progress (spins, then a tick). */
+  .icon-btn {
+    flex-shrink: 0; width: 32px; height: 32px; padding: 0; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--muted);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--field); color: var(--text); }
+  .icon-btn:disabled { cursor: default; }
+  .icon-btn .done { display: none; }
+  .icon-btn.is-done .done { display: block; }
+  .icon-btn.is-done .spin { display: none; }
+  .icon-btn.is-busy .spin { animation: detour-spin .8s linear infinite; }
+  @keyframes detour-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .icon-btn.is-busy .spin { animation: none; opacity: .5; } }
   [hidden] { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <img class="logo" src="icons/icon128.png" alt="">
-    <div class="head">
-      <div class="title-row">
-        <h1>Detour</h1>
-        <span class="meta"><span id="version"></span> · <a href="https://github.com/josh345rtfvqw/detour" target="_blank" rel="noopener">GitHub</a></span>
-      </div>
-      <p>Watch YouTube videos on Nebula and Floatplane instead.</p>
-    </div>
+    <h1>Detour</h1>
+    <span class="meta"><span id="version"></span> · <a href="https://github.com/josh345rtfvqw/detour" target="_blank" rel="noopener">GitHub</a></span>
+    <button type="button" class="icon-btn" id="clearCache" aria-label="Refresh data" title="Refresh data">
+      <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>
+      <svg class="done" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+    </button>
+    <span class="sr-only" id="refreshStatus" role="status"></span>
   </header>
 
-  <section aria-labelledby="h-subs">
-    <h2 id="h-subs">Your subscriptions</h2>
-    <div class="card">
-      <label class="row platform nebula" id="nebulaRow">
-        <span class="mark nebula" aria-hidden="true">N</span>
-        <span class="text">
-          <span class="title">Nebula</span>
-          <span class="desc">Covers every Nebula creator.</span>
-        </span>
-        <input type="checkbox" class="switch nebula" id="nebulaSubscribed" role="switch" aria-label="I subscribe to Nebula">
-      </label>
-      <button type="button" class="row platform floatplane" id="fpRow" aria-expanded="false" aria-controls="fpSub">
-        <span class="mark floatplane" aria-hidden="true">F</span>
-        <span class="text">
-          <span class="title">Floatplane</span>
-          <span class="desc">Select your creators.</span>
-        </span>
-        <span class="count" id="fpCount"></span>
-        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
-      </button>
-      <div class="sub" id="fpSub" hidden>
-        <div class="search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-          <input type="search" id="fpFilter" placeholder="Search Floatplane creators" aria-label="Search Floatplane creators">
-        </div>
-        <div id="fpList" role="group" aria-label="Floatplane creators"><div class="empty">Loading creators…</div></div>
+  <section class="card" aria-label="Your subscriptions">
+    <label class="row platform nebula" id="nebulaRow">
+      <span class="mark nebula" aria-hidden="true">N</span>
+      <span class="label">Nebula</span>
+      <input type="checkbox" class="switch nebula" id="nebulaSubscribed" role="switch" aria-label="I subscribe to Nebula">
+    </label>
+    <button type="button" class="row platform floatplane" id="fpRow" aria-expanded="false" aria-controls="fpSub">
+      <span class="mark floatplane" aria-hidden="true">F</span>
+      <span class="label">Floatplane</span>
+      <span class="count" id="fpCount"></span>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+    </button>
+    <div class="sub" id="fpSub" hidden>
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input type="search" id="fpFilter" placeholder="Search Floatplane creators" aria-label="Search Floatplane creators">
       </div>
+      <div id="fpList" role="group" aria-label="Floatplane creators"><div class="empty">Loading creators…</div></div>
     </div>
   </section>
 
-  <section aria-labelledby="h-settings">
-    <h2 id="h-settings">Settings</h2>
-    <div class="card">
-      <div class="row stack">
-        <fieldset>
-          <legend>When a video is somewhere I subscribe</legend>
-          <div class="seg">
-            <label><input type="radio" name="mode" value="redirect">Redirect me</label>
-            <label><input type="radio" name="mode" value="button">Show a button</label>
-          </div>
-          <p class="hint" id="modeHint"></p>
-        </fieldset>
-      </div>
-      <label class="row" id="newTabRow">
-        <span class="text">
-          <span class="title">Open in a new tab</span>
-          <span class="desc">Keep YouTube open and go to the other site in a new tab.</span>
-        </span>
-        <input type="checkbox" class="switch" id="newTab" role="switch">
-      </label>
-      <label class="row">
-        <span class="text">
-          <span class="title">Show other platforms too</span>
-          <span class="desc">Show the button for platforms you don't subscribe to.</span>
-        </span>
-        <input type="checkbox" class="switch" id="showButton" role="switch">
-      </label>
-      <div class="row">
-        <span class="text">
-          <span class="title">Refresh data</span>
-          <span class="desc">Download the latest creator and video lists now.</span>
-        </span>
-        <button type="button" class="ghost" id="clearCache" aria-live="polite">Refresh</button>
+  <section class="card" aria-label="Settings">
+    <div class="row mode" role="radiogroup" aria-labelledby="modeLabel">
+      <span class="label" id="modeLabel">On a match</span>
+      <div class="seg">
+        <label title="Go there automatically, after a 3-second countdown"><input type="radio" name="mode" value="redirect">Redirect</label>
+        <label title="Show a “Watch on …” button next to Like and Share"><input type="radio" name="mode" value="button">Show button</label>
       </div>
     </div>
+    <label class="row" id="newTabRow">
+      <span class="label">Open in a new tab</span>
+      <input type="checkbox" class="switch" id="newTab" role="switch">
+    </label>
+    <label class="row" title="Show the button for platforms you don't subscribe to">
+      <span class="label">Show other platforms too</span>
+      <input type="checkbox" class="switch" id="showButton" role="switch">
+    </label>
   </section>
 
 </div>

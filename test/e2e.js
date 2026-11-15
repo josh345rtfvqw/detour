@@ -156,12 +156,17 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
   assert.deepEqual(pageErrors, [], 'no errors on the settings page');
   console.log('settings popup lists Floatplane creators:', names.join(', '));
   // Refresh button shows its own progress, then goes back to "Refresh".
-  assert.equal((await opts.textContent('#clearCache')).trim(), 'Refresh');
+  const refreshLabel = () => opts.$eval('#clearCache', e => e.getAttribute('aria-label'));
+  assert.equal(await refreshLabel(), 'Refresh data');
   await opts.click('#clearCache');
-  await opts.waitForFunction(() => document.querySelector('#clearCache').textContent === 'Done', null, { timeout: 10000 });
-  await opts.waitForFunction(() => document.querySelector('#clearCache').textContent === 'Refresh', null, { timeout: 5000 });
-  assert.ok(await opts.$eval('.title-row #version', e => /^v\d/.test(e.textContent)), 'version shown next to the title');
-  console.log('refresh button: Refresh -> Done -> Refresh; version in the header');
+  await opts.waitForFunction(() => document.querySelector('#clearCache').getAttribute('aria-label') === 'Done', null, { timeout: 10000 });
+  assert.ok(await opts.$eval('#clearCache', e => e.classList.contains('is-done')), 'tick shown when done');
+  await opts.waitForFunction(() => document.querySelector('#clearCache').getAttribute('aria-label') === 'Refresh data', null, { timeout: 5000 });
+  assert.ok(await opts.$eval('header #version', e => /^v\d/.test(e.textContent)), 'version shown next to the title');
+  await opts.click('#fpRow'); // close the Floatplane list again
+  const height = await opts.evaluate(() => document.querySelector('.wrap').getBoundingClientRect().height);
+  assert.ok(height < 340, `condensed popup is about 300px tall (got ${height})`);
+  console.log('refresh icon: Refreshing… -> Done -> Refresh data; version in the header; popup', Math.round(height), 'px tall');
   console.log('\ne2e passed');
   await ctx.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

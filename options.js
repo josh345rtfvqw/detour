@@ -20,9 +20,6 @@ function render() {
   $('fpRow').classList.toggle('active', n > 0);
   $('newTab').disabled = !settings.autoRedirect;
   $('newTabRow').style.opacity = settings.autoRedirect ? '' : '.55';
-  $('modeHint').textContent = settings.autoRedirect
-    ? 'A 3-second countdown lets you stay on YouTube instead.'
-    : 'A “Watch on …” button appears next to Like and Share.';
 }
 
 function bindSwitch(id) {
@@ -125,20 +122,26 @@ $('fpRow').addEventListener('click', () => {
   if (open) $('fpFilter').focus();
 });
 
-// The button shows its own progress: Refresh → Refreshing… → Done → Refresh.
+// The refresh icon shows its own progress: it spins, shows a tick when done, then resets.
+// Its label (and a status line for screen readers) reads Refreshing…, then Done.
 $('clearCache').addEventListener('click', async () => {
   const btn = $('clearCache');
+  const label = text => { btn.setAttribute('aria-label', text); btn.title = text; $('refreshStatus').textContent = text === 'Refresh data' ? '' : text; };
   btn.disabled = true;
-  btn.textContent = 'Refreshing…';
+  btn.classList.add('is-busy');
+  label('Refreshing…');
+  let ok = true;
   try {
     await chrome.runtime.sendMessage({ type: 'clearCache' });
     await loadCreators();
-    btn.textContent = 'Done';
   } catch (e) {
     console.warn('[detour] refresh failed', e);
-    btn.textContent = 'Try again';
+    ok = false;
   }
-  setTimeout(() => { btn.textContent = 'Refresh'; btn.disabled = false; }, 1500);
+  btn.classList.remove('is-busy');
+  btn.classList.toggle('is-done', ok);
+  label(ok ? 'Done' : 'Refresh failed, try again');
+  setTimeout(() => { btn.classList.remove('is-done'); btn.disabled = false; label('Refresh data'); }, 1500);
 });
 
 (async () => {
