@@ -122,6 +122,14 @@ async function loadCreators() {
 
 $('fpFilter').addEventListener('input', applyFilter);
 
+// The Floatplane creator list opens from its row, so it starts the same height as Nebula's.
+$('fpRow').addEventListener('click', () => {
+  const open = $('fpRow').getAttribute('aria-expanded') !== 'true';
+  $('fpRow').setAttribute('aria-expanded', String(open));
+  $('fpSub').hidden = !open;
+  if (open) $('fpFilter').focus();
+});
+
 $('clearCache').addEventListener('click', async () => {
   status('Refreshing…');
   await chrome.runtime.sendMessage({ type: 'clearCache' });

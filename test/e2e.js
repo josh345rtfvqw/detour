@@ -150,7 +150,13 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
   const pageErrors = [];
   opts.on('pageerror', e => pageErrors.push(e.message));
   await opts.goto(`chrome-extension://${extId}/options.html`);
-  await opts.waitForSelector('#fpList .creator', { timeout: 10000 });
+  await opts.waitForSelector('#fpList .creator', { state: 'attached', timeout: 10000 });
+  assert.ok(await opts.$eval('#fpSub', e => e.hidden), 'Floatplane list starts closed');
+  const [nebH, fpH] = await opts.$$eval('#nebulaRow, #fpRow', els => els.map(e => e.clientHeight)); // without the divider line
+  assert.equal(fpH, nebH, 'closed Floatplane row is the same height as the Nebula row');
+  await opts.click('#fpRow');
+  await opts.waitForSelector('#fpList .creator');
+  assert.equal(await opts.$eval('#fpRow', e => e.getAttribute('aria-expanded')), 'true');
   const names = await opts.$$eval('#fpList .creator .name', els => els.map(e => e.textContent));
   assert.deepEqual(names.sort(), ['Level1Techs', 'LinusTechTips']);
   assert.deepEqual(pageErrors, [], 'no errors on the settings page');
