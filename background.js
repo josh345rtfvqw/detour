@@ -5,7 +5,6 @@ if (typeof importScripts === 'function' && typeof bestMatch === 'undefined') imp
 const DEFAULTS = {
   autoRedirect: true,
   newTab: false,
-  preferred: 'nebula',
   showButton: true,
   nebulaSubscribed: false,
   floatplaneCreators: [], // Floatplane creator IDs the user says they subscribe to
@@ -438,7 +437,7 @@ async function lookupChannel(info) {
   const results = sanitizeResults((await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings)]))
     .map(r => (r.status === 'fulfilled' ? r.value : null))
     .filter(Boolean));
-  results.sort((a, b) => (b.subscribed - a.subscribed) || ((b.platform === settings.preferred) - (a.platform === settings.preferred)));
+  results.sort((a, b) => b.subscribed - a.subscribed);
   return results;
 }
 
@@ -456,9 +455,8 @@ async function lookup(info) {
   const settings = await getSettings();
   const settled = await Promise.allSettled([lookupNebula(info, settings), lookupFloatplane(info, settings)]);
   const results = sanitizeResults(settled.map(r => (r.status === 'fulfilled' ? r.value : null)).filter(Boolean));
-  // Order: subscribed first, then video over channel, then preferred platform, then confidence.
-  results.sort((a, b) => (b.subscribed - a.subscribed) || ((b.kind === 'video') - (a.kind === 'video')) ||
-    ((b.platform === settings.preferred) - (a.platform === settings.preferred)) || (b.confidence - a.confidence));
+  // Order: subscribed first, then video over channel, then confidence.
+  results.sort((a, b) => (b.subscribed - a.subscribed) || ((b.kind === 'video') - (a.kind === 'video')) || (b.confidence - a.confidence));
   if (settled.every(r => r.status === 'fulfilled')) {
     recent.set(info.videoId, { t: Date.now(), results });
     if (recent.size > 200) recent.delete(recent.keys().next().value);

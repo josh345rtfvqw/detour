@@ -1,5 +1,5 @@
 const DEFAULTS = {
-  autoRedirect: true, newTab: false, preferred: 'nebula',
+  autoRedirect: true, newTab: false,
   showButton: true, nebulaSubscribed: false, floatplaneCreators: [],
 };
 const $ = id => document.getElementById(id);
@@ -141,7 +141,6 @@ $('resetBanners').addEventListener('click', async () => {
   bindSwitch('newTab');
   bindSwitch('showButton');
   bindRadios('mode', v => ({ autoRedirect: v === 'redirect' }), s => (s.autoRedirect ? 'redirect' : 'button'));
-  bindRadios('preferred', v => ({ preferred: v }), s => s.preferred);
   render();
   loadCreators();
 })();

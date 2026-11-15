@@ -61,7 +61,6 @@ A banner under the Subscribe button lets you know the creator is also on Nebula 
 • Tick the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
 • Choose between automatic redirects and a button
 • Open the other site in a new tab instead of leaving YouTube
-• Pick which platform wins when a video is on both
 • Light and dark themes follow YouTube and your system
 
 <b>How it works</b>

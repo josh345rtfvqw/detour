@@ -39,7 +39,6 @@ SETTINGS
 • Tick the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
 • Choose between automatic redirects and a button
 • Open the other site in a new tab instead of leaving YouTube
-• Pick which platform wins when a video is on both
 • Light and dark themes follow YouTube and your system
 
 HOW IT WORKS
@@ -130,7 +129,7 @@ Detour helps people who subscribe to Nebula or Floatplane watch YouTube videos o
 
 **storage**
 ```
-Saves the user's settings (which subscriptions they have, redirect or button mode, new-tab preference, preferred platform), a cache of Nebula and Floatplane creator and video lists so they aren't re-downloaded on every page, and the channels whose banner the user dismissed.
+Saves the user's settings (which subscriptions they have, redirect or button mode, new-tab preference), a cache of Nebula and Floatplane creator and video lists so they aren't re-downloaded on every page, and the channels whose banner the user dismissed.
 ```
 
 **declarativeNetRequestWithHostAccess**
