@@ -43,9 +43,10 @@
     background: var(--bg);
     color: var(--text);
     font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    min-width: 360px;
   }
-  .wrap { max-width: 560px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+  /* Fixed width, so the popup doesn't change size with its content. On the full options page
+     (opened in a tab) it stays centred at the same width. */
+  .wrap { box-sizing: border-box; width: 380px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
 
   header { display: flex; align-items: center; gap: 12px; }
   .logo { width: 36px; height: 36px; flex-shrink: 0; display: block; }
@@ -128,7 +129,7 @@
 
   footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   button.ghost {
-    height: 34px; padding: 0 12px; border-radius: 9px;
+    flex-shrink: 0; height: 34px; padding: 0 12px; border-radius: 9px;
     border: 1px solid var(--line); background: var(--card); color: var(--text);
     font: 500 13px system-ui, sans-serif; cursor: pointer;
   }
@@ -206,12 +207,24 @@
         </span>
         <input type="checkbox" class="switch" id="showButton" role="switch">
       </label>
+      <div class="row">
+        <span class="text">
+          <span class="title">Hidden channel banners</span>
+          <span class="desc">Show the banners you closed on channel pages again.</span>
+        </span>
+        <button type="button" class="ghost" id="resetBanners">Show again</button>
+      </div>
+      <div class="row">
+        <span class="text">
+          <span class="title">Refresh data</span>
+          <span class="desc">Download the latest creator and video lists now.</span>
+        </span>
+        <button type="button" class="ghost" id="clearCache">Refresh</button>
+      </div>
     </div>
   </section>
 
   <footer>
-    <button class="ghost" id="clearCache">Refresh data</button>
-    <button class="ghost" id="resetBanners">Show hidden banners</button>
     <span class="status" id="status" role="status"></span>
     <span class="meta"><span id="version"></span> · <a href="https://github.com/josh345rtfvqw/detour" target="_blank" rel="noopener">GitHub</a></span>
   </footer>
