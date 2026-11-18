@@ -3,6 +3,7 @@
 
 .detour-nebula     { --detour-accent: #5b5fe0; --detour-tint: rgba(28, 29, 58, .94);  --detour-tint-light: #ecedfd; }
 .detour-floatplane { --detour-accent: #0077b0; --detour-tint: rgba(11, 38, 51, .94);  --detour-tint-light: #e2f2fa; }
+.detour-clockwise  { --detour-accent: #c2410c; --detour-tint: rgba(56, 26, 12, .94);  --detour-tint-light: #fdeee4; }
 
 .detour-badges, .detour-banner, .detour-toast {
   font-family: "YouTube Sans", Roboto, Arial, sans-serif;
