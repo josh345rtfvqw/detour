@@ -36,6 +36,7 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
     headless: true, channel: 'chromium', viewport: { width: 1100, height: 700 },
     args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
   });
+  const fpRequests = []; // any request to Floatplane's API fails the test
   await ctx.route('**/*', route => {
     const u = route.request().url();
     if (u.startsWith('chrome-extension://')) return route.continue();
@@ -56,7 +57,7 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
       nebula: { creators: { realengineering: { name: 'Real Engineering', catalog: false } } },
       floatplane: { creators: { lttid: { name: 'LinusTechTips', urlname: 'linustechtips', channels: {}, catalog: false },
         l1t: { name: 'Level1Techs', urlname: 'level1techs', channels: {}, catalog: false } } } });
-    if (u.includes('floatplane')) return route.fulfill({ status: 401, body: '{}' });
+    if (u.includes('floatplane.com/api')) { fpRequests.push(u); return route.fulfill({ status: 401, body: '{}' }); }
     return route.fulfill({ status: 404, body: '' });
   });
   let [sw] = ctx.serviceWorkers(); if (!sw) sw = await ctx.waitForEvent('serviceworker');
@@ -142,17 +143,17 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
   await page.waitForSelector('.detour-banner.detour-clockwise', { timeout: 15000 });
   await page.screenshot({ path: shot('clockwise-light') });
 
-  // 8. A header rule gives the extension's own requests to Nebula / Floatplane a User-Agent of
+  // 8. A header rule gives the extension's own requests to Nebula a User-Agent of
   //    "<browser UA> Detour/<version> (+repo)". (Playwright's interception sees requests before
   //    the rule applies, so check the installed rule; the on-the-wire header was verified with a
-  //    local HTTPS server standing in for floatplane.com.)
+  //    local HTTPS server standing in for the site.)
   const version = require('../manifest.json').version;
   const rules = await sw.evaluate(() => chrome.declarativeNetRequest.getSessionRules());
   const ua = rules.find(r => r.action.requestHeaders?.[0]?.header === 'User-Agent');
   assert.ok(ua, 'User-Agent rule installed');
   assert.ok(ua.action.requestHeaders[0].value.endsWith(`Detour/${version} (+https://github.com/josh345rtfvqw/detour)`));
   assert.deepEqual(ua.condition.tabIds, [-1], 'only the extension\'s own requests, not the user\'s tabs');
-  assert.ok(['floatplane.com', 'nebula.app', 'nebula.tv'].every(d => ua.condition.requestDomains.includes(d)));
+  assert.deepEqual([...ua.condition.requestDomains].sort(), ['nebula.app', 'nebula.tv']);
   console.log('User-Agent rule:', ua.action.requestHeaders[0].value);
   // Settings popup: Floatplane creators listed from the master list, with no Floatplane login.
   const opts = await ctx.newPage();
@@ -182,6 +183,7 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
   const height = await opts.evaluate(() => document.querySelector('.wrap').getBoundingClientRect().height);
   assert.ok(height < 340, `condensed popup is about 300px tall (got ${height})`);
   console.log('refresh icon: Refreshing… -> Done -> Refresh data; version in the header; popup', Math.round(height), 'px tall');
+  assert.deepEqual(fpRequests, [], 'Detour never contacts Floatplane');
   console.log('\ne2e passed');
   await ctx.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

@@ -38,7 +38,7 @@ To run from source instead:
 
 Then click the extension icon:
 - turn on **Nebula** if you subscribe;
-- select the **Floatplane creators** you subscribe to. To list them, log in at floatplane.com first;
+- select the **Floatplane creators** you subscribe to (no Floatplane login needed);
 - choose **Redirect automatically** or **Just show a button**.
 
 ## How it finds videos
@@ -46,12 +46,12 @@ Then click the extension icon:
 | | Channel mapping | Video lookup | Login needed? |
 |---|---|---|---|
 | Nebula | Every channel in Nebula's [channel list](https://nebula.tv/explore/channels), linked to YouTube by the [creator wall](https://talent.nebula.tv/creators/) or a matching YouTube handle | Nebula's public content API (newest 100 videos, then search); falls back to Nebula's [RSS feeds](https://blog.nebula.tv/rss-feed/) | No |
-| Floatplane | The YouTube links each Floatplane creator/channel lists | Floatplane's post search | Your own floatplane.com login (browser cookies) |
+| Floatplane | The known-videos list (below) | The known-videos list and each creator's catalogue, matched locally. Detour never contacts Floatplane | No |
 | ClockwiseTV | The creators on [clockwisetv.com/creators](https://www.clockwisetv.com/creators), listed by YouTube channel ID in `data/clockwise-creators.json` and published in the master list | None (channel banner only) | No, and nothing is sent to ClockwiseTV |
 
-Requests to Nebula and Floatplane identify the extension. Floatplane asks API clients to do this.
+Requests to Nebula identify the extension.
 They use the browser's normal User-Agent with `Detour/<version> (+https://github.com/josh345rtfvqw/detour)` added on the end.
-In Chrome, a header rule applies it to the extension's own requests only. Your own browsing of those sites isn't changed.
+In Chrome, a header rule applies it to the extension's own requests only. Your own browsing of Nebula isn't changed.
 
 **Known-videos list.** Detour also downloads a master list from this repo's GitHub Pages site, [`data/known.json`](data/known.json). It checks for a new version about once an hour, and an unchanged list isn't downloaded again. The list can be updated without releasing a new extension version. An [hourly GitHub Action](.github/workflows/update-list.yml) builds it, and it's keyed by YouTube, the starting point for every lookup:
 
@@ -74,7 +74,7 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 - **Podcasts** are each linked to its creator's YouTube channel by name. When the name doesn't match, add `"creators": ["<wall slug>"]` or `"youtube": ["<channel link>"]` for that show in [`data/nebula-podcasts.json`](data/nebula-podcasts.json). A YouTube upload that's on Nebula both as a video and as a podcast episode links to the video.
 - **Hand-edited inputs:** [`data/floatplane-creators.json`](data/floatplane-creators.json), [`data/nebula-podcasts.json`](data/nebula-podcasts.json), [`data/clockwise-creators.json`](data/clockwise-creators.json) (YouTube channel ID → name for each ClockwiseTV creator) and [`data/overrides.json`](data/overrides.json), which can set or remove (`null`) a platform column for a YouTube video, or link a Nebula channel to YouTube. Saving any of these files on `main` rebuilds the list straight away.
 
-**Anonymous only.** The Action never logs in anywhere and never sends cookies or credentials. If Floatplane refuses its creator list, the Action still fetches each creator's posts using the creator IDs it already knows. If Floatplane refuses those too, Floatplane is skipped for that run and the previous data is kept. Either way, Floatplane matching also works live in each user's browser, with their own session.
+**Anonymous only.** The Action never logs in anywhere and never sends cookies or credentials. If Floatplane refuses its creator list, the Action still fetches each creator's posts using the creator IDs it already knows. If Floatplane refuses those too, Floatplane is skipped for that run and the previous data is kept. The extension itself never contacts Floatplane, so this list is its only source of Floatplane data.
 
 Confirmed matches are also remembered in the browser for 30 days, so revisits need no network requests.
 
@@ -84,8 +84,9 @@ Each video redirects at most once per tab, so pressing Back keeps you on YouTube
 
 ## Privacy
 
-Detour doesn't collect usage data. To find matches, it sends requests directly to Nebula and Floatplane.
-For creators who are on those platforms, that includes the YouTube video's title.
+Detour doesn't collect usage data. To find Nebula matches, it sends requests directly to Nebula.
+For creators who are on Nebula, that can include the YouTube video's title.
+It never contacts Floatplane: Floatplane matches come only from the known-videos list.
 Details are in [PRIVACY.md](PRIVACY.md). For help, see [SUPPORT.md](SUPPORT.md).
 
 ## Development
@@ -142,4 +143,5 @@ in Playwright's Chromium against mocked YouTube and Nebula pages.
 ## Limits
 
 - Nebula and Floatplane APIs are unofficial and can change without notice.
+- New Floatplane videos are found by the hourly list build, so they can take up to about an hour to match.
 - Videos renamed between platforms, or very old videos, may only get a channel link.

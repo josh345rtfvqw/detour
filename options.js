@@ -101,13 +101,7 @@ async function loadCreators() {
   if (!creators.length) {
     const note = document.createElement('div');
     note.className = 'empty';
-    note.innerHTML = 'Couldn’t load the creator list. Check your connection, or <a href="https://www.floatplane.com" target="_blank" rel="noopener">log in to Floatplane</a>.';
-    $('fpList').append(note);
-  } else if (creators.every(c => c.builtin)) {
-    // Only the master list's creators: say so, and how to get the full live list.
-    const note = document.createElement('div');
-    note.className = 'empty';
-    note.innerHTML = 'Showing known creators. <a href="https://www.floatplane.com" target="_blank" rel="noopener">Log in to Floatplane</a> to see everyone.';
+    note.textContent = 'Couldn’t load the creator list. Check your connection and refresh.';
     $('fpList').append(note);
   }
 }
