@@ -7,6 +7,7 @@ const DEFAULTS = {
   newTab: false,
   showButton: true,
   nebulaSubscribed: false,
+  clockwiseSubscribed: false,
   floatplaneCreators: [], // Floatplane creator IDs the user says they subscribe to
 };
 const DAY = 24 * 3600 * 1000;
@@ -389,28 +390,26 @@ async function channelOnFloatplane(info, settings) {
 }
 
 // ClockwiseTV (clockwisetv.com) is a curated video app for kids 8-12, on iOS and Android only.
-// It has no web player and no public video links, so Detour only notes on a creator's channel
-// page that they're on it, linking to ClockwiseTV's creator page. Its creators come from the
-// master list's channels table (clockwise: true). No requests are made to ClockwiseTV.
-// Shown like any platform the user doesn't subscribe to: only with "Show other platforms too".
+// It has no web player and no public video links, so its matches are always channel matches
+// (never a redirect), linking to ClockwiseTV's creators page. Its creators come from the master
+// list's channels table (clockwise: true). No requests are made to ClockwiseTV.
 const CLOCKWISE_URL = 'https://www.clockwisetv.com/creators';
-async function channelOnClockwise(info) {
+async function channelOnClockwise(info, settings) {
   const creators = (await masterOrEmpty()).clockwise.channels;
   // By channel ID; by name only when the page gave no ID.
   const author = normalizeName(info.author);
   const name = info.channelId ? creators[info.channelId]
     : Object.values(creators).find(n => author && normalizeName(n) === author);
   if (!name) return null;
-  return { platform: 'clockwise', kind: 'channel', url: CLOCKWISE_URL, creator: name, subscribed: false, confidence: 0 };
+  return { platform: 'clockwise', kind: 'channel', url: CLOCKWISE_URL, creator: name, subscribed: settings.clockwiseSubscribed, confidence: 0 };
 }
 
 async function lookupChannel(info) {
   const settings = await getSettings();
-  const results = sanitizeResults((await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings), channelOnClockwise(info)]))
+  const results = sanitizeResults((await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings), channelOnClockwise(info, settings)]))
     .map(r => (r.status === 'fulfilled' ? r.value : null))
     .filter(Boolean));
-  // Subscribed first; ClockwiseTV (app only, nothing to watch in the browser) last.
-  results.sort((a, b) => (b.subscribed - a.subscribed) || ((a.platform === 'clockwise') - (b.platform === 'clockwise')));
+  results.sort((a, b) => b.subscribed - a.subscribed);
   return results;
 }
 
@@ -426,7 +425,7 @@ async function lookup(info) {
   const hit = recent.get(info.videoId);
   if (hit && Date.now() - hit.t < RECENT_TTL) return hit.results;
   const settings = await getSettings();
-  const settled = await Promise.allSettled([lookupNebula(info, settings), lookupFloatplane(info, settings)]);
+  const settled = await Promise.allSettled([lookupNebula(info, settings), lookupFloatplane(info, settings), channelOnClockwise(info, settings)]);
   const results = sanitizeResults(settled.map(r => (r.status === 'fulfilled' ? r.value : null)).filter(Boolean));
   // Order: subscribed first, then video over channel, then confidence.
   results.sort((a, b) => (b.subscribed - a.subscribed) || ((b.kind === 'video') - (a.kind === 'video')) || (b.confidence - a.confidence));

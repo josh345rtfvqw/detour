@@ -39,28 +39,28 @@ If `detour` is free, use it. Otherwise use the slug above.
 ### Summary (max 250)
 
 ```
-See when a YouTube video or channel is also on Nebula or Floatplane, and watch it there instead: a button next to the video title, or an automatic redirect if you subscribe.
+See when a YouTube video or channel is also on Nebula, Floatplane or ClockwiseTV, and watch it there instead: a button next to the video title, or an automatic redirect if you subscribe.
 ```
 
-(173 characters)
+(186 characters)
 
 ### Description
 
 AMO supports basic formatting in this field: line breaks, bullet lists and links.
 
 ```
-Detour shows when a YouTube video or channel is also on Nebula or Floatplane, and links to it there.
+Detour shows when a YouTube video or channel is also on Nebula, Floatplane or ClockwiseTV, and links to it there.
 
 <b>On a video</b>
 A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe to that platform, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
 
 <b>On a channel</b>
-A banner under the Subscribe button lets you know the creator is also on Nebula or Floatplane, with a link to their channel there.
+A banner under the Subscribe button lets you know the creator is also on Nebula, Floatplane or ClockwiseTV. If you subscribe there, it links to their channel. If you don't, an "About" button opens the platform's homepage.
 
-It also notes creators who are on ClockwiseTV, a curated video app for kids aged 8 to 12 (iPhone, iPad and Android), with a link to ClockwiseTV's creators page. ClockwiseTV has no web player, so this is a note only, never a redirect.
+ClockwiseTV is a curated video app for kids aged 8 to 12, on iPhone, iPad and Android. It has no web player, so Detour links to ClockwiseTV's creators page and never redirects there.
 
 <b>Settings</b>
-• Select the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
+• Select the subscriptions you have: Nebula, ClockwiseTV, and the Floatplane creators you subscribe to
 • Choose between automatic redirects and a button
 • Open the other site in a new tab instead of leaving YouTube
 • Light and dark themes follow YouTube and your system

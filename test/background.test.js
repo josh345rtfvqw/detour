@@ -162,8 +162,8 @@ const TL = { channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', author: 'TechLinked', profil
   assert.equal(r.results[0]?.url, 'https://nebula.tv/tomandfriends');
   console.log('ok  creator wall parsed (entities, title-link fallback, name match)');
 
-  // 11b. ClockwiseTV: channel banner for the master list's ClockwiseTV creators (by channel ID, or
-  //      name without one), never subscribed, no requests to ClockwiseTV.
+  // 11b. ClockwiseTV: channel matches for the master list's ClockwiseTV creators (by channel ID, or
+  //      name without one), subscribed per its setting, no requests to ClockwiseTV.
   const cwMaster = { version: 3, videos: {}, nebula: { creators: {} }, floatplane: { creators: {} }, channels: {
     UCRFIPG2u1DxKLNuE3y2SjHA: { name: 'SciShow Kids', clockwise: true },
     'UCSju5G2aFaWMqn-_0YBtq5A': { name: 'Stand-up Maths', clockwise: true },
@@ -179,12 +179,19 @@ const TL = { channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', author: 'TechLinked', profil
   r = await env.send({ type: 'lookupChannel', info: { channelId: 'UCyyyyyyyyyyyyyyyyyyyyyy', author: 'Not Clockwise' } });
   assert.equal(r.results.length, 0, 'only clockwise: true counts');
   assert.ok(!env.calls.some(c => c.url.includes('clockwisetv')), 'no requests to ClockwiseTV');
+  // Video pages: a channel match (ClockwiseTV has no video links), so never a redirect.
   r = await env.send({ type: 'lookup', info: { videoId: 'cw000000001', title: 'Why Do We Sneeze?', channelId: 'UCRFIPG2u1DxKLNuE3y2SjHA', author: 'SciShow Kids' } });
-  assert.equal(r.results.length, 0, 'video pages get no ClockwiseTV chip');
+  assert.deepEqual(r.results.map(x => [x.platform, x.kind, x.url, x.subscribed]), [['clockwise', 'channel', 'https://www.clockwisetv.com/creators', false]]);
+  // Subscribing (the ClockwiseTV switch) marks its matches subscribed, like Nebula's switch.
+  env = makeEnv({ clockwiseSubscribed: true }, [[MASTER_RE, cwMaster], [/nebula|talent/, new Error()], [/floatplane/, new Error()]]);
+  r = await env.send({ type: 'lookupChannel', info: { channelId: 'UCRFIPG2u1DxKLNuE3y2SjHA', author: 'SciShow Kids' } });
+  assert.equal(r.results[0].subscribed, true);
+  r = await env.send({ type: 'lookup', info: { videoId: 'cw000000002', title: 'Why Do We Sneeze?', channelId: 'UCRFIPG2u1DxKLNuE3y2SjHA', author: 'SciShow Kids' } });
+  assert.ok(r.results[0].subscribed && r.results[0].kind === 'channel', 'subscribed, but still a channel match: no redirect');
   env = makeEnv({}, [[/nebula|talent|github\.io/, new Error()], [/floatplane/, new Error()]]);
   r = await env.send({ type: 'lookupChannel', info: { channelId: 'UCRFIPG2u1DxKLNuE3y2SjHA', author: 'SciShow Kids' } });
   assert.equal(r.results.length, 0, 'no master list -> no ClockwiseTV banner, nothing breaks');
-  console.log('ok  ClockwiseTV channel banner from the master list (by ID, or by name without one)');
+  console.log('ok  ClockwiseTV channel matches from the master list (by ID / name, subscription switch)');
   // ---- security / bug-fix regressions ----
 
   // 12. A javascript: link from Nebula's API never reaches YouTube (video result dropped).

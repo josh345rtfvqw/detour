@@ -1,6 +1,6 @@
 const DEFAULTS = {
   autoRedirect: true, newTab: false,
-  showButton: true, nebulaSubscribed: false, floatplaneCreators: [],
+  showButton: true, nebulaSubscribed: false, clockwiseSubscribed: false, floatplaneCreators: [],
 };
 const $ = id => document.getElementById(id);
 let settings;
@@ -15,6 +15,7 @@ async function save(patch) {
 // Things that depend on more than one setting.
 function render() {
   $('nebulaRow').classList.toggle('active', settings.nebulaSubscribed);
+  $('clockwiseRow').classList.toggle('active', settings.clockwiseSubscribed);
   const n = settings.floatplaneCreators.length;
   $('fpCount').textContent = n ? `${n} selected` : '';
   $('fpRow').classList.toggle('active', n > 0);
@@ -142,6 +143,7 @@ $('clearCache').addEventListener('click', async () => {
   settings = { ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)) };
   $('version').textContent = `v${chrome.runtime.getManifest().version}`;
   bindSwitch('nebulaSubscribed');
+  bindSwitch('clockwiseSubscribed');
   bindSwitch('newTab');
   bindSwitch('showButton');
   bindRadios('mode', v => ({ autoRedirect: v === 'redirect' }), s => (s.autoRedirect ? 'redirect' : 'button'));

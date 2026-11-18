@@ -1,19 +1,21 @@
 # Detour
 
-*Watch YouTube videos on Nebula & Floatplane instead.*
+*Watch YouTube videos on Nebula, Floatplane & ClockwiseTV instead.*
 
 A Chrome/Firefox extension. On a YouTube video page it checks whether the same video
-is on **Nebula** or **Floatplane**. Then it either:
+is on **Nebula**, **Floatplane** or **ClockwiseTV**. Then it either:
 
 - **redirects automatically**, if you've said you subscribe there (3-second countdown with a "Stay on YouTube" option), or
 - **shows a "Watch on Nebula / Floatplane" button** next to the video title.
 
-On **channel pages** it shows a banner under the Subscribe button when the channel is on Nebula or Floatplane.
-It also notes channels whose creators are on **ClockwiseTV**, a curated video app for kids aged 8 to 12.
-ClockwiseTV runs on iPhone, iPad and Android only and has no web player, so that banner just links to
-[its creators page](https://www.clockwisetv.com/creators). It never redirects, and it shows only when
-**Show other platforms too** is on.
+On **channel pages** it shows a banner under the Subscribe button when the channel is on Nebula, Floatplane or ClockwiseTV.
+If you subscribe there, the banner's button opens the creator on that platform. If you don't, it's an
+**About** button that opens the platform's homepage.
 Colours follow the platform and YouTube's light or dark theme.
+
+**ClockwiseTV** is a curated video app for kids aged 8 to 12, on iPhone, iPad and Android. It has no web
+player, so its matches are always channel matches: a link to [its creators page](https://www.clockwisetv.com/creators),
+never a redirect.
 
 You pick which in the settings. If the video itself can't be matched, but the channel is on
 the platform, you get a link to the channel instead. Channel-only matches never auto-redirect.
@@ -37,7 +39,7 @@ To run from source instead:
 3. If YouTube shows nothing, open the add-on's permissions in `about:addons` and allow all sites it lists.
 
 Then click the extension icon:
-- turn on **Nebula** if you subscribe;
+- turn on **Nebula** and **ClockwiseTV** if you subscribe;
 - select the **Floatplane creators** you subscribe to (no Floatplane login needed);
 - choose **Redirect automatically** or **Just show a button**.
 

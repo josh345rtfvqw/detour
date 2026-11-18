@@ -1,11 +1,14 @@
 // Content script on YouTube.
 // Video pages: ask the background whether the video is on Nebula/Floatplane, then either
 // auto-redirect or show a chip next to Like / Share. Channel pages: show a banner if the
-// channel is on one of them, or on ClockwiseTV (a kids' app: a note only, never a redirect).
+// channel is on one of them. ClockwiseTV (a kids' app with no web player) only ever has channel
+// matches, so it never redirects.
 (() => {
   const SKIP_KEY = 'detourSkip';
   const NAMES = { nebula: 'Nebula', floatplane: 'Floatplane', clockwise: 'ClockwiseTV' };
   const MARKS = { nebula: 'N', floatplane: 'F', clockwise: 'C' };
+  // Each platform's homepage, for the banner's "About" button when you don't subscribe there.
+  const HOMES = { nebula: 'https://nebula.tv/', floatplane: 'https://www.floatplane.com/', clockwise: 'https://www.clockwisetv.com/' };
   const CHANNEL_PATH = /^\/(@[^/]+|channel\/UC[\w-]+|c\/[^/]+|user\/[^/]+)(\/|$)/;
 
   let currentKey = null;
@@ -247,17 +250,16 @@
     };
     let last = null;
     for (const r of results) {
-      // ClockwiseTV is an app only: the banner says so and links to its creators page.
-      const app = r.platform === 'clockwise';
-      const sub = app ? 'A curated, ad-free video app for kids 8–12, on iPhone, iPad and Android.'
-        : r.subscribed ? 'You subscribe there, so you can watch their videos without ads.'
-        : `Their videos are on ${NAMES[r.platform]} too.`;
+      // Subscribed: open the creator there. Not subscribed: "About <platform>" opens its homepage.
+      const name = NAMES[r.platform];
+      const sub = r.subscribed ? 'You subscribe there, so you can watch their videos without ads.' : `Their videos are on ${name} too.`;
+      const action = r.subscribed ? { href: r.url, label: `Open on ${name}` } : { href: HOMES[r.platform], label: `About ${name}` };
       const banner = el('div', { class: `detour-banner detour-${r.platform}`, role: 'region', 'aria-label': `${NAMES[r.platform]} link` },
         mark(r.platform, 'detour-mark-lg'),
         el('div', { class: 'detour-text' },
           el('span', { class: 'detour-title' }, `${info.author || r.creator} is also on ${NAMES[r.platform]}`),
           el('span', { class: 'detour-sub' }, sub)),
-        el('a', { class: 'detour-action', href: r.url, target: '_blank', rel: 'noopener' }, app ? 'About ClockwiseTV' : `Open on ${NAMES[r.platform]}`, svg(ICON_OUT, 14)));
+        el('a', { class: 'detour-action', href: action.href, target: '_blank', rel: 'noopener' }, action.label, svg(ICON_OUT, 14)));
       if (last) last.after(banner); // keep multiple banners in order
       else place(banner);
       last = banner;

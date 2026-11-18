@@ -18,6 +18,8 @@
     --nebula-tint: #ecedfd;
     --floatplane: #0077b0;
     --floatplane-tint: #e2f2fa;
+    --clockwise: #c2410c;
+    --clockwise-tint: #fdeee4;
     --on: #3b5bdb;
     --shadow: 0 1px 2px rgba(20, 20, 30, .06), 0 1px 1px rgba(20, 20, 30, .04);
   }
@@ -32,6 +34,7 @@
       --focus: #8ea2ff;
       --nebula-tint: #1c1d3a;
       --floatplane-tint: #0b2633;
+      --clockwise-tint: #381a0c;
       --on: #6f84ff;
       --shadow: none;
     }
@@ -68,8 +71,10 @@
   }
   .mark.nebula { background: var(--nebula); }
   .mark.floatplane { background: var(--floatplane); }
+  .mark.clockwise { background: var(--clockwise); }
   .platform.nebula.active { background: var(--nebula-tint); }
   .platform.floatplane.active { background: var(--floatplane-tint); }
+  .platform.clockwise.active { background: var(--clockwise-tint); }
 
   /* Switch: a real checkbox, restyled. */
   input.switch {
@@ -86,6 +91,7 @@
   input.switch:checked { background: var(--on); }
   input.switch.nebula:checked { background: var(--nebula); }
   input.switch.floatplane:checked { background: var(--floatplane); }
+  input.switch.clockwise:checked { background: var(--clockwise); }
   input.switch:checked::after { transform: translateX(16px); }
   input.switch:disabled { opacity: .45; cursor: default; }
   input:focus-visible, button:focus-visible, a:focus-visible, .seg label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -177,6 +183,11 @@
       </div>
       <div id="fpList" role="group" aria-label="Floatplane creators"><div class="empty">Loading creators…</div></div>
     </div>
+    <label class="row platform clockwise" id="clockwiseRow">
+      <span class="mark clockwise" aria-hidden="true">C</span>
+      <span class="label">ClockwiseTV</span>
+      <input type="checkbox" class="switch clockwise" id="clockwiseSubscribed" role="switch" aria-label="I subscribe to ClockwiseTV">
+    </label>
   </section>
 
   <section class="card" aria-label="Settings">
