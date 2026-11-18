@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Detour: Nebula & Floatplane for YouTube",
+  "name": "Detour: Nebula, Floatplane & ClockwiseTV",
   "short_name": "Detour",
-  "version": "0.7.0",
-  "description": "See when a YouTube video is also on Nebula or Floatplane, and open it there, automatically if you subscribe.",
+  "version": "0.7.1",
+  "description": "See when a YouTube video is on Nebula or Floatplane and open it there, plus which creators are on ClockwiseTV, the kids' app.",
   "permissions": [
     "storage",
     "declarativeNetRequestWithHostAccess"
