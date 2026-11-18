@@ -67,7 +67,7 @@ A banner under the Subscribe button lets you know the creator is also on Nebula 
 Detour matches the YouTube channel to the creator's Nebula or Floatplane channel, then compares video titles and release dates to find the same video. If the exact video can't be found, you get a link to the creator's channel instead, and Detour doesn't redirect.
 
 <b>Privacy</b>
-Detour sends requests to Nebula and Floatplane only for creators who are on those services. It doesn't collect usage data, and your Floatplane login stays with floatplane.com. Firefox will ask you to allow this when you install, because Detour sends the titles of those creators' videos to Nebula and Floatplane to find matches.
+Detour sends requests to Nebula only for creators who are on Nebula. It never contacts Floatplane or uses your Floatplane login: Floatplane matches come from Detour's own list of known videos. It doesn't collect usage data. Firefox will ask you to allow this when you install, because Detour sends the titles of those creators' videos to Nebula to find matches.
 
 <b>Source code</b>
 <a href="https://github.com/josh345rtfvqw/detour">github.com/josh345rtfvqw/detour</a>
@@ -99,7 +99,7 @@ youtube, nebula, floatplane, video, redirect, creators
 
 ### Privacy policy
 
-AMO asks for the policy as **text**, not a link. Paste the text of [`PRIVACY.md`](../PRIVACY.md), the same policy published at https://josh345rtfvqw.github.io/detour/PRIVACY.html. It covers what's sent to Nebula and Floatplane, what's stored, and that there's no server or analytics. That matches the `browsingActivity` and `websiteContent` data collection declared in the manifest.
+AMO asks for the policy as **text**, not a link. Paste the text of [`PRIVACY.md`](../PRIVACY.md), the same policy published at https://josh345rtfvqw.github.io/detour/PRIVACY.html. It covers what's sent to Nebula (nothing is sent to Floatplane), what's stored, and that there's no server or analytics. That matches the `browsingActivity` and `websiteContent` data collection declared in the manifest.
 
 ### "Requires payment, non-free services or software"
 
@@ -119,19 +119,18 @@ HOW TO TEST (no account needed)
 2. Open a YouTube video from a creator on Nebula (for example a recent Real Engineering, Wendover Productions or Half as Interesting upload). A "Watch on Nebula" chip appears at the right of the video title.
 3. Open that creator's YouTube channel page: a banner appears under the Subscribe button.
 4. Switch the popup to "Redirect me" and open another of their videos: a 3-second countdown appears, then the Nebula page opens. Pressing Back stays on YouTube.
-Floatplane matching uses the user's floatplane.com session for the creator list; without logging in, Detour's own creator list (downloaded from its GitHub Pages site) is used and links go to channels.
+Floatplane works the same way with no login: select a creator in the popup. The extension never contacts floatplane.com; Floatplane creators and matches come only from Detour's own list on its GitHub Pages site.
 
 NETWORK REQUESTS (all from the background script, all disclosed in the privacy policy)
 - talent.nebula.tv/creators: Nebula's public creator list (YouTube channel ID -> Nebula channel).
 - content.api.nebula.app and rss.nebula.app: public video lists and search for the matched creator. The YouTube video title is sent to search.
-- www.floatplane.com/api/v3/...: creator list and post search for the matched creator (YouTube video title as the search term), with the user's existing floatplane.com cookies.
-- josh345rtfvqw.github.io/detour/data/known.json (and data/nebula/<slug>.json, data/floatplane/<id>.json catalogues for the creator being watched): the extension's own list of known YouTube -> Nebula/Floatplane matches, video catalogues and Floatplane creators (GitHub Pages, CORS-readable, so no host permission). Data only, never code; every URL in it is validated. No user data is sent; when a video is in the list, nothing is sent to Nebula/Floatplane for it.
-Nothing is sent anywhere else, and nothing is sent for creators who aren't on Nebula or Floatplane.
+- josh345rtfvqw.github.io/detour/data/known.json (and data/nebula/<slug>.json, data/floatplane/<id>.json catalogues for the creator being watched): the extension's own list of known YouTube -> Nebula/Floatplane matches, video catalogues and Floatplane creators (GitHub Pages, CORS-readable, so no host permission). Data only, never code; every URL in it is validated. No user data is sent; when a video is in the list, nothing is sent to Nebula for it. This is the only source of Floatplane data.
+Nothing is sent anywhere else (in particular, nothing to Floatplane), and nothing is sent for creators who aren't on Nebula or Floatplane.
 
 PERMISSIONS
 - storage: settings and cached creator/video lists.
-- declarativeNetRequestWithHostAccess: one session rule that sets User-Agent to "<browser UA> Detour/<version> (+repo URL)" on the extension's own requests (tabIds: [-1]) to floatplane.com / nebula.app / nebula.tv, as Floatplane asks API clients to identify themselves. In Firefox, fetch() also sets it directly. User browsing is not modified.
-- Host permissions: youtube.com (content script UI), and the Nebula / Floatplane hosts above.
+- declarativeNetRequestWithHostAccess: one session rule that sets User-Agent to "<browser UA> Detour/<version> (+repo URL)" on the extension's own requests (tabIds: [-1]) to nebula.app / nebula.tv. In Firefox, fetch() also sets it directly. User browsing is not modified.
+- Host permissions: youtube.com (content script UI), and the Nebula hosts above. No Floatplane host permission.
 
 SECURITY NOTES
 - Only https links to nebula.tv / nebula.app / floatplane.com are ever inserted into YouTube or navigated to (safeUrl() in background.js); anything else from an API response is dropped.
@@ -139,7 +138,7 @@ SECURITY NOTES
 - page.js runs in YouTube's MAIN world only to read the player's video details (title, channel ID), and talks to the content script via window.postMessage with a nonce.
 
 DATA COLLECTION
-data_collection_permissions declares browsingActivity and websiteContent (required), because the video title and matched-creator requests go to Nebula/Floatplane to provide the core feature.
+data_collection_permissions declares browsingActivity and websiteContent (required), because the video title and matched-creator requests go to Nebula to provide the core feature.
 ```
 
 ---
@@ -165,7 +164,7 @@ AMO has no promo tiles.
 ## 5. Version notes (for v0.4.0)
 
 ```
-• Known-videos list: thousands of YouTube videos already matched to their Nebula and Floatplane versions, updated hourly, so most matches are instant and need no requests to Nebula or Floatplane
+• Known-videos list: thousands of YouTube videos already matched to their Nebula and Floatplane versions, updated hourly, so most matches are instant and need no requests to Nebula
 • Full video catalogues for Nebula and Floatplane creators, downloaded only for the creators you watch, so older videos match too
 • All 20 Floatplane creators matched to their YouTube channels
 • Confirmed matches are remembered for 30 days

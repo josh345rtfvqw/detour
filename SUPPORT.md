@@ -19,9 +19,9 @@ It helps to include:
 
 Detour couldn't confidently match the video's title, so it links to the channel instead. It never redirects on a guess. Titles sometimes differ between YouTube and the other platform.
 
-### I only see a few Floatplane creators
+### A Floatplane creator is missing from the list
 
-Log in at [floatplane.com](https://www.floatplane.com), then reopen the Detour popup. Without a login, Detour shows the creators in its own list, which is updated hourly.
+Detour's Floatplane creators come from its own list, which is updated hourly. Detour doesn't contact Floatplane or use your Floatplane login, so logging in there makes no difference. If a creator is missing, [open an issue](https://github.com/josh345rtfvqw/detour/issues).
 
 ### It redirected me when I didn't want it to
 
