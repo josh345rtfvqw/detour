@@ -25,7 +25,7 @@ Fields for [addons.mozilla.org/developers](https://addons.mozilla.org/developers
 ### Name (max 50)
 
 ```
-Detour: Nebula, Floatplane & ClockwiseTV
+Detour: YouTube videos where you subscribe
 ```
 
 ### Add-on URL

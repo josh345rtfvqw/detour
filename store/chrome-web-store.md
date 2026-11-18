@@ -9,10 +9,10 @@ Copy each field into the Chrome Web Store Developer Dashboard. Character limits 
 ### Name (max 75)
 
 ```
-Detour: Nebula, Floatplane & ClockwiseTV
+Detour: YouTube videos where you subscribe
 ```
 
-The name comes from the manifest, so it's already set in the package. It names the platforms for search, which describes what the extension works with without suggesting it's made by them. It fits Firefox Add-ons' 50-character limit too, as both stores use the manifest's name. The description's last line says Detour isn't affiliated with any of them. The toolbar and popup still say "Detour" (the manifest's `short_name`).
+The name comes from the manifest, so it's already set in the package. It's deliberately generic: Detour works with six platforms (and counting), which don't fit in a name, so the summary and description name them instead. It fits Firefox Add-ons' 50-character limit too, as both stores use the manifest's name, and doesn't need changing when a platform is added. The description's last line says Detour isn't affiliated with any of the platforms. The toolbar and popup still say "Detour" (the manifest's `short_name`).
 
 ### Summary (max 132)
 

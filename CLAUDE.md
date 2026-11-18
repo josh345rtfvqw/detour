@@ -18,8 +18,9 @@ the same terms. Whenever a platform is added or changed, give it the full treatm
   keyed by YouTube channel ID, with any hand-edited input listed in the builder's header comment and
   in the update workflow's `paths`. Links it builds pass `safeUrl()` (add its host to `ALLOWED_HOSTS`).
 - **Words:** name it alongside the others everywhere they're listed: README, `index.html`,
-  `PRIVACY.md`, the store listings in `store/`, the manifest's name and description, release notes,
-  and the "not affiliated with" lines.
+  `PRIVACY.md`, the store listings in `store/`, the manifest's description (the store summary,
+  max 132 characters), release notes, and the "not affiliated with" lines. The manifest's name stays
+  generic ("Detour: YouTube videos where you subscribe") and doesn't list platforms.
 - **Tests and images:** unit tests in `test/background.test.js` (and `test/build-known.test.js` for
   list changes), e2e checks in `test/e2e.js`, and regenerated store images
   (`PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 node store/assets/make-store-images.js`).

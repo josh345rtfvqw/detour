@@ -1,6 +1,6 @@
 {
   "name": "detour",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "private": true,
   "description": "See when a YouTube video or channel is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon, and open it there.",
   "license": "MIT",
