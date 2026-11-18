@@ -74,7 +74,7 @@ English
 Upload the screenshots in this order:
 1. **Watch it where you already subscribe:** the "Watch on Nebula" chip next to the video title.
 2. **Or go there automatically:** the redirect countdown.
-3. **Find creators' channels too:** the channel-page banner.
+3. **Find creators' channels too:** the channel-page banners (Nebula, then ClockwiseTV).
 4. **Nebula and Floatplane:** the Floatplane chip, in light theme.
 5. **You decide how it works:** the settings popup.
 
