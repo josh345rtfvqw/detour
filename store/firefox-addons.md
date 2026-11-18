@@ -153,7 +153,7 @@ data_collection_permissions declares browsingActivity and websiteContent (requir
 These are the same five screenshots as for Chrome. Suggested captions, which AMO shows under each one:
 1. "Watch on Nebula" appears right next to the video title.
 2. Subscribers can be redirected automatically, with a countdown.
-3. Channel pages link to the creator on Nebula or Floatplane.
+3. Channel pages link to the creator on Nebula, Floatplane or ClockwiseTV.
 4. Works with Nebula and Floatplane, in light and dark themes.
 5. Select your subscriptions and choose redirects or just a button.
 

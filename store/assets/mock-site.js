@@ -100,19 +100,18 @@ async function installMockSite(ctx) {
     // Detour's own list (known.json): made-up creators, so the settings popup has a full list.
     if (u.includes('github.io/detour/data/known.json')) return json(route, {
       version: 3, videos: {},
-      channels: { [NEB_ID]: { name: 'Example Engineering', nebula: 'exampleengineering' }, [FP_ID]: { name: 'Example Labs', floatplane: 'exlabs' } },
+      channels: { [NEB_ID]: { name: 'Example Engineering', nebula: 'exampleengineering', clockwise: true }, [FP_ID]: { name: 'Example Labs', floatplane: 'exlabs' } },
       nebula: { creators: { exampleengineering: { name: 'Example Engineering', catalog: false } } },
       floatplane: { creators: Object.fromEntries([['exlabs', 'Example Labs'], ['benchnotes', 'Bench Notes'], ['circuitcorner', 'Circuit Corner'],
         ['garagebuilds', 'Garage Builds'], ['retrorigs', 'Retro Rigs'], ['sounddesk', 'Sound Desk'], ['trailmix', 'Trail Mix'], ['workshopweekly', 'Workshop Weekly']]
-        .map(([id, name]) => [id, { name, urlname: id, channels: {}, catalog: false }])) },
+        .map(([id, name]) => [id, { name, urlname: id, channels: {}, catalog: id === 'exlabs' }])) },
     });
     if (u.includes('/content/exampleengineering/')) return json(route, { id: 'c1' });
     if (u.includes('video_channels/c1/video_episodes')) return json(route, { results: [
       { title: 'Why Bridges Don’t Collapse (Most of the Time)', published_at: '2026-11-04', share_url: 'https://nebula.tv/videos/exampleengineering-bridges' },
       { title: 'The Hidden Engineering of Tunnels', published_at: '2026-10-20', share_url: 'https://nebula.tv/videos/exampleengineering-tunnels' }] });
-    if (u.includes('floatplane.com/api/v3/creator/list')) return json(route, [
-      { id: 'exlabs', title: 'Example Labs', urlname: 'examplelabs', socialLinks: { youtube: `https://www.youtube.com/channel/${FP_ID}` }, channels: [] }]);
-    if (u.includes('floatplane.com/api/v3/content/creator')) return json(route, [{ id: 'p1', title: 'I Built the Quietest PC Possible', releaseDate: '2026-11-03' }]);
+    // Example Labs' Floatplane catalogue from Detour's list (Detour never contacts Floatplane).
+    if (u.includes('github.io/detour/data/floatplane/exlabs.json')) return json(route, [{ i: 'p1', t: 'I Built the Quietest PC Possible', d: '2026-11-03' }]);
     if (u.includes('nebula.tv/videos/')) return html(route, '<body style="background:#0d0d14"></body>');
     return route.fulfill({ status: 404, body: '' });
   });

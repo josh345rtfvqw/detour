@@ -68,10 +68,10 @@ p{margin:-22px 0 0;font-size:20px;color:#c9cbe0;text-align:center}
   await page.waitForSelector('.detour-toast');
   await shoot(page, 'redirect');
 
-  // 3. Channel page banner
+  // 3. Channel page banners (Nebula, then ClockwiseTV)
   await settings({ autoRedirect: false });
   await page.goto('https://www.youtube.com/@ExampleEngineering');
-  await page.waitForSelector('.detour-banner');
+  await page.waitForSelector('.detour-banner.detour-clockwise');
   await page.waitForTimeout(400);
   await shoot(page, 'channel');
 
@@ -105,7 +105,7 @@ p{margin:-22px 0 0;font-size:20px;color:#c9cbe0;text-align:center}
   const items = [
     ['1-video', { headline: 'Watch it where you already subscribe', sub: 'A “Watch on Nebula” button appears right next to the video title.', shot: shots.video, ...full }],
     ['2-redirect', { headline: 'Or go there automatically', sub: 'Subscribers can be redirected, with a countdown and a “Stay on YouTube” option.', shot: shots.redirect, ...full }],
-    ['3-channel', { headline: 'Find creators’ channels too', sub: 'A banner on the channel page links to the creator on Nebula or Floatplane.', shot: shots.channel, ...full }],
+    ['3-channel', { headline: 'Find creators’ channels too', sub: 'Banners on the channel page link to the creator on Nebula, Floatplane or ClockwiseTV.', shot: shots.channel, ...full }],
     ['4-floatplane', { headline: 'Nebula and Floatplane', sub: 'Works with both, in YouTube’s light and dark themes.', shot: shots.floatplane, ...full }],
     ['5-settings', { headline: 'You decide how it works', sub: 'Select your subscriptions, then choose redirects or just a button.', shot: shots.settings, ...popupSize, popup: true }],
   ];
