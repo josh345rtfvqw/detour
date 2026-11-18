@@ -1,8 +1,11 @@
 const DEFAULTS = {
   autoRedirect: true, newTab: false,
-  showButton: true, nebulaSubscribed: false, clockwiseSubscribed: false, floatplaneCreators: [],
+  showButton: true, nebulaSubscribed: false, floatplaneCreators: [],
+  clockwiseSubscribed: false, secondtrySubscribed: false, watchertvSubscribed: false, beaconSubscribed: false,
 };
 const $ = id => document.getElementById(id);
+// Platforms with a single subscription switch (Floatplane has a per-creator list instead).
+const SWITCH_PLATFORMS = ['nebula', 'clockwise', 'secondtry', 'watchertv', 'beacon'];
 let settings;
 
 async function save(patch) {
@@ -14,8 +17,7 @@ async function save(patch) {
 
 // Things that depend on more than one setting.
 function render() {
-  $('nebulaRow').classList.toggle('active', settings.nebulaSubscribed);
-  $('clockwiseRow').classList.toggle('active', settings.clockwiseSubscribed);
+  for (const p of SWITCH_PLATFORMS) $(`${p}Row`).classList.toggle('active', settings[`${p}Subscribed`]);
   const n = settings.floatplaneCreators.length;
   $('fpCount').textContent = n ? `${n} selected` : '';
   $('fpRow').classList.toggle('active', n > 0);
@@ -142,8 +144,7 @@ $('clearCache').addEventListener('click', async () => {
 (async () => {
   settings = { ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)) };
   $('version').textContent = `v${chrome.runtime.getManifest().version}`;
-  bindSwitch('nebulaSubscribed');
-  bindSwitch('clockwiseSubscribed');
+  SWITCH_PLATFORMS.forEach(p => bindSwitch(`${p}Subscribed`));
   bindSwitch('newTab');
   bindSwitch('showButton');
   bindRadios('mode', v => ({ autoRedirect: v === 'redirect' }), s => (s.autoRedirect ? 'redirect' : 'button'));

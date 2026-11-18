@@ -39,28 +39,30 @@ If `detour` is free, use it. Otherwise use the slug above.
 ### Summary (max 250)
 
 ```
-See when a YouTube video or channel is also on Nebula, Floatplane or ClockwiseTV, and watch it there instead: a button next to the video title, or an automatic redirect if you subscribe.
+See when a YouTube video or channel is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon, and watch it there instead: a button next to the video title, or an automatic redirect if you subscribe.
 ```
 
-(186 characters)
+(214 characters)
 
 ### Description
 
 AMO supports basic formatting in this field: line breaks, bullet lists and links.
 
 ```
-Detour shows when a YouTube video or channel is also on Nebula, Floatplane or ClockwiseTV, and links to it there.
+Detour shows when a YouTube video or channel is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon, and links to it there.
 
 <b>On a video</b>
 A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe to that platform, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
 
 <b>On a channel</b>
-A banner under the Subscribe button lets you know the creator is also on Nebula, Floatplane or ClockwiseTV. If you subscribe there, it links to their channel. If you don't, an "About" button opens the platform's homepage.
+A banner under the Subscribe button lets you know the creator is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon. If you subscribe there, it links to their channel. If you don't, an "About" button opens the platform's homepage.
 
 ClockwiseTV is a curated video app for kids aged 8 to 12, on iPhone, iPad and Android. It has no web player, so Detour links to ClockwiseTV's creators page and never redirects there.
 
+2nd try (The Try Guys), WatcherTV (Watcher) and Beacon (Critical Role) are the creators' own streaming services. Detour links to them from the creator's channel, and never redirects there.
+
 <b>Settings</b>
-• Select the subscriptions you have: Nebula, ClockwiseTV, and the Floatplane creators you subscribe to
+• Select the subscriptions you have: Nebula, ClockwiseTV, 2nd try, WatcherTV, Beacon, and the Floatplane creators you subscribe to
 • Choose between automatic redirects and a button
 • Open the other site in a new tab instead of leaving YouTube
 • Light and dark themes follow YouTube and your system
@@ -74,7 +76,7 @@ Detour sends requests to Nebula only for creators who are on Nebula. It never co
 <b>Source code</b>
 <a href="https://github.com/josh345rtfvqw/detour">github.com/josh345rtfvqw/detour</a>
 
-Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula, Floatplane or ClockwiseTV.
+Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon.
 ```
 
 ### Categories (pick up to 2)
@@ -155,7 +157,7 @@ data_collection_permissions declares browsingActivity and websiteContent (requir
 These are the same five screenshots as for Chrome. Suggested captions, which AMO shows under each one:
 1. "Watch on Nebula" appears right next to the video title.
 2. Subscribers can be redirected automatically, with a countdown.
-3. Channel pages link to the creator on Nebula, Floatplane or ClockwiseTV.
+3. Channel pages link to the creator on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon.
 4. Works with Nebula and Floatplane, in light and dark themes.
 5. Select your subscriptions and choose redirects or just a button.
 

@@ -179,7 +179,7 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
   assert.ok(await opts.$eval('#fpSub', e => e.hidden), 'Floatplane list starts closed');
   const [nebH, fpH] = await opts.$$eval('#nebulaRow, #fpRow', els => els.map(e => e.clientHeight)); // without the divider line
   assert.equal(fpH, nebH, 'closed Floatplane row is the same height as the Nebula row');
-  assert.equal(await opts.$eval('#clockwiseRow', e => e.clientHeight), nebH, 'ClockwiseTV row is the same height as the Nebula row');
+  for (const p of ['clockwise', 'secondtry', 'watchertv', 'beacon']) assert.equal(await opts.$eval(`#${p}Row`, e => e.clientHeight), nebH, `${p} row is the same height as the Nebula row`);
   await opts.click('#clockwiseSubscribed');
   assert.ok(await opts.$eval('#clockwiseRow', e => e.classList.contains('active')), 'ClockwiseTV row tinted when switched on');
   assert.equal(await sw.evaluate(() => chrome.storage.sync.get('clockwiseSubscribed').then(o => o.clockwiseSubscribed)), true);
@@ -201,7 +201,7 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
   assert.ok(await opts.$eval('header #version', e => /^v\d/.test(e.textContent)), 'version shown next to the title');
   await opts.click('#fpRow'); // close the Floatplane list again
   const height = await opts.evaluate(() => document.querySelector('.wrap').getBoundingClientRect().height);
-  assert.ok(height < 390, `condensed popup is about 345px tall (got ${height})`);
+  assert.ok(height < 520, `condensed popup is about 480px tall (got ${height})`);
   console.log('refresh icon: Refreshing… -> Done -> Refresh data; version in the header; popup', Math.round(height), 'px tall');
   assert.deepEqual(fpRequests, [], 'Detour never contacts Floatplane');
   console.log('\ne2e passed');

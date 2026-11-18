@@ -8,6 +8,9 @@ const DEFAULTS = {
   showButton: true,
   nebulaSubscribed: false,
   clockwiseSubscribed: false,
+  secondtrySubscribed: false,
+  watchertvSubscribed: false,
+  beaconSubscribed: false,
   floatplaneCreators: [], // Floatplane creator IDs the user says they subscribe to
 };
 const DAY = 24 * 3600 * 1000;
@@ -15,10 +18,10 @@ const NEBULA_API = 'https://content.api.nebula.app';
 const NEBULA_HEADERS = { 'Accept': 'application/json', 'Nebula-Platform': 'web' };
 const FP = 'https://www.floatplane.com';
 
-// Every link Detour puts on YouTube must be an https link to Nebula or Floatplane. Links come
+// Every link Detour puts on YouTube must be an https link to one of its platforms. Links come
 // from Nebula's API / RSS and the master list, so a bad or spoofed response could otherwise
 // inject e.g. a javascript: URL that runs on youtube.com when clicked or auto-redirected to.
-const ALLOWED_HOSTS = new Set(['nebula.tv', 'www.nebula.tv', 'nebula.app', 'www.nebula.app', 'floatplane.com', 'www.floatplane.com', 'www.clockwisetv.com']);
+const ALLOWED_HOSTS = new Set(['nebula.tv', 'www.nebula.tv', 'nebula.app', 'www.nebula.app', 'floatplane.com', 'www.floatplane.com', 'www.clockwisetv.com', 'www.2ndtry.tv', 'watchertv.com', 'beacon.tv']);
 function safeUrl(url) {
   try {
     const u = new URL(url);
@@ -26,6 +29,21 @@ function safeUrl(url) {
   } catch { return null; }
 }
 const sanitizeResults = results => results.map(r => ({ ...r, url: safeUrl(r.url) })).filter(r => r.url);
+
+// Channel-link platforms: ones Detour links to at the channel level only, never to a video, so
+// their matches never redirect. Their creators come from the master list's channels table
+// (<platform>: true), keyed by YouTube channel ID; no requests are made to these platforms.
+//   clockwise  ClockwiseTV, a curated video app for kids 8-12 (iOS/Android, no web player)
+//   secondtry  2nd try, The Try Guys' ad-free, uncensored streaming service
+//   watchertv  WatcherTV, Watcher's service (episodes a month before YouTube)
+//   beacon     Beacon, Critical Role's membership service (ad-free, earlier VODs)
+// The value is where "Open on <platform>" goes for a subscriber.
+const CHANNEL_PLATFORMS = {
+  clockwise: 'https://www.clockwisetv.com/creators',
+  secondtry: 'https://www.2ndtry.tv/',
+  watchertv: 'https://watchertv.com/',
+  beacon: 'https://beacon.tv/',
+};
 
 // Identify Detour (and its version) to Nebula, the only service it sends requests to:
 // the browser's own User-Agent with "Detour/<version> (+repo URL)" appended.
@@ -115,13 +133,14 @@ const str = v => (typeof v === 'string' ? v : '');
 
 // Master list, version 3. Keyed by YouTube, the anchor for every lookup:
 //   videos   { "<YouTube video ID>":   { nebula: "<video slug>" | "<podcast>/<episode>", floatplane: "<post id>" } }
-//   channels { "<YouTube channel ID>": { name, nebula: "<slug>", floatplane: "<creator id>[/<channel id>]", clockwise: true } }
+//   channels { "<YouTube channel ID>": { name, nebula: "<slug>", floatplane: "<creator id>[/<channel id>]", clockwise: true, ... } }
+//     (clockwise, secondtry, watchertv, beacon: true when the creator is on that channel-link platform)
 //   nebula.creators { "<slug>": { name, catalog } }
 //   floatplane.creators { "<creator id>": { name, urlname, channels: { "<id>": { name, urlname } }, catalog } }
 // It holds IDs only. Links are built here, and every ID is validated before use. The result
 // uses the same shapes the lookups already work with:
 //   nebula / floatplane: { videos: { yt: url }, creators: [...], catalogs: [...] }
-//   clockwise: { channels: { "<YouTube channel ID>": name } }
+//   clockwise / secondtry / watchertv / beacon: { channels: { "<YouTube channel ID>": name } }
 function parseMasterV3(d) {
   const videos = { nebula: {}, floatplane: {} };
   for (const [id, row] of Object.entries(isObj(d.videos) ? d.videos : {})) {
@@ -132,12 +151,13 @@ function parseMasterV3(d) {
   }
 
   // channels table: YouTube channel ID per Nebula slug / Floatplane creator or sub-channel.
-  const nebYt = {}, fpYt = {}, clockwise = {};
+  const nebYt = {}, fpYt = {};
+  const linked = Object.fromEntries(Object.keys(CHANNEL_PLATFORMS).map(p => [p, {}]));
   for (const [uc, row] of Object.entries(isObj(d.channels) ? d.channels : {})) {
     if (!YT_CHANNEL_ID.test(uc) || !isObj(row)) continue;
     if (SLUG.test(str(row.nebula))) nebYt[row.nebula] = uc;
     if (/^\w{1,64}(\/\w{1,64})?$/.test(str(row.floatplane))) (fpYt[row.floatplane] ||= []).push(`https://www.youtube.com/channel/${uc}`);
-    if (row.clockwise === true && str(row.name)) clockwise[uc] = row.name;
+    for (const p in linked) if (row[p] === true && str(row.name)) linked[p][uc] = row.name;
   }
 
   const nebCreators = Object.entries(isObj(d.nebula?.creators) ? d.nebula.creators : {})
@@ -155,7 +175,7 @@ function parseMasterV3(d) {
   return {
     nebula: { videos: videos.nebula, creators: nebCreators, catalogs: nebCreators.filter(c => c.catalog).map(c => c.slug) },
     floatplane: { videos: videos.floatplane, creators: fpCreators, catalogs: fpCreators.filter(c => c.catalog).map(c => c.id) },
-    clockwise: { channels: clockwise },
+    ...Object.fromEntries(Object.entries(linked).map(([p, channels]) => [p, { channels }])),
   };
 }
 
@@ -170,7 +190,7 @@ function loadMaster() {
     return parseMasterV3(d);
   });
 }
-const EMPTY_MASTER = { nebula: { videos: {}, creators: null, catalogs: [] }, floatplane: { videos: {}, creators: null, catalogs: [] }, clockwise: { channels: {} } };
+const EMPTY_MASTER = { nebula: { videos: {}, creators: null, catalogs: [] }, floatplane: { videos: {}, creators: null, catalogs: [] }, ...Object.fromEntries(Object.keys(CHANNEL_PLATFORMS).map(p => [p, { channels: {} }])) };
 const masterOrEmpty = () => loadMaster().catch(() => EMPTY_MASTER);
 
 // A creator's full video catalogue from the master list (data/nebula/<slug>.json or
@@ -389,24 +409,20 @@ async function channelOnFloatplane(info, settings) {
   return { platform: 'floatplane', kind: 'channel', url: fpChannelUrl(c, hit.channel), creator: c.title, subscribed: isFpSubscribed(c, settings.floatplaneCreators), confidence: 0 };
 }
 
-// ClockwiseTV (clockwisetv.com) is a curated video app for kids 8-12, on iOS and Android only.
-// It has no web player and no public video links, so its matches are always channel matches
-// (never a redirect), linking to ClockwiseTV's creators page. Its creators come from the master
-// list's channels table (clockwise: true). No requests are made to ClockwiseTV.
-const CLOCKWISE_URL = 'https://www.clockwisetv.com/creators';
-async function channelOnClockwise(info, settings) {
-  const creators = (await masterOrEmpty()).clockwise.channels;
+async function channelLinkMatch(platform, info, settings) {
+  const creators = (await masterOrEmpty())[platform].channels;
   // By channel ID; by name only when the page gave no ID.
   const author = normalizeName(info.author);
   const name = info.channelId ? creators[info.channelId]
     : Object.values(creators).find(n => author && normalizeName(n) === author);
   if (!name) return null;
-  return { platform: 'clockwise', kind: 'channel', url: CLOCKWISE_URL, creator: name, subscribed: settings.clockwiseSubscribed, confidence: 0 };
+  return { platform, kind: 'channel', url: CHANNEL_PLATFORMS[platform], creator: name, subscribed: !!settings[`${platform}Subscribed`], confidence: 0 };
 }
+const channelLinkMatches = (info, settings) => Object.keys(CHANNEL_PLATFORMS).map(p => channelLinkMatch(p, info, settings));
 
 async function lookupChannel(info) {
   const settings = await getSettings();
-  const results = sanitizeResults((await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings), channelOnClockwise(info, settings)]))
+  const results = sanitizeResults((await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings), ...channelLinkMatches(info, settings)]))
     .map(r => (r.status === 'fulfilled' ? r.value : null))
     .filter(Boolean));
   results.sort((a, b) => b.subscribed - a.subscribed);
@@ -425,7 +441,7 @@ async function lookup(info) {
   const hit = recent.get(info.videoId);
   if (hit && Date.now() - hit.t < RECENT_TTL) return hit.results;
   const settings = await getSettings();
-  const settled = await Promise.allSettled([lookupNebula(info, settings), lookupFloatplane(info, settings), channelOnClockwise(info, settings)]);
+  const settled = await Promise.allSettled([lookupNebula(info, settings), lookupFloatplane(info, settings), ...channelLinkMatches(info, settings)]);
   const results = sanitizeResults(settled.map(r => (r.status === 'fulfilled' ? r.value : null)).filter(Boolean));
   // Order: subscribed first, then video over channel, then confidence.
   results.sort((a, b) => (b.subscribed - a.subscribed) || ((b.kind === 'video') - (a.kind === 'video')) || (b.confidence - a.confidence));
@@ -450,7 +466,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     // page is blocked as a popup.
     if (msg.type === 'openTab') {
       const url = safeUrl(msg.url);
-      if (!url) throw new Error('refused to open a URL outside Nebula, Floatplane or ClockwiseTV');
+      if (!url) throw new Error('refused to open a URL outside Detour\'s platforms');
       await chrome.tabs.create({ url, active: true });
       return { ok: true };
     }

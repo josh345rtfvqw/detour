@@ -4,6 +4,9 @@
 .detour-nebula     { --detour-accent: #5b5fe0; --detour-tint: rgba(28, 29, 58, .94);  --detour-tint-light: #ecedfd; }
 .detour-floatplane { --detour-accent: #0077b0; --detour-tint: rgba(11, 38, 51, .94);  --detour-tint-light: #e2f2fa; }
 .detour-clockwise  { --detour-accent: #c2410c; --detour-tint: rgba(56, 26, 12, .94);  --detour-tint-light: #fdeee4; }
+.detour-secondtry  { --detour-accent: #be185d; --detour-tint: rgba(58, 14, 34, .94);  --detour-tint-light: #fce7f3; }
+.detour-watchertv  { --detour-accent: #15803d; --detour-tint: rgba(12, 44, 24, .94);  --detour-tint-light: #dcfce7; }
+.detour-beacon     { --detour-accent: #0f766e; --detour-tint: rgba(8, 40, 38, .94);   --detour-tint-light: #ccfbf1; }
 
 .detour-badges, .detour-banner, .detour-toast {
   font-family: "YouTube Sans", Roboto, Arial, sans-serif;

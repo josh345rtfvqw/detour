@@ -2,7 +2,7 @@
 
 ## Platforms are equals
 
-Nebula, Floatplane and ClockwiseTV are equal platforms, and any platform added later joins them on
+Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV and Beacon are equal platforms, and any platform added later joins them on
 the same terms. Whenever a platform is added or changed, give it the full treatment the others have:
 
 - **Settings:** its own subscription row in the popup (`options.html` / `options.js`), with a mark,

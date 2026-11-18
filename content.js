@@ -1,14 +1,17 @@
 // Content script on YouTube.
 // Video pages: ask the background whether the video is on Nebula/Floatplane, then either
 // auto-redirect or show a chip next to Like / Share. Channel pages: show a banner if the
-// channel is on one of them. ClockwiseTV (a kids' app with no web player) only ever has channel
-// matches, so it never redirects.
+// channel is on one of them. Channel-link platforms (ClockwiseTV, 2nd try, WatcherTV, Beacon) only
+// ever have channel matches, so they never redirect.
 (() => {
   const SKIP_KEY = 'detourSkip';
-  const NAMES = { nebula: 'Nebula', floatplane: 'Floatplane', clockwise: 'ClockwiseTV' };
-  const MARKS = { nebula: 'N', floatplane: 'F', clockwise: 'C' };
+  const NAMES = { nebula: 'Nebula', floatplane: 'Floatplane', clockwise: 'ClockwiseTV', secondtry: '2nd try', watchertv: 'WatcherTV', beacon: 'Beacon' };
+  const MARKS = { nebula: 'N', floatplane: 'F', clockwise: 'C', secondtry: '2', watchertv: 'W', beacon: 'B' };
   // Each platform's homepage, for the banner's "About" button when you don't subscribe there.
-  const HOMES = { nebula: 'https://nebula.tv/', floatplane: 'https://www.floatplane.com/', clockwise: 'https://www.clockwisetv.com/' };
+  const HOMES = {
+    nebula: 'https://nebula.tv/', floatplane: 'https://www.floatplane.com/', clockwise: 'https://www.clockwisetv.com/',
+    secondtry: 'https://www.2ndtry.tv/', watchertv: 'https://watchertv.com/', beacon: 'https://beacon.tv/',
+  };
   const CHANNEL_PATH = /^\/(@[^/]+|channel\/UC[\w-]+|c\/[^/]+|user\/[^/]+)(\/|$)/;
 
   let currentKey = null;

@@ -192,6 +192,25 @@ const TL = { channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', author: 'TechLinked', profil
   r = await env.send({ type: 'lookupChannel', info: { channelId: 'UCRFIPG2u1DxKLNuE3y2SjHA', author: 'SciShow Kids' } });
   assert.equal(r.results.length, 0, 'no master list -> no ClockwiseTV banner, nothing breaks');
   console.log('ok  ClockwiseTV channel matches from the master list (by ID / name, subscription switch)');
+
+  // 11c. 2nd try, WatcherTV and Beacon work exactly like ClockwiseTV: channel matches from the
+  //      master list, each with its own subscription switch and link, never a redirect.
+  const linkMaster = { version: 3, videos: {}, nebula: { creators: {} }, floatplane: { creators: {} }, channels: {
+    UCpi8TJfiA4lKGkaXs__YdBA: { name: 'The Try Guys', secondtry: true },
+    'UCircJf-FlToBNjuy9xG-i5A': { name: 'Watcher', watchertv: true },
+    UCpXBGqwsBkpvcYjsJBQ7LEQ: { name: 'Critical Role', beacon: true } } };
+  env = makeEnv({ beaconSubscribed: true }, [[MASTER_RE, linkMaster], [/nebula|talent/, new Error()], [/floatplane/, new Error()]]);
+  for (const [uc, author, platform, url, subscribed] of [
+    ['UCpi8TJfiA4lKGkaXs__YdBA', 'The Try Guys', 'secondtry', 'https://www.2ndtry.tv/', false],
+    ['UCircJf-FlToBNjuy9xG-i5A', 'Watcher', 'watchertv', 'https://watchertv.com/', false],
+    ['UCpXBGqwsBkpvcYjsJBQ7LEQ', 'Critical Role', 'beacon', 'https://beacon.tv/', true]]) {
+    r = await env.send({ type: 'lookupChannel', info: { channelId: uc, author } });
+    assert.deepEqual(r.results.map(x => [x.platform, x.kind, x.url, x.subscribed]), [[platform, 'channel', url, subscribed]], author);
+    r = await env.send({ type: 'lookup', info: { videoId: `vid${platform}`.padEnd(11, '0').slice(0, 11), title: 'Some video', channelId: uc, author } });
+    assert.deepEqual(r.results.map(x => [x.platform, x.kind]), [[platform, 'channel']], `${author} video page: channel match only`);
+  }
+  assert.ok(!env.calls.some(c => /2ndtry|watchertv|beacon\.tv/.test(c.url)), 'no requests to these platforms');
+  console.log('ok  2nd try, WatcherTV and Beacon channel matches (own switches, never a redirect)');
   // ---- security / bug-fix regressions ----
 
   // 12. A javascript: link from Nebula's API never reaches YouTube (video result dropped).
