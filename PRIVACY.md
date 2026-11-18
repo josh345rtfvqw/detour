@@ -29,6 +29,8 @@ Detour sends nothing to Floatplane. The Floatplane creators shown in its setting
 
 Floatplane only learns that you came from Detour if you open a Floatplane link, like any link you click.
 
+To keep that list up to date, an automated job in Detour's GitHub repository requests Floatplane's public creator and post lists about once an hour, from GitHub's servers. It runs without any login or cookies and has nothing to do with any user, so nothing about you or what you watch is ever part of it.
+
 ### Detour's list of known videos
 
 About once an hour, Detour checks for a new version of its list of known matches from its own website: `https://josh345rtfvqw.github.io/detour/data/known.json`, which GitHub Pages hosts.
