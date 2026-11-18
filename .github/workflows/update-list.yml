@@ -21,6 +21,9 @@ on:
       - data/overrides.json
       - data/nebula-podcasts.json
       - data/clockwise-creators.json
+      - data/secondtry-creators.json
+      - data/watchertv-creators.json
+      - data/beacon-creators.json
       - scripts/build-known.js
       - scripts/build-known.js
       - match.js

@@ -1,8 +1,8 @@
 {
   "name": "detour",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
-  "description": "See when a YouTube video is on Nebula or Floatplane and open it there, plus which creators are on ClockwiseTV, the kids' app.",
+  "description": "See when a YouTube video or channel is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon, and open it there.",
   "license": "MIT",
   "scripts": {
     "test": "node test/background.test.js && node test/build-known.test.js",

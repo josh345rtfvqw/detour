@@ -18,6 +18,14 @@
     --nebula-tint: #ecedfd;
     --floatplane: #0077b0;
     --floatplane-tint: #e2f2fa;
+    --clockwise: #c2410c;
+    --clockwise-tint: #fdeee4;
+    --secondtry: #be185d;
+    --secondtry-tint: #fce7f3;
+    --watchertv: #15803d;
+    --watchertv-tint: #dcfce7;
+    --beacon: #0f766e;
+    --beacon-tint: #ccfbf1;
     --on: #3b5bdb;
     --shadow: 0 1px 2px rgba(20, 20, 30, .06), 0 1px 1px rgba(20, 20, 30, .04);
   }
@@ -32,6 +40,10 @@
       --focus: #8ea2ff;
       --nebula-tint: #1c1d3a;
       --floatplane-tint: #0b2633;
+      --clockwise-tint: #381a0c;
+      --secondtry-tint: #3a0e22;
+      --watchertv-tint: #0c2c18;
+      --beacon-tint: #082826;
       --on: #6f84ff;
       --shadow: none;
     }
@@ -68,8 +80,16 @@
   }
   .mark.nebula { background: var(--nebula); }
   .mark.floatplane { background: var(--floatplane); }
+  .mark.clockwise { background: var(--clockwise); }
+  .mark.secondtry { background: var(--secondtry); }
+  .mark.watchertv { background: var(--watchertv); }
+  .mark.beacon { background: var(--beacon); }
   .platform.nebula.active { background: var(--nebula-tint); }
   .platform.floatplane.active { background: var(--floatplane-tint); }
+  .platform.clockwise.active { background: var(--clockwise-tint); }
+  .platform.secondtry.active { background: var(--secondtry-tint); }
+  .platform.watchertv.active { background: var(--watchertv-tint); }
+  .platform.beacon.active { background: var(--beacon-tint); }
 
   /* Switch: a real checkbox, restyled. */
   input.switch {
@@ -86,6 +106,10 @@
   input.switch:checked { background: var(--on); }
   input.switch.nebula:checked { background: var(--nebula); }
   input.switch.floatplane:checked { background: var(--floatplane); }
+  input.switch.clockwise:checked { background: var(--clockwise); }
+  input.switch.secondtry:checked { background: var(--secondtry); }
+  input.switch.watchertv:checked { background: var(--watchertv); }
+  input.switch.beacon:checked { background: var(--beacon); }
   input.switch:checked::after { transform: translateX(16px); }
   input.switch:disabled { opacity: .45; cursor: default; }
   input:focus-visible, button:focus-visible, a:focus-visible, .seg label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -177,6 +201,26 @@
       </div>
       <div id="fpList" role="group" aria-label="Floatplane creators"><div class="empty">Loading creators…</div></div>
     </div>
+    <label class="row platform clockwise" id="clockwiseRow">
+      <span class="mark clockwise" aria-hidden="true">C</span>
+      <span class="label">ClockwiseTV</span>
+      <input type="checkbox" class="switch clockwise" id="clockwiseSubscribed" role="switch" aria-label="I subscribe to ClockwiseTV">
+    </label>
+    <label class="row platform secondtry" id="secondtryRow">
+      <span class="mark secondtry" aria-hidden="true">2</span>
+      <span class="label">2nd try</span>
+      <input type="checkbox" class="switch secondtry" id="secondtrySubscribed" role="switch" aria-label="I subscribe to 2nd try">
+    </label>
+    <label class="row platform watchertv" id="watchertvRow">
+      <span class="mark watchertv" aria-hidden="true">W</span>
+      <span class="label">WatcherTV</span>
+      <input type="checkbox" class="switch watchertv" id="watchertvSubscribed" role="switch" aria-label="I subscribe to WatcherTV">
+    </label>
+    <label class="row platform beacon" id="beaconRow">
+      <span class="mark beacon" aria-hidden="true">B</span>
+      <span class="label">Beacon</span>
+      <input type="checkbox" class="switch beacon" id="beaconSubscribed" role="switch" aria-label="I subscribe to Beacon">
+    </label>
   </section>
 
   <section class="card" aria-label="Settings">

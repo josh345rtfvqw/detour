@@ -1,19 +1,25 @@
 # Detour
 
-*Watch YouTube videos on Nebula & Floatplane instead.*
+*Watch YouTube videos on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV & Beacon instead.*
 
 A Chrome/Firefox extension. On a YouTube video page it checks whether the same video
-is on **Nebula** or **Floatplane**. Then it either:
+is on **Nebula**, **Floatplane**, **ClockwiseTV**, **2nd try**, **WatcherTV** or **Beacon**. Then it either:
 
 - **redirects automatically**, if you've said you subscribe there (3-second countdown with a "Stay on YouTube" option), or
 - **shows a "Watch on Nebula / Floatplane" button** next to the video title.
 
-On **channel pages** it shows a banner under the Subscribe button when the channel is on Nebula or Floatplane.
-It also notes channels whose creators are on **ClockwiseTV**, a curated video app for kids aged 8 to 12.
-ClockwiseTV runs on iPhone, iPad and Android only and has no web player, so that banner just links to
-[its creators page](https://www.clockwisetv.com/creators). It never redirects, and it shows only when
-**Show other platforms too** is on.
+On **channel pages** it shows a banner under the Subscribe button when the channel is on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon.
+If you subscribe there, the banner's button opens the creator on that platform. If you don't, it's an
+**About** button that opens the platform's homepage.
 Colours follow the platform and YouTube's light or dark theme.
+
+**ClockwiseTV** is a curated video app for kids aged 8 to 12, on iPhone, iPad and Android. It has no web
+player, so its matches are always channel matches: a link to [its creators page](https://www.clockwisetv.com/creators),
+never a redirect.
+
+**2nd try** (The Try Guys), **WatcherTV** (Watcher) and **Beacon** (Critical Role) are the creators' own
+streaming services, with ad-free, uncut or earlier versions of their YouTube videos. Detour links to them
+at the channel level for now, so they never redirect either.
 
 You pick which in the settings. If the video itself can't be matched, but the channel is on
 the platform, you get a link to the channel instead. Channel-only matches never auto-redirect.
@@ -37,7 +43,7 @@ To run from source instead:
 3. If YouTube shows nothing, open the add-on's permissions in `about:addons` and allow all sites it lists.
 
 Then click the extension icon:
-- turn on **Nebula** if you subscribe;
+- turn on **Nebula**, **ClockwiseTV**, **2nd try**, **WatcherTV** and **Beacon** if you subscribe;
 - select the **Floatplane creators** you subscribe to (no Floatplane login needed);
 - choose **Redirect automatically** or **Just show a button**.
 
@@ -48,6 +54,9 @@ Then click the extension icon:
 | Nebula | Every channel in Nebula's [channel list](https://nebula.tv/explore/channels), linked to YouTube by the [creator wall](https://talent.nebula.tv/creators/) or a matching YouTube handle | Nebula's public content API (newest 100 videos, then search); falls back to Nebula's [RSS feeds](https://blog.nebula.tv/rss-feed/) | No |
 | Floatplane | The known-videos list (below) | The known-videos list and each creator's catalogue, matched locally. Detour never contacts Floatplane | No |
 | ClockwiseTV | The creators on [clockwisetv.com/creators](https://www.clockwisetv.com/creators), listed by YouTube channel ID in `data/clockwise-creators.json` and published in the master list | None (channel banner only) | No, and nothing is sent to ClockwiseTV |
+| 2nd try | The Try Guys's YouTube channel, listed in `data/secondtry-creators.json` and published in the master list | None (channel link only) | No, and nothing is sent to 2nd try |
+| WatcherTV | Watcher's YouTube channel, listed in `data/watchertv-creators.json` and published in the master list | None (channel link only) | No, and nothing is sent to WatcherTV |
+| Beacon | Critical Role's YouTube channel, listed in `data/beacon-creators.json` and published in the master list | None (channel link only) | No, and nothing is sent to Beacon |
 
 Requests to Nebula identify the extension.
 They use the browser's normal User-Agent with `Detour/<version> (+https://github.com/josh345rtfvqw/detour)` added on the end.
@@ -72,7 +81,7 @@ In Chrome, a header rule applies it to the extension's own requests only. Your o
 - **Creator catalogues** hold every video of every Nebula channel (`data/nebula/<slug>.json`), every episode of every Nebula podcast (`data/nebula-podcasts/<slug>.json`), and every video post of every Floatplane creator (`data/floatplane/<id>.json`). The first run pulls each creator's whole history, and later runs only add newer videos. The extension downloads a creator's catalogue when you watch them and matches locally, without contacting Nebula or Floatplane.
 - **Matching** works the same way for both platforms. Each creator's latest YouTube uploads, from YouTube's public RSS feeds, are matched by title and date against their catalogue. Floatplane's YouTube links (`@handles`, `/user/…`) are resolved to channel IDs once and remembered in [`data/youtube-channels.json`](data/youtube-channels.json).
 - **Podcasts** are each linked to its creator's YouTube channel by name. When the name doesn't match, add `"creators": ["<wall slug>"]` or `"youtube": ["<channel link>"]` for that show in [`data/nebula-podcasts.json`](data/nebula-podcasts.json). A YouTube upload that's on Nebula both as a video and as a podcast episode links to the video.
-- **Hand-edited inputs:** [`data/floatplane-creators.json`](data/floatplane-creators.json), [`data/nebula-podcasts.json`](data/nebula-podcasts.json), [`data/clockwise-creators.json`](data/clockwise-creators.json) (YouTube channel ID → name for each ClockwiseTV creator) and [`data/overrides.json`](data/overrides.json), which can set or remove (`null`) a platform column for a YouTube video, or link a Nebula channel to YouTube. Saving any of these files on `main` rebuilds the list straight away.
+- **Hand-edited inputs:** [`data/floatplane-creators.json`](data/floatplane-creators.json), [`data/nebula-podcasts.json`](data/nebula-podcasts.json), `data/<platform>-creators.json` for ClockwiseTV, 2nd try, WatcherTV and Beacon (YouTube channel ID → name for each of their creators) and [`data/overrides.json`](data/overrides.json), which can set or remove (`null`) a platform column for a YouTube video, or link a Nebula channel to YouTube. Saving any of these files on `main` rebuilds the list straight away.
 
 **Anonymous only.** The Action never logs in anywhere and never sends cookies or credentials. If Floatplane refuses its creator list, the Action still fetches each creator's posts using the creator IDs it already knows. If Floatplane refuses those too, Floatplane is skipped for that run and the previous data is kept. The extension itself never contacts Floatplane, so this list is its only source of Floatplane data.
 

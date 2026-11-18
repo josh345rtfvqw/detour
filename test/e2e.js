@@ -130,18 +130,33 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
 
   assert.equal(await page.$('.detour-banner .detour-close, .detour-banner button'), null, 'banner has no close button');
 
-  // 7. ClockwiseTV creator -> app-only banner linking to ClockwiseTV's creators page, no Nebula one.
+  // 7. ClockwiseTV creator, not subscribed -> banner whose "About ClockwiseTV" opens its homepage.
   await page.goto('https://www.youtube.com/@scishowkids');
   await page.waitForSelector('.detour-banner.detour-clockwise', { timeout: 15000 });
   const cw = await page.$$eval('.detour-banner', bs => bs.map(b => ({ cls: b.className, text: b.textContent, href: b.querySelector('a').href })));
   console.log('ClockwiseTV banner:', JSON.stringify(cw));
   assert.equal(cw.length, 1);
-  assert.equal(cw[0].href, 'https://www.clockwisetv.com/creators');
+  assert.equal(cw[0].href, 'https://www.clockwisetv.com/', 'not subscribed: About ClockwiseTV opens its homepage');
   assert.ok(cw[0].text.includes('SciShow Kids is also on ClockwiseTV') && cw[0].text.includes('About ClockwiseTV'));
   await page.screenshot({ path: shot('clockwise-dark') });
   await page.goto('https://www.youtube.com/@scishowkids/videos');
   await page.waitForSelector('.detour-banner.detour-clockwise', { timeout: 15000 });
   await page.screenshot({ path: shot('clockwise-light') });
+  // Subscribed (its settings switch, like Nebula's) -> "Open on ClockwiseTV", the creators page.
+  await sw.evaluate(() => chrome.storage.sync.set({ clockwiseSubscribed: true }));
+  await page.goto('https://www.youtube.com/@scishowkids');
+  await page.waitForSelector('.detour-banner.detour-clockwise', { timeout: 15000 });
+  const cwSub = await page.$eval('.detour-banner.detour-clockwise', b => ({ text: b.textContent, href: b.querySelector('a').href }));
+  assert.ok(cwSub.text.includes('You subscribe there') && cwSub.text.includes('Open on ClockwiseTV'), cwSub.text);
+  assert.equal(cwSub.href, 'https://www.clockwisetv.com/creators');
+  // Nebula, not subscribed -> "About Nebula", Nebula's homepage.
+  await sw.evaluate(() => chrome.storage.sync.set({ nebulaSubscribed: false, clockwiseSubscribed: false }));
+  await page.goto('https://www.youtube.com/@RealEngineering');
+  await page.waitForSelector('.detour-banner.detour-nebula', { timeout: 15000 });
+  const neb = await page.$eval('.detour-banner.detour-nebula', b => ({ text: b.textContent, href: b.querySelector('a').href }));
+  assert.ok(neb.text.includes('About Nebula'), neb.text);
+  assert.equal(neb.href, 'https://nebula.tv/');
+  console.log('About buttons when not subscribed; Open on … when subscribed');
 
   // 8. A header rule gives the extension's own requests to Nebula a User-Agent of
   //    "<browser UA> Detour/<version> (+repo)". (Playwright's interception sees requests before
@@ -164,6 +179,11 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
   assert.ok(await opts.$eval('#fpSub', e => e.hidden), 'Floatplane list starts closed');
   const [nebH, fpH] = await opts.$$eval('#nebulaRow, #fpRow', els => els.map(e => e.clientHeight)); // without the divider line
   assert.equal(fpH, nebH, 'closed Floatplane row is the same height as the Nebula row');
+  for (const p of ['clockwise', 'secondtry', 'watchertv', 'beacon']) assert.equal(await opts.$eval(`#${p}Row`, e => e.clientHeight), nebH, `${p} row is the same height as the Nebula row`);
+  await opts.click('#clockwiseSubscribed');
+  assert.ok(await opts.$eval('#clockwiseRow', e => e.classList.contains('active')), 'ClockwiseTV row tinted when switched on');
+  assert.equal(await sw.evaluate(() => chrome.storage.sync.get('clockwiseSubscribed').then(o => o.clockwiseSubscribed)), true);
+  await opts.click('#clockwiseSubscribed');
   await opts.click('#fpRow');
   await opts.waitForSelector('#fpList .creator');
   assert.equal(await opts.$eval('#fpRow', e => e.getAttribute('aria-expanded')), 'true');
@@ -181,7 +201,7 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
   assert.ok(await opts.$eval('header #version', e => /^v\d/.test(e.textContent)), 'version shown next to the title');
   await opts.click('#fpRow'); // close the Floatplane list again
   const height = await opts.evaluate(() => document.querySelector('.wrap').getBoundingClientRect().height);
-  assert.ok(height < 340, `condensed popup is about 300px tall (got ${height})`);
+  assert.ok(height < 520, `condensed popup is about 480px tall (got ${height})`);
   console.log('refresh icon: Refreshing… -> Done -> Refresh data; version in the header; popup', Math.round(height), 'px tall');
   assert.deepEqual(fpRequests, [], 'Detour never contacts Floatplane');
   console.log('\ne2e passed');
