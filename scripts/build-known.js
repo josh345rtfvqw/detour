@@ -5,7 +5,7 @@
 // data/known.json (version 3) is keyed by YouTube, the anchor for every lookup:
 //   counts     totals for checking at a glance (videos, creators, channels); not used by the extension
 //   videos     { "<YouTube video ID>":   { nebula: "<video slug>" | "<podcast>/<episode>", floatplane: "<post id>" } }
-//   channels   { "<YouTube channel ID>": { name, nebula: "<channel slug>", floatplane: "<creator id>[/<channel id>]" } }
+//   channels   { "<YouTube channel ID>": { name, nebula: "<channel slug>", floatplane: "<creator id>[/<channel id>]", clockwise: true } }
 //   nebula.creators      { "<slug>": { name, catalog } }                  reference data
 //   nebula.podcasts      { "<podcast slug>": { name, catalog } }
 //   floatplane.creators  { "<creator id>": { name, urlname, channels: { "<id>": { name, urlname } }, catalog } }
@@ -31,7 +31,11 @@
 // (@handles, /user/…) are resolved to channel IDs once and remembered in
 // data/youtube-channels.json. Unresolvable links are logged and left out.
 //
-// Inputs edited by hand: data/floatplane-creators.json, data/overrides.json, data/nebula-podcasts.json
+// Inputs edited by hand: data/floatplane-creators.json, data/overrides.json, data/nebula-podcasts.json,
+// data/clockwise-creators.json
+//   clockwise-creators: { "<YouTube channel ID>": "<name>" }, the creators on ClockwiseTV
+//   (clockwisetv.com/creators, a kids' app with no web player or API). Marked clockwise: true in
+//   the channels table; the extension shows a channel-page banner for them.
 //   nebula-podcasts: { "<podcast slug>": { "creators"?: ["<creator wall slug>"], "youtube"?: ["<YouTube channel link>"] } }
 //   A podcast is linked to its creator's YouTube channel by name; list "creators" or "youtube"
 //   when the name doesn't match the creator wall.
@@ -371,6 +375,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   const videos = prev.videos;
   const overrides = readJson(path.join(dataDir, 'overrides.json'), {});
   const handCreators = readJson(path.join(dataDir, 'floatplane-creators.json'), []);
+  const clockwiseCreators = readJson(path.join(dataDir, 'clockwise-creators.json'), {});
   const handlesFile = path.join(dataDir, 'youtube-channels.json');
   const handles = readJson(handlesFile, {});           // "@handle" / "user:x" / "c:x" -> UC id
   const nebulaDir = path.join(dataDir, 'nebula');
@@ -637,6 +642,11 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
   }
 
   // 5. The index.
+  // ClockwiseTV creators, from the hand-edited list (no requests: it has no public API).
+  for (const [uc, name] of Object.entries(isObj(clockwiseCreators) ? clockwiseCreators : {})) {
+    if (typeof name === 'string' && name.trim()) setChannel(uc, name.trim(), 'clockwise', true);
+  }
+
   const videoEntries = Object.entries(videos).filter(([, r]) => r.nebula || r.floatplane);
   const nebulaIndex = {};
   for (const c of nebCreators) nebulaIndex[c.slug] = { name: c.name, catalog: (nebCatalog[c.slug] || []).length > 0 };
@@ -658,6 +668,7 @@ async function build({ fetchFn = fetch, dataDir = path.join(__dirname, '..', 'da
     nebula_creators: Object.keys(nebulaIndex).length,
     nebula_podcasts: Object.keys(podcastIndex).length,
     floatplane_creators: Object.keys(fpIndex).length,
+    clockwise_creators: Object.values(channels).filter(r => r.clockwise).length,
   };
   const data = {
     version: 3,

@@ -73,6 +73,7 @@ const baseState = () => ({
   // ---- full build ----
   const dir = tmp();
   fs.writeFileSync(path.join(dir, 'floatplane-creators.json'), JSON.stringify([{ id: null, title: 'Level1Techs', urlname: null, links: [], channels: [] }]));
+  fs.writeFileSync(path.join(dir, 'clockwise-creators.json'), JSON.stringify({ UCRFIPG2u1DxKLNuE3y2SjHA: 'SciShow Kids', [RE_UC]: 'Real Engineering', 'not-a-channel': 'Bad', UCzzzzzzzzzzzzzzzzzzzzzz: '' }));
   fs.writeFileSync(path.join(dir, 'overrides.json'), JSON.stringify({ videos: {
     manualvid01: { nebula: 'manual-slug' }, badvid00001: { nebula: '../evil' }, 'not-an-id': { nebula: 'x' }, fpmanual001: { floatplane: 'post9' } } }));
   const state = baseState();
@@ -88,7 +89,12 @@ const baseState = () => ({
   assert.deepEqual(k.videos.fpmanual001, { floatplane: 'post9' });
   assert.ok(!k.videos.badvid00001 && !k.videos['not-an-id'], 'invalid overrides ignored');
   // channels: YouTube channel IDs only, handles resolved
-  assert.deepEqual(k.channels[RE_UC], { name: 'Real Engineering', nebula: 'realengineering' });
+  assert.deepEqual(k.channels[RE_UC], { name: 'Real Engineering', nebula: 'realengineering', clockwise: true });
+  // ClockwiseTV creators from the hand-edited list; invalid IDs and empty names left out
+  assert.deepEqual(k.channels.UCRFIPG2u1DxKLNuE3y2SjHA, { name: 'SciShow Kids', clockwise: true });
+  assert.ok(!k.channels['not-a-channel'] && !k.channels.UCzzzzzzzzzzzzzzzzzzzzzz);
+  assert.equal(k.counts.clockwise_creators, 2);
+  assert.ok(!net.calls.some(c => c.url.includes('clockwisetv')), 'nothing fetched from ClockwiseTV');
   assert.deepEqual(k.channels[TL_UC], { name: 'TechLinked', floatplane: 'ltt/chTL' });
   assert.deepEqual(k.channels[LTT_UC], { name: 'LinusTechTips', floatplane: 'ltt' });
   assert.ok(Object.keys(k.channels).every(id => /^UC[\w-]{22}$/.test(id)), 'channels keyed by YouTube channel ID only');
@@ -287,7 +293,7 @@ const baseState = () => ({
   r = await build({ ...opts(cd), fetchFn: async (u, i) => { cNet2.calls.push(u); return chanFetch(u, i); } });
   assert.ok(!cNet2.calls.some(u => u.startsWith('https://www.youtube.com/@')), 'guesses not repeated');
   assert.deepEqual(ck.counts, { videos: Object.keys(ck.videos).length, nebula_videos: 3, nebula_podcast_episodes: 0, floatplane_videos: 1,
-    youtube_channels: Object.keys(ck.channels).length, nebula_creators: 4, nebula_podcasts: 1, floatplane_creators: 1 });
+    youtube_channels: Object.keys(ck.channels).length, nebula_creators: 4, nebula_podcasts: 1, floatplane_creators: 1, clockwise_creators: 0 });
   console.log('ok  Nebula channel list and channels feed; off-wall channels linked by verified handle');
   console.log('\nall build-known tests passed');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

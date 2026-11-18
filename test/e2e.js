@@ -52,7 +52,7 @@ const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81k
     if (u.includes('video_channels/c1/video_episodes')) return json({ results: [{ title: 'Why Planes Don’t Fly Faster', published_at: '2024-03-01', share_url: 'https://nebula.tv/videos/why-planes' }] });
     if (u.includes('nebula.tv/videos/why-planes')) return html('<h1>NEBULA PAGE</h1>');
     if (u.includes('github.io/detour/data/known.json')) return json({ version: 3, videos: {},
-      channels: { UCR1IuLEqb6UEA_zQ81kwXfg: { name: 'Real Engineering', nebula: 'realengineering' } },
+      channels: { UCR1IuLEqb6UEA_zQ81kwXfg: { name: 'Real Engineering', nebula: 'realengineering' }, UCRFIPG2u1DxKLNuE3y2SjHA: { name: 'SciShow Kids', clockwise: true } },
       nebula: { creators: { realengineering: { name: 'Real Engineering', catalog: false } } },
       floatplane: { creators: { lttid: { name: 'LinusTechTips', urlname: 'linustechtips', channels: {}, catalog: false },
         l1t: { name: 'Level1Techs', urlname: 'level1techs', channels: {}, catalog: false } } } });

@@ -114,12 +114,13 @@ const str = v => (typeof v === 'string' ? v : '');
 
 // Master list, version 3. Keyed by YouTube, the anchor for every lookup:
 //   videos   { "<YouTube video ID>":   { nebula: "<video slug>" | "<podcast>/<episode>", floatplane: "<post id>" } }
-//   channels { "<YouTube channel ID>": { name, nebula: "<slug>", floatplane: "<creator id>[/<channel id>]" } }
+//   channels { "<YouTube channel ID>": { name, nebula: "<slug>", floatplane: "<creator id>[/<channel id>]", clockwise: true } }
 //   nebula.creators { "<slug>": { name, catalog } }
 //   floatplane.creators { "<creator id>": { name, urlname, channels: { "<id>": { name, urlname } }, catalog } }
 // It holds IDs only. Links are built here, and every ID is validated before use. The result
 // uses the same shapes the lookups already work with:
 //   nebula / floatplane: { videos: { yt: url }, creators: [...], catalogs: [...] }
+//   clockwise: { channels: { "<YouTube channel ID>": name } }
 function parseMasterV3(d) {
   const videos = { nebula: {}, floatplane: {} };
   for (const [id, row] of Object.entries(isObj(d.videos) ? d.videos : {})) {
@@ -130,11 +131,12 @@ function parseMasterV3(d) {
   }
 
   // channels table: YouTube channel ID per Nebula slug / Floatplane creator or sub-channel.
-  const nebYt = {}, fpYt = {};
+  const nebYt = {}, fpYt = {}, clockwise = {};
   for (const [uc, row] of Object.entries(isObj(d.channels) ? d.channels : {})) {
     if (!YT_CHANNEL_ID.test(uc) || !isObj(row)) continue;
     if (SLUG.test(str(row.nebula))) nebYt[row.nebula] = uc;
     if (/^\w{1,64}(\/\w{1,64})?$/.test(str(row.floatplane))) (fpYt[row.floatplane] ||= []).push(`https://www.youtube.com/channel/${uc}`);
+    if (row.clockwise === true && str(row.name)) clockwise[uc] = row.name;
   }
 
   const nebCreators = Object.entries(isObj(d.nebula?.creators) ? d.nebula.creators : {})
@@ -152,6 +154,7 @@ function parseMasterV3(d) {
   return {
     nebula: { videos: videos.nebula, creators: nebCreators, catalogs: nebCreators.filter(c => c.catalog).map(c => c.slug) },
     floatplane: { videos: videos.floatplane, creators: fpCreators, catalogs: fpCreators.filter(c => c.catalog).map(c => c.id) },
+    clockwise: { channels: clockwise },
   };
 }
 
@@ -166,7 +169,7 @@ function loadMaster() {
     return parseMasterV3(d);
   });
 }
-const EMPTY_MASTER = { nebula: { videos: {}, creators: null, catalogs: [] }, floatplane: { videos: {}, creators: null, catalogs: [] } };
+const EMPTY_MASTER = { nebula: { videos: {}, creators: null, catalogs: [] }, floatplane: { videos: {}, creators: null, catalogs: [] }, clockwise: { channels: {} } };
 const masterOrEmpty = () => loadMaster().catch(() => EMPTY_MASTER);
 
 // A creator's full video catalogue from the master list (data/nebula/<slug>.json or
@@ -434,35 +437,16 @@ async function channelOnFloatplane(info, settings) {
 
 // ClockwiseTV (clockwisetv.com) is a curated video app for kids 8-12, on iOS and Android only.
 // It has no web player and no public video links, so Detour only notes on a creator's channel
-// page that they're on it, linking to ClockwiseTV's creator page. Its creators, from
-// clockwisetv.com/creators, by YouTube channel ID. No requests are made to ClockwiseTV.
-const CLOCKWISE_URL = 'https://www.clockwisetv.com/creators';
-const CLOCKWISE_CHANNELS = {
-  'UCSz8X-JAmenxLH-uXlgVaCg': 'Odd Animal Specimens',
-  'UCggHsHce2n3vvbJf_8YKrMA': 'Nerdforge',
-  'UCUuMYw2l2UeWyTGYixYfRCA': 'Evan and Katelyn',
-  'UC6E2mP01ZLH_kbAyeazCNdg': 'Brave Wilderness',
-  'UCxqAWLTk1CmBvZFPzeZMd9A': 'Domain of Science',
-  'UCONtPx56PSebXJOxbFv-2jQ': 'Crash Course Kids',
-  'UCRFIPG2u1DxKLNuE3y2SjHA': 'SciShow Kids',
-  'UC1Nj4gkoi_n5eCcrKCVOXKA': 'Animal Wonders Montana',
-  'UCeiYXex_fwgYDonaTcSIk6w': 'MinuteEarth',
-  'UCHu2KNu6TtJ0p4hpSW7Yv7Q': 'Draw with Jazza',
-  'UC3KEoMzNz8eYnwBC34RaKCQ': 'Simone Giertz',
-  'UC_SLthyNX_ivd-dmsFgmJVg': 'Jeremy Fielding',
-  'UCQ0_JQL4wdQd-Xe5hC4PwTg': 'Maddie Moate',
-  'UCSju5G2aFaWMqn-_0YBtq5A': 'Stand-up Maths',
-  'UCOT2iLov0V7Re7ku_3UBtcQ': 'Hank Green',
-  'UCzWQYUVCpZqtN93H8RR44Qw': 'Seeker',
-  'UC1VLQPn9cYSqx8plbk9RxxQ': 'The Action Lab',
-};
-
+// page that they're on it, linking to ClockwiseTV's creator page. Its creators come from the
+// master list's channels table (clockwise: true). No requests are made to ClockwiseTV.
 // Shown like any platform the user doesn't subscribe to: only with "Show other platforms too".
-function channelOnClockwise(info) {
+const CLOCKWISE_URL = 'https://www.clockwisetv.com/creators';
+async function channelOnClockwise(info) {
+  const creators = (await masterOrEmpty()).clockwise.channels;
   // By channel ID; by name only when the page gave no ID.
   const author = normalizeName(info.author);
-  const name = info.channelId ? CLOCKWISE_CHANNELS[info.channelId]
-    : Object.values(CLOCKWISE_CHANNELS).find(n => author && normalizeName(n) === author);
+  const name = info.channelId ? creators[info.channelId]
+    : Object.values(creators).find(n => author && normalizeName(n) === author);
   if (!name) return null;
   return { platform: 'clockwise', kind: 'channel', url: CLOCKWISE_URL, creator: name, subscribed: false, confidence: 0 };
 }
