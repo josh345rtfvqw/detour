@@ -25,7 +25,7 @@ Fields for [addons.mozilla.org/developers](https://addons.mozilla.org/developers
 ### Name (max 50)
 
 ```
-Detour: Nebula & Floatplane for YouTube
+Detour: Nebula, Floatplane & ClockwiseTV
 ```
 
 ### Add-on URL
@@ -57,6 +57,8 @@ A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's 
 <b>On a channel</b>
 A banner under the Subscribe button lets you know the creator is also on Nebula or Floatplane, with a link to their channel there.
 
+It also notes creators who are on ClockwiseTV, a curated video app for kids aged 8 to 12 (iPhone, iPad and Android), with a link to ClockwiseTV's creators page. ClockwiseTV has no web player, so this is a note only, never a redirect.
+
 <b>Settings</b>
 • Select the subscriptions you have: Nebula, and the Floatplane creators you subscribe to
 • Choose between automatic redirects and a button
@@ -72,7 +74,7 @@ Detour sends requests to Nebula only for creators who are on Nebula. It never co
 <b>Source code</b>
 <a href="https://github.com/josh345rtfvqw/detour">github.com/josh345rtfvqw/detour</a>
 
-Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula or Floatplane.
+Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula, Floatplane or ClockwiseTV.
 ```
 
 ### Categories (pick up to 2)
