@@ -9,6 +9,10 @@ is on **Nebula** or **Floatplane**. Then it either:
 - **shows a "Watch on Nebula / Floatplane" button** next to the video title.
 
 On **channel pages** it shows a banner under the Subscribe button when the channel is on Nebula or Floatplane.
+It also notes channels whose creators are on **ClockwiseTV**, a curated video app for kids aged 8 to 12.
+ClockwiseTV runs on iPhone, iPad and Android only and has no web player, so that banner just links to
+[its creators page](https://www.clockwisetv.com/creators). It never redirects, and it shows only when
+**Show other platforms too** is on.
 Colours follow the platform and YouTube's light or dark theme.
 
 You pick which in the settings. If the video itself can't be matched, but the channel is on
@@ -43,6 +47,7 @@ Then click the extension icon:
 |---|---|---|---|
 | Nebula | Every channel in Nebula's [channel list](https://nebula.tv/explore/channels), linked to YouTube by the [creator wall](https://talent.nebula.tv/creators/) or a matching YouTube handle | Nebula's public content API (newest 100 videos, then search); falls back to Nebula's [RSS feeds](https://blog.nebula.tv/rss-feed/) | No |
 | Floatplane | The YouTube links each Floatplane creator/channel lists | Floatplane's post search | Your own floatplane.com login (browser cookies) |
+| ClockwiseTV | A built-in list of the 17 creators on [clockwisetv.com/creators](https://www.clockwisetv.com/creators), by YouTube channel ID | None (channel banner only) | No, and nothing is sent to ClockwiseTV |
 
 Requests to Nebula and Floatplane identify the extension. Floatplane asks API clients to do this.
 They use the browser's normal User-Agent with `Detour/<version> (+https://github.com/josh345rtfvqw/detour)` added on the end.

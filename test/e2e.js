@@ -24,11 +24,11 @@ ${lateRow ? 'setTimeout(addRow, 2500);' : 'addRow();'}
 
 // Mimics YouTube's channel header: yt-page-header-view-model > yt-flexible-actions-view-model
 // (the Subscribe row), followed by the fixed-height tab bar.
-const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head><meta charset="utf-8"></head><body style="background:${dark ? '#0f0f0f' : '#fff'};color:${dark ? '#fff' : '#0f0f0f'};font-family:sans-serif;margin:0;padding:24px">
-<div id="page-header"><yt-page-header-view-model style="display:block"><h1>Real Engineering</h1>
+const fakeChannel = (dark, name = 'Real Engineering', id = 'UCR1IuLEqb6UEA_zQ81kwXfg', handle = 'RealEngineering') => `<!doctype html><html ${dark ? 'dark' : ''}><head><meta charset="utf-8"></head><body style="background:${dark ? '#0f0f0f' : '#fff'};color:${dark ? '#fff' : '#0f0f0f'};font-family:sans-serif;margin:0;padding:24px">
+<div id="page-header"><yt-page-header-view-model style="display:block"><h1>${name}</h1>
 <yt-flexible-actions-view-model style="display:block"><button>Subscribe</button></yt-flexible-actions-view-model></yt-page-header-view-model></div>
 <div id="tabs-container" style="height:48px;overflow:hidden">Home · Videos · Shorts</div>
-<script>window.ytInitialData = {metadata:{channelMetadataRenderer:{title:'Real Engineering',externalId:'UCR1IuLEqb6UEA_zQ81kwXfg',vanityChannelUrl:'http://www.youtube.com/@RealEngineering'}}};</script>
+<script>window.ytInitialData = {metadata:{channelMetadataRenderer:{title:'${name}',externalId:'${id}',vanityChannelUrl:'http://www.youtube.com/@${handle}'}}};</script>
 </body></html>`;
 
 (async () => {
@@ -43,6 +43,8 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
     const html = b => route.fulfill({ contentType: 'text/html', body: b });
     if (u.includes('youtube.com/watch?v=AAA')) return html(fakeVideo('AAA', "Why Planes Don't Fly Faster", 'UCR1IuLEqb6UEA_zQ81kwXfg', 'Real Engineering', true));
     if (u.includes('youtube.com/watch?v=BBB')) return html(fakeVideo('BBB', "Why Planes Don't Fly Faster", 'UCR1IuLEqb6UEA_zQ81kwXfg', 'Real Engineering'));
+    if (u.includes('youtube.com/@scishowkids/videos')) return html(fakeChannel(false, 'SciShow Kids', 'UCRFIPG2u1DxKLNuE3y2SjHA', 'scishowkids'));
+    if (u.includes('youtube.com/@scishowkids')) return html(fakeChannel(true, 'SciShow Kids', 'UCRFIPG2u1DxKLNuE3y2SjHA', 'scishowkids'));
     if (u.includes('youtube.com/@RealEngineering/videos')) return html(fakeChannel(false));
     if (u.includes('youtube.com/@RealEngineering')) return html(fakeChannel(true));
     if (u.includes('talent.nebula.tv/creators')) return html('<div id="creator-wall"><div class="youtube-creator" data-video="UCR1IuLEqb6UEA_zQ81kwXfg"><img alt="Real Engineering"><h3><a href="https://talent.nebula.tv/realengineering/">Real Engineering</a></h3><a class="link nebula" href="https://nebula.tv/realengineering">Nebula</a></div></div>');
@@ -126,6 +128,19 @@ const fakeChannel = (dark) => `<!doctype html><html ${dark ? 'dark' : ''}><head>
   await page.screenshot({ path: shot('channel-light') });
 
   assert.equal(await page.$('.detour-banner .detour-close, .detour-banner button'), null, 'banner has no close button');
+
+  // 7. ClockwiseTV creator -> app-only banner linking to ClockwiseTV's creators page, no Nebula one.
+  await page.goto('https://www.youtube.com/@scishowkids');
+  await page.waitForSelector('.detour-banner.detour-clockwise', { timeout: 15000 });
+  const cw = await page.$$eval('.detour-banner', bs => bs.map(b => ({ cls: b.className, text: b.textContent, href: b.querySelector('a').href })));
+  console.log('ClockwiseTV banner:', JSON.stringify(cw));
+  assert.equal(cw.length, 1);
+  assert.equal(cw[0].href, 'https://www.clockwisetv.com/creators');
+  assert.ok(cw[0].text.includes('SciShow Kids is also on ClockwiseTV') && cw[0].text.includes('About ClockwiseTV'));
+  await page.screenshot({ path: shot('clockwise-dark') });
+  await page.goto('https://www.youtube.com/@scishowkids/videos');
+  await page.waitForSelector('.detour-banner.detour-clockwise', { timeout: 15000 });
+  await page.screenshot({ path: shot('clockwise-light') });
 
   // 8. A header rule gives the extension's own requests to Nebula / Floatplane a User-Agent of
   //    "<browser UA> Detour/<version> (+repo)". (Playwright's interception sees requests before

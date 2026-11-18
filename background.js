@@ -17,7 +17,7 @@ const FP = 'https://www.floatplane.com';
 // Every link Detour puts on YouTube must be an https link to Nebula or Floatplane. Links come
 // from Nebula's API / RSS and Floatplane's API, so a bad or spoofed response could otherwise
 // inject e.g. a javascript: URL that runs on youtube.com when clicked or auto-redirected to.
-const ALLOWED_HOSTS = new Set(['nebula.tv', 'www.nebula.tv', 'nebula.app', 'www.nebula.app', 'floatplane.com', 'www.floatplane.com']);
+const ALLOWED_HOSTS = new Set(['nebula.tv', 'www.nebula.tv', 'nebula.app', 'www.nebula.app', 'floatplane.com', 'www.floatplane.com', 'www.clockwisetv.com']);
 function safeUrl(url) {
   try {
     const u = new URL(url);
@@ -432,12 +432,48 @@ async function channelOnFloatplane(info, settings) {
   return { platform: 'floatplane', kind: 'channel', url: fpChannelUrl(c, hit.channel), creator: c.title, subscribed: isFpSubscribed(c, settings.floatplaneCreators), confidence: 0 };
 }
 
+// ClockwiseTV (clockwisetv.com) is a curated video app for kids 8-12, on iOS and Android only.
+// It has no web player and no public video links, so Detour only notes on a creator's channel
+// page that they're on it, linking to ClockwiseTV's creator page. Its creators, from
+// clockwisetv.com/creators, by YouTube channel ID. No requests are made to ClockwiseTV.
+const CLOCKWISE_URL = 'https://www.clockwisetv.com/creators';
+const CLOCKWISE_CHANNELS = {
+  'UCSz8X-JAmenxLH-uXlgVaCg': 'Odd Animal Specimens',
+  'UCggHsHce2n3vvbJf_8YKrMA': 'Nerdforge',
+  'UCUuMYw2l2UeWyTGYixYfRCA': 'Evan and Katelyn',
+  'UC6E2mP01ZLH_kbAyeazCNdg': 'Brave Wilderness',
+  'UCxqAWLTk1CmBvZFPzeZMd9A': 'Domain of Science',
+  'UCONtPx56PSebXJOxbFv-2jQ': 'Crash Course Kids',
+  'UCRFIPG2u1DxKLNuE3y2SjHA': 'SciShow Kids',
+  'UC1Nj4gkoi_n5eCcrKCVOXKA': 'Animal Wonders Montana',
+  'UCeiYXex_fwgYDonaTcSIk6w': 'MinuteEarth',
+  'UCHu2KNu6TtJ0p4hpSW7Yv7Q': 'Draw with Jazza',
+  'UC3KEoMzNz8eYnwBC34RaKCQ': 'Simone Giertz',
+  'UC_SLthyNX_ivd-dmsFgmJVg': 'Jeremy Fielding',
+  'UCQ0_JQL4wdQd-Xe5hC4PwTg': 'Maddie Moate',
+  'UCSju5G2aFaWMqn-_0YBtq5A': 'Stand-up Maths',
+  'UCOT2iLov0V7Re7ku_3UBtcQ': 'Hank Green',
+  'UCzWQYUVCpZqtN93H8RR44Qw': 'Seeker',
+  'UC1VLQPn9cYSqx8plbk9RxxQ': 'The Action Lab',
+};
+
+// Shown like any platform the user doesn't subscribe to: only with "Show other platforms too".
+function channelOnClockwise(info) {
+  // By channel ID; by name only when the page gave no ID.
+  const author = normalizeName(info.author);
+  const name = info.channelId ? CLOCKWISE_CHANNELS[info.channelId]
+    : Object.values(CLOCKWISE_CHANNELS).find(n => author && normalizeName(n) === author);
+  if (!name) return null;
+  return { platform: 'clockwise', kind: 'channel', url: CLOCKWISE_URL, creator: name, subscribed: false, confidence: 0 };
+}
+
 async function lookupChannel(info) {
   const settings = await getSettings();
-  const results = sanitizeResults((await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings)]))
+  const results = sanitizeResults((await Promise.allSettled([channelOnNebula(info, settings), channelOnFloatplane(info, settings), channelOnClockwise(info)]))
     .map(r => (r.status === 'fulfilled' ? r.value : null))
     .filter(Boolean));
-  results.sort((a, b) => b.subscribed - a.subscribed);
+  // Subscribed first; ClockwiseTV (app only, nothing to watch in the browser) last.
+  results.sort((a, b) => (b.subscribed - a.subscribed) || ((a.platform === 'clockwise') - (b.platform === 'clockwise')));
   return results;
 }
 
@@ -478,7 +514,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     // page is blocked as a popup.
     if (msg.type === 'openTab') {
       const url = safeUrl(msg.url);
-      if (!url) throw new Error('refused to open a non-Nebula/Floatplane URL');
+      if (!url) throw new Error('refused to open a URL outside Nebula, Floatplane or ClockwiseTV');
       await chrome.tabs.create({ url, active: true });
       return { ok: true };
     }
