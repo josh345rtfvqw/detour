@@ -15,7 +15,7 @@ const NEBULA_HEADERS = { 'Accept': 'application/json', 'Nebula-Platform': 'web' 
 const FP = 'https://www.floatplane.com';
 
 // Every link Detour puts on YouTube must be an https link to Nebula or Floatplane. Links come
-// from Nebula's API / RSS and Floatplane's API, so a bad or spoofed response could otherwise
+// from Nebula's API / RSS and the master list, so a bad or spoofed response could otherwise
 // inject e.g. a javascript: URL that runs on youtube.com when clicked or auto-redirected to.
 const ALLOWED_HOSTS = new Set(['nebula.tv', 'www.nebula.tv', 'nebula.app', 'www.nebula.app', 'floatplane.com', 'www.floatplane.com']);
 function safeUrl(url) {
@@ -26,7 +26,7 @@ function safeUrl(url) {
 }
 const sanitizeResults = results => results.map(r => ({ ...r, url: safeUrl(r.url) })).filter(r => r.url);
 
-// Identify Detour (and its version) to Nebula and Floatplane, as Floatplane asks API clients to:
+// Identify Detour (and its version) to Nebula, the only service it sends requests to:
 // the browser's own User-Agent with "Detour/<version> (+repo URL)" appended.
 const DETOUR_UA_TOKEN = `Detour/${chrome.runtime.getManifest().version} (+https://github.com/josh345rtfvqw/detour)`;
 const DETOUR_UA = `${(typeof navigator !== 'undefined' && navigator.userAgent) || ''} ${DETOUR_UA_TOKEN}`.trim();
@@ -41,7 +41,7 @@ async function installUserAgentRule() {
       addRules: [{
         id: UA_RULE_ID, priority: 1,
         action: { type: 'modifyHeaders', requestHeaders: [{ header: 'User-Agent', operation: 'set', value: DETOUR_UA }] },
-        condition: { requestDomains: ['floatplane.com', 'nebula.app', 'nebula.tv'], tabIds: [-1], resourceTypes: ['xmlhttprequest', 'other'] },
+        condition: { requestDomains: ['nebula.app', 'nebula.tv'], tabIds: [-1], resourceTypes: ['xmlhttprequest', 'other'] },
       }],
     });
   } catch (e) { console.warn('[detour] could not set User-Agent rule', e); }
@@ -299,40 +299,11 @@ async function lookupNebula(info, settings) {
 }
 
 // ---------------------------------------------------------------- Floatplane
-// Uses the user's own floatplane.com login cookies (credentials: 'include').
+// Floatplane is never contacted. Creators, known videos and catalogues all come from the master
+// list (GitHub Pages), and the user picks the creators they subscribe to in the settings popup.
 
-// Floatplane's live creator list, merged with the master list's creators. If the live list
-// can't be loaded (not logged in), the master list's creators are used on their own.
 async function loadFloatplaneCreators() {
-  let live = [];
-  try {
-    live = await cached('fpCreators', DAY, async () => {
-      const list = await getJSON(`${FP}/api/v3/creator/list?search=`, { credentials: 'include' });
-      return list.map(c => ({
-        id: c.id, title: c.title, urlname: c.urlname,
-        icon: c.icon?.path || '',
-        links: Object.values(c.socialLinks || {}),
-        channels: (c.channels || []).map(ch => ({ id: ch.id, title: ch.title, urlname: ch.urlname, links: Object.values(ch.socialLinks || {}) })),
-      }));
-    });
-  } catch (e) { console.warn('[detour] using the master list\'s Floatplane creators', e); }
-  const byId = new Map(live.map(c => [c.id, c]));
-  const byName = new Map(live.map(c => [fpNameKey(c.title), c]));
-  // Known creators come from the master list, which is updated without a release.
-  const known = (await masterOrEmpty()).floatplane.creators || [];
-  for (const d of known) {
-    // Same creator if the ID matches, else if the name does.
-    const c = byId.get(d.id) || byName.get(fpNameKey(d.title));
-    if (!c) { byId.set(d.id, d); continue; }
-    // Live data wins, but keep the master list's YouTube links and channels where live has none.
-    if (!c.links.some(l => /youtube/.test(l))) c.links = [...c.links, ...d.links];
-    for (const dch of d.channels) {
-      const ch = c.channels.find(x => x.id === dch.id);
-      if (!ch) c.channels.push(dch);
-      else if (!ch.links.some(l => /youtube/.test(l))) ch.links = [...ch.links, ...dch.links];
-    }
-  }
-  return [...byId.values()];
+  return (await masterOrEmpty()).floatplane.creators || [];
 }
 
 // Turn a YouTube URL into comparable identifiers: channel ID, @handle, /user/ or /c/ name.
@@ -360,8 +331,7 @@ function floatplaneMatches(creators, info) {
   return out;
 }
 
-// Subscribed if the user selected this creator by its ID, or by name (built-in entries whose
-// Floatplane ID isn't known are remembered by name, and still count once the live list loads).
+// Subscribed if the user selected this creator by its ID, or by name (saved by older versions).
 const isFpSubscribed = (c, list) => list.includes(c.id) || list.includes(fpNameKey(c.title));
 const fpKnown = c => !!c.urlname && !String(c.id).startsWith('name:');
 
@@ -371,18 +341,10 @@ function fpChannelUrl(c, ch) {
   return `${FP}/channel/${c.urlname}/home${chPath}`;
 }
 
-async function floatplanePosts(creatorId, channelId, search) {
-  const q = new URLSearchParams({ id: creatorId, limit: '20', hasVideo: 'true' });
-  if (channelId) q.set('channel', channelId);
-  if (search) q.set('search', search);
-  const posts = await getJSON(`${FP}/api/v3/content/creator?${q}`, { credentials: 'include' });
-  return posts.map(p => ({ title: p.title, date: p.releaseDate, url: `${FP}/post/${p.id}` }));
-}
-
 async function lookupFloatplane(info, settings) {
   const hits = floatplaneMatches(await loadFloatplaneCreators(), info);
   if (!hits.length) return null;
-  // Known video (master list or this browser's earlier match): no post search needed.
+  // Known video (master list or this browser's earlier match).
   const known = (await masterOrEmpty()).floatplane.videos[info.videoId] || (await getCachedMatch('floatplane', info.videoId))?.url;
   if (known) {
     const c = hits[0].creator;
@@ -390,20 +352,11 @@ async function lookupFloatplane(info, settings) {
   }
   let best = null, bestHit = hits[0];
   for (const hit of hits) {
+    // The creator's full catalogue from the master list, matched locally. Creators without one
+    // get a link to their channel.
     const catalog = await loadCatalog('floatplane', hit.creator.id);
-    if (catalog) {
-      // Full catalogue from the master list: match locally, no request to Floatplane.
-      const m = bestMatch(info.title, info.publishDate, hit.channel ? catalog.filter(p => !p.channel || p.channel === hit.channel.id) : catalog);
-      if (m && (!best || m.confidence > best.confidence)) { best = m; bestHit = hit; }
-      continue;
-    }
-    const cands = [];
-    if (!fpKnown(hit.creator)) continue; // can't search posts without the creator's ID
-    for (const search of [info.title, '']) { // title search, then the newest posts
-      try { cands.push(...await floatplanePosts(hit.creator.id, hit.channel?.id, search)); }
-      catch (e) { console.warn('[detour] floatplane posts', e); }
-    }
-    const m = bestMatch(info.title, info.publishDate, cands);
+    if (!catalog) continue;
+    const m = bestMatch(info.title, info.publishDate, hit.channel ? catalog.filter(p => !p.channel || p.channel === hit.channel.id) : catalog);
     if (m && (!best || m.confidence > best.confidence)) { best = m; bestHit = hit; }
   }
   const c = bestHit.creator;

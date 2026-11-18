@@ -59,12 +59,16 @@ const nebulaRoutes = [
     { title: 'The Engineering of the SR-71', published_at: '2023-01-01T00:00:00Z', share_url: 'https://nebula.tv/videos/realengineering-sr71' },
   ] }],
 ];
+// Floatplane data comes only from the master list (GitHub Pages): creators, the YouTube channel
+// mapping, and each creator's catalogue. floatplane.com itself is never contacted.
 const fpRoutes = [
-  [/creator\/list/, [{ id: 'ltt', title: 'Linus Tech Tips', urlname: 'linustechtips', socialLinks: { youtube: 'https://www.youtube.com/user/LinusTechTips' },
-    channels: [{ id: 'ch-tl', title: 'TechLinked', urlname: 'techlinked', socialLinks: { youtube: 'https://www.youtube.com/@techlinked' } }] }]],
-  [/content\/creator\?.*channel=ch-tl/, [{ id: 'post1', title: 'Nvidia did WHAT? - TechLinked', releaseDate: '2024-05-02T00:00:00Z' },
-    { id: 'post2', title: 'Apple is in trouble', releaseDate: '2024-04-01T00:00:00Z' }]],
+  [/josh345rtfvqw\.github\.io\/detour\/data\/known\.json/, { version: 3, videos: {}, nebula: { creators: {} },
+    channels: { UCeeFfhMcJa1kjtfZAGskOCA: { name: 'TechLinked', floatplane: 'ltt/chtl' } },
+    floatplane: { creators: { ltt: { name: 'Linus Tech Tips', urlname: 'linustechtips', channels: { chtl: { name: 'TechLinked', urlname: 'techlinked' } }, catalog: true } } } }],
+  [/detour\/data\/floatplane\/ltt\.json/, [{ i: 'post1', t: 'Nvidia did WHAT? - TechLinked', d: '2024-05-02', c: 'chtl' },
+    { i: 'post2', t: 'Apple is in trouble', d: '2024-04-01', c: 'chtl' }]],
 ];
+const TL = { channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' };
 
 (async () => {
   // 1. Nebula match, subscribed -> best result is a confident, subscribed video
@@ -82,19 +86,19 @@ const fpRoutes = [
   assert.equal(r.results[0].url, 'https://nebula.tv/realengineering');
   console.log('ok  unmatched video falls back to channel link');
 
-  // 3. Floatplane sub-channel matched by @handle, user subscribed to that creator
+  // 3. Floatplane sub-channel matched via the master list, user subscribed to that creator
   env = makeEnv({ floatplaneCreators: ['ltt'] }, [[/nebula/, new Error()], ...fpRoutes]);
-  r = await env.send({ type: 'lookup', info: { videoId: 'c', title: 'Nvidia did WHAT?', channelId: 'UCeeFfhMcJa1kjtfZAGskOCA', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked', publishDate: '2024-05-03' } });
+  r = await env.send({ type: 'lookup', info: { videoId: 'c', title: 'Nvidia did WHAT?', ...TL, publishDate: '2024-05-03' } });
   assert.equal(r.results[0].platform, 'floatplane');
   assert.equal(r.results[0].url, 'https://www.floatplane.com/post/post1');
   assert.ok(r.results[0].subscribed);
-  const fpCall = env.calls.find(c => c.url.includes('floatplane'));
-  assert.equal(fpCall.init.credentials, 'include');
-  console.log('ok  floatplane channel match via handle, uses login cookies', r.results[0].confidence.toFixed(2));
+  assert.ok(!env.calls.some(c => c.url.includes('floatplane.com')), 'no requests to Floatplane');
+  assert.ok(env.calls.every(c => c.init?.credentials !== 'include'), 'no request sends cookies');
+  console.log('ok  floatplane match from the master list, no requests to Floatplane', r.results[0].confidence.toFixed(2));
 
   // 4. Same but not subscribed -> result present, subscribed=false (button only)
   env = makeEnv({ floatplaneCreators: [] }, [[/nebula/, new Error()], ...fpRoutes]);
-  r = await env.send({ type: 'lookup', info: { videoId: 'c', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' } });
+  r = await env.send({ type: 'lookup', info: { videoId: 'c', title: 'Nvidia did WHAT?', ...TL } });
   assert.equal(r.results[0].subscribed, false);
   console.log('ok  not subscribed -> no auto-redirect flag');
 
@@ -110,8 +114,8 @@ const fpRoutes = [
   r = await env.send({ type: 'lookup', info: { videoId: 'e', title: 'x', channelId: 'UCnope', author: 'Someone Else' } });
   assert.equal(r.results.length, 0);
   console.log('ok  unrelated channel -> nothing shown');
-  // 7. Floatplane creator list unavailable (not logged in) -> the master list's creators still
-  //    match TechLinked (via the master channels table) and link to the right sub-channel.
+  // 7. The master list's creators match TechLinked (via the master channels table) and link to
+  //    the right sub-channel.
   const MASTER_RE = /josh345rtfvqw\.github\.io\/detour\/data\/known\.json/;
   const fpMaster = { version: 3, videos: {}, nebula: { creators: {} },
     channels: { UCeeFfhMcJa1kjtfZAGskOCA: { name: 'TechLinked', floatplane: 'lttid/techlinkedid' } },
@@ -125,13 +129,16 @@ const fpRoutes = [
   assert.ok(r.results[0].subscribed);
   const fpList = await env.send({ type: 'fpCreators' });
   assert.deepEqual(fpList.creators.map(c => c.title).sort(), ['Level1Techs', 'LinusTechTips']);
-  console.log('ok  master list Floatplane creators used when the live list fails');
+  assert.ok(!env.calls.some(c => c.url.includes('floatplane.com')), 'creator list needs no request to Floatplane');
+  console.log('ok  Floatplane creators come from the master list');
 
-  // 8. Live list loads -> it wins, and master creators missing from it are still added
-  env = makeEnv({}, [[MASTER_RE, fpMaster], [/nebula/, new Error()], [/creator\/list/, [{ id: 'new1', title: 'Someone New', urlname: 'someonenew', socialLinks: {}, channels: [] }]]]);
-  const merged = (await env.send({ type: 'fpCreators' })).creators;
-  assert.ok(merged.some(c => c.id === 'new1' && !c.builtin) && merged.some(c => c.urlname === 'linustechtips'));
-  console.log('ok  live list merged with master list creators');
+  // 8. Without a catalogue, an unknown video links to the creator's channel; Floatplane isn't searched.
+  env = makeEnv({ floatplaneCreators: ['lttid'] }, [[MASTER_RE, fpMaster], [/nebula/, new Error()]]);
+  r = await env.send({ type: 'lookup', info: { videoId: 'nocat000001', title: 'Something new', ...TL } });
+  assert.equal(r.results[0].kind, 'channel');
+  assert.equal(r.results[0].url, 'https://www.floatplane.com/channel/linustechtips/home/techlinked');
+  assert.ok(!env.calls.some(c => c.url.includes('floatplane.com')), 'no post search on Floatplane');
+  console.log('ok  no catalogue -> channel link, no Floatplane requests');
 
   // 9. A subscription saved by name by an older version still counts.
   env = makeEnv({ floatplaneCreators: ['name:level1techs'] }, [[MASTER_RE, fpMaster], [/nebula/, new Error()], [/floatplane/, new Error()]]);
@@ -140,7 +147,7 @@ const fpRoutes = [
   assert.ok(r.results[0].subscribed);
   console.log('ok  older by-name subscription still counts');
 
-  // 10. No master list and no live list -> no Floatplane creators, nothing breaks.
+  // 10. No master list -> no Floatplane creators, nothing breaks.
   env = makeEnv({}, [[/nebula/, new Error()], [/floatplane/, new Error()]]);
   assert.deepEqual((await env.send({ type: 'fpCreators' })).creators, []);
   r = await env.send({ type: 'lookupChannel', info: { author: 'Level1Techs' } });
@@ -174,10 +181,10 @@ const fpRoutes = [
   assert.equal(r.results[0].subscribed, true);
   console.log('ok  settings change clears cached results');
 
-  // 14. A failed lookup isn't cached: once Floatplane is reachable again, it's retried.
-  const fpDown = [/floatplane/, new Error()];
+  // 14. A failed lookup isn't cached: once the master list is reachable again, it's retried.
+  const fpDown = [/github\.io/, new Error()];
   env = makeEnv({ floatplaneCreators: ['ltt'] }, [[/nebula/, new Error()], fpDown]);
-  const tinfo = { videoId: 'x3', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' };
+  const tinfo = { videoId: 'x3', title: 'Nvidia did WHAT?', ...TL };
   await env.send({ type: 'lookup', info: tinfo });
   env.routes.splice(env.routes.indexOf(fpDown), 1, ...fpRoutes);
   r = await env.send({ type: 'lookup', info: tinfo });
@@ -211,10 +218,10 @@ const fpRoutes = [
   const nebKeys = Object.keys(env.store.local).filter(k => k.startsWith('neb:'));
   assert.ok(nebKeys.length <= 60 && nebKeys.includes('neb:fresh'), String(nebKeys.length));
   console.log('ok  episode caches pruned to', nebKeys.length);
-  // 18. Every request identifies Detour and its version (Floatplane asks API clients to), and a
+  // 18. Every request to Nebula identifies Detour and its version, and a
   //     header rule sets it for extension-made requests only (tabId -1), not the user's tabs.
   env = makeEnv({ floatplaneCreators: ['ltt'] }, [...nebulaRoutes, ...fpRoutes]);
-  await env.send({ type: 'lookup', info: { videoId: 'ua1', title: 'Nvidia did WHAT?', author: 'TechLinked', profileUrl: 'http://www.youtube.com/@TechLinked' } });
+  await env.send({ type: 'lookup', info: { videoId: 'ua1', title: 'Nvidia did WHAT?', ...TL } });
   assert.ok(env.calls.length > 0);
   // (The master list download on GitHub Pages sends no custom headers, to avoid a CORS preflight.)
   for (const c of env.calls.filter(c => !c.url.includes('github.io'))) assert.match(c.init.headers['User-Agent'], /Detour\/9\.9\.9 \(\+https:\/\/github\.com\/josh345rtfvqw\/detour\)$/, c.url);
@@ -222,7 +229,7 @@ const fpRoutes = [
   assert.equal(rule.action.requestHeaders[0].header, 'User-Agent');
   assert.match(rule.action.requestHeaders[0].value, /Detour\/9\.9\.9/);
   assert.deepEqual(rule.condition.tabIds, [-1]);
-  assert.ok(rule.condition.requestDomains.includes('floatplane.com'));
+  assert.deepEqual([...rule.condition.requestDomains].sort(), ['nebula.app', 'nebula.tv']);
   console.log('ok  User-Agent identifies Detour/<version> on all', env.calls.length, 'requests');
   // ---- master list (GitHub Pages) + local match cache ----
   const MASTER = /josh345rtfvqw\.github\.io\/detour\/data\/known\.json/;

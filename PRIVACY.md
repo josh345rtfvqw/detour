@@ -1,16 +1,17 @@
 # Detour privacy policy
 
-**Effective date:** 8 November 2026
+**Effective date:** 18 November 2026
 
 Detour is a browser extension that shows when a YouTube video or channel is also on Nebula or Floatplane, and can take you there. This policy explains what data Detour handles, where it goes, and what it stores.
 
 **In short:**
 - Detour doesn't collect analytics or usage data, and the developer receives none of your data.
-- Detour sends requests to Nebula and Floatplane, and downloads a list of known videos from GitHub Pages.
+- Detour sends requests to Nebula, and downloads its list of known videos (including all of its Floatplane data) from GitHub Pages.
+- Detour never contacts Floatplane and never uses your Floatplane login.
 
 ## Data Detour sends, and to whom
 
-To find a YouTube video on Nebula or Floatplane, Detour sends requests directly from your browser to those services. Nothing is sent through any server run by the developer.
+To find a YouTube video on Nebula, Detour sends requests directly from your browser to Nebula. Floatplane matches come only from Detour's list of known videos. Nothing is sent through any server run by the developer.
 
 ### Nebula
 
@@ -24,36 +25,34 @@ These requests carry no Nebula login or cookies.
 
 ### Floatplane
 
-Domain: `www.floatplane.com`
+Detour sends nothing to Floatplane. The Floatplane creators shown in its settings, and every Floatplane match, come from Detour's list of known videos (below). You choose which Floatplane creators you subscribe to yourself, in Detour's settings. Detour never uses your floatplane.com login or cookies.
 
-- **Creator list.** Detour loads Floatplane's list of creators and their YouTube channels.
-- **Post search.** When you open a YouTube video by a creator who is on Floatplane, Detour searches that creator's Floatplane posts using the **YouTube video's title**.
-
-Your browser attaches your existing floatplane.com login cookies to these requests, so Floatplane can return its full creator list. Detour never reads, stores or transmits your Floatplane credentials.
+Floatplane only learns that you came from Detour if you open a Floatplane link, like any link you click.
 
 ### Detour's list of known videos
 
 About once an hour, Detour checks for a new version of its list of known matches from its own website: `https://josh345rtfvqw.github.io/detour/data/known.json`, which GitHub Pages hosts.
 - The list holds known YouTube → Nebula/Floatplane video links and known Floatplane creators.
 - The download is the same for everyone. It includes nothing about you or what you watch. GitHub sees an ordinary request for a public file.
-- When a video is already in the list, Detour sends nothing to Nebula or Floatplane for it.
+- When a video is already in the list, Detour sends nothing to Nebula for it.
 - **Creator catalogues.** For creators who are on Nebula or Floatplane, the site also has each creator's full video catalogue (titles and dates). When you open a video by such a creator, Detour downloads that creator's catalogue from the same site, at most about once an hour, and matches the video locally. Nothing is sent to Nebula or Floatplane. GitHub can see which creator's catalogue was requested, along with your IP address, as with any website request.
 
 ### What isn't sent
 
+- Nothing at all to Floatplane.
 - Nothing about videos or channels whose creator isn't on Nebula or Floatplane.
 - No browsing history, account details, identifiers, clicks or keystrokes.
 
-Requests to Nebula and Floatplane identify the extension in the User-Agent header as `Detour/<version>` with a link to this project, as Floatplane asks API clients to do. That header contains no information about you.
+Requests to Nebula identify the extension in the User-Agent header as `Detour/<version>` with a link to this project. That header contains no information about you.
 
-How Nebula and Floatplane handle the requests they receive is covered by their own privacy policies.
+How Nebula handles the requests it receives, and how Nebula and Floatplane handle your visits when you open a link, is covered by their own privacy policies.
 
 ## Data Detour stores
 
 Detour stores the following in your browser's extension storage:
 - **Your settings**, including which subscriptions you've selected and how Detour should behave. If you use Chrome sync or Firefox Sync, your browser syncs these settings to your account.
-- **A cache of the Nebula and Floatplane creator and video lists, and of Detour's list of known videos**, so they aren't downloaded on every page. Video lists for at most 60 channels are kept. Older ones are deleted automatically.
-- **Matches Detour has confirmed** (a YouTube video ID and the Nebula/Floatplane link it matched), for 30 days and at most 2,000 videos. Revisiting a video then sends nothing to Nebula or Floatplane. This is kept only in your browser and never shared.
+- **A cache of the Nebula creator and video lists, and of Detour's list of known videos and creator catalogues**, so they aren't downloaded on every page. Video lists for at most 60 channels are kept. Older ones are deleted automatically.
+- **Matches Detour has confirmed** (a YouTube video ID and the Nebula/Floatplane link it matched), for 30 days and at most 2,000 videos. Revisiting a video then sends nothing to Nebula. This is kept only in your browser and never shared.
 
 Apart from those confirmed matches, Detour keeps no history of the videos or pages you visit.
 
@@ -63,7 +62,7 @@ You can clear the cache at any time with **Refresh data** in Detour's settings. 
 
 Detour's use of information complies with the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq), including its Limited Use requirements:
 - Data is used only to provide Detour's single purpose: finding and opening the matching video or channel on Nebula or Floatplane.
-- Data is sent only to Nebula and Floatplane, and only for that purpose.
+- Data is sent only to Nebula, and only for that purpose.
 - Data is not sold, used for advertising, or used to determine creditworthiness.
 - No person reads it. The developer never receives it.
 

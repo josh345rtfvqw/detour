@@ -12,8 +12,7 @@
     "*://*.youtube.com/*",
     "https://content.api.nebula.app/*",
     "https://rss.nebula.app/*",
-    "https://talent.nebula.tv/*",
-    "https://www.floatplane.com/*"
+    "https://talent.nebula.tv/*"
   ],
   "background": {
     "service_worker": "background.js",

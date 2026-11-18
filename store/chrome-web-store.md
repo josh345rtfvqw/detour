@@ -45,7 +45,7 @@ HOW IT WORKS
 Detour matches the YouTube channel to the creator's Nebula or Floatplane channel, then compares video titles and release dates to find the same video. If the exact video can't be found, you get a link to the creator's channel instead, and Detour doesn't redirect.
 
 PRIVACY
-Detour sends requests to Nebula and Floatplane only for creators who are on those services. It doesn't collect usage data, and your Floatplane login stays with floatplane.com. Details are in the privacy policy.
+Detour sends requests to Nebula only for creators who are on Nebula. It never contacts Floatplane or uses your Floatplane login: Floatplane matches come from Detour's own list of known videos. It doesn't collect usage data. Details are in the privacy policy.
 
 SOURCE CODE
 https://github.com/josh345rtfvqw/detour
@@ -129,12 +129,12 @@ Detour helps people who subscribe to Nebula or Floatplane watch YouTube videos o
 
 **storage**
 ```
-Saves the user's settings (which subscriptions they have, redirect or button mode, new-tab preference), and a cache of Nebula and Floatplane creator and video lists so they aren't re-downloaded on every page.
+Saves the user's settings (which subscriptions they have, redirect or button mode, new-tab preference), and a cache of Nebula creator and video lists and of Detour's own known-videos list, so they aren't re-downloaded on every page.
 ```
 
 **declarativeNetRequestWithHostAccess**
 ```
-Sets a User-Agent header that identifies the extension and its version ("Detour/<version>") on the extension's own requests to Floatplane and Nebula, as Floatplane asks API clients to do. Chrome ignores a User-Agent set in fetch(), so a session rule is used. The rule only matches requests made by the extension itself (tabId -1) to floatplane.com, nebula.app and nebula.tv, so the user's own browsing of those sites is never modified. No other requests are blocked, redirected or changed.
+Sets a User-Agent header that identifies the extension and its version ("Detour/<version>") on the extension's own requests to Nebula. Chrome ignores a User-Agent set in fetch(), so a session rule is used. The rule only matches requests made by the extension itself (tabId -1) to nebula.app and nebula.tv, so the user's own browsing of those sites is never modified. No other requests are blocked, redirected or changed.
 ```
 
 **Host permission: youtube.com**
@@ -145,11 +145,6 @@ The extension's content script runs on YouTube video and channel pages to read t
 **Host permissions: content.api.nebula.app, rss.nebula.app, talent.nebula.tv**
 ```
 talent.nebula.tv/creators is Nebula's public list of creators with their YouTube channels, used to work out whether a YouTube channel is on Nebula. content.api.nebula.app (Nebula's public video API) and rss.nebula.app (Nebula's public RSS feeds, used as a fallback) are used to find the matching video on that creator's Nebula channel. No Nebula account data is accessed.
-```
-
-**Host permission: www.floatplane.com**
-```
-Used to load Floatplane's list of creators (with their YouTube channels) and to search a matched creator's posts for the same video. The requests use the user's existing floatplane.com session so the full creator list is available. The extension never reads, stores or transmits Floatplane credentials.
 ```
 
 ### Remote code
@@ -164,14 +159,14 @@ All JavaScript ships inside the extension package. The extension only downloads 
 
 **What user data do you plan to collect from users now or in the future?** Tick:
 
-- [x] **Web history.** When the user is on a YouTube video by a creator who is on Nebula or Floatplane, the video's title is sent to that platform's search. Requests for that creator's video list also show which creators' videos the user opens.
+- [x] **Web history.** When the user is on a YouTube video by a creator who is on Nebula or Floatplane, the video's title can be sent to Nebula's search (Floatplane is never contacted). Requests for that creator's video list also show which creators' videos the user opens.
 - [x] **Website content.** The YouTube video title above is page content.
 
 Leave everything else unticked:
 - Personally identifiable information
 - Health information
 - Financial and payment information
-- Authentication information. The browser attaches the user's own floatplane.com cookies to requests to floatplane.com, but the extension never reads, stores or sends them anywhere else.
+- Authentication information. The extension doesn't use any login or cookies: Nebula requests are sent without credentials, and Floatplane is never contacted.
 - Personal communications
 - Location
 - User activity. No clicks, keystrokes or mouse movement are recorded.
@@ -183,7 +178,7 @@ These are also declared for Firefox as `browsingActivity` and `websiteContent`.
 - [x] I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
 - [x] I do not use or transfer user data to determine creditworthiness or for lending purposes.
 
-The "approved use case" here is sending the video title and creator requests to Nebula and Floatplane. That's necessary for the single purpose and is disclosed in the privacy policy.
+The "approved use case" here is sending the video title and creator requests to Nebula. That's necessary for the single purpose and is disclosed in the privacy policy.
 
 ### Privacy policy URL
 
@@ -199,7 +194,7 @@ https://josh345rtfvqw.github.io/detour/PRIVACY.html
 - **Additional instructions (max 500):**
 
 ```
-No account needed. 1) Click the Detour toolbar icon, turn on "Nebula", choose "Show a button". 2) Open a recent YouTube video by a Nebula creator, e.g. Real Engineering, Wendover Productions or Half as Interesting: a "Watch on Nebula" button appears beside the title. 3) Open that creator's channel: a banner appears under Subscribe. 4) Choose "Redirect me" and open another of their videos: a 3s countdown, then Nebula opens. Floatplane works the same when logged in.
+No account needed. 1) Click the Detour toolbar icon, turn on "Nebula", choose "Show a button". 2) Open a recent YouTube video by a Nebula creator, e.g. Real Engineering, Wendover Productions or Half as Interesting: a "Watch on Nebula" button appears beside the title. 3) Open that creator's channel: a banner appears under Subscribe. 4) Choose "Redirect me" and open another of their videos: a 3s countdown, then Nebula opens. Floatplane works the same way: select a creator in the popup, no login needed.
 ```
 
 ## Distribution tab
