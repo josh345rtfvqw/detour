@@ -39,29 +39,25 @@ If `detour` is free, use it. Otherwise use the slug above.
 ### Summary (max 250)
 
 ```
-Watch YouTube videos on Nebula or Floatplane instead, with a button next to the video title or an automatic redirect, and find creators on the other streaming services you subscribe to.
+Watch YouTube videos on Nebula, Floatplane and more, the streaming services you already subscribe to: a button next to the video title, or an automatic redirect.
 ```
 
-(185 characters)
+(161 characters)
 
-As for Chrome, don't list every platform in the summary or description: the Chrome Web Store rejected that as keyword spam. Name platforms in context.
+As for Chrome, don't list every platform in the summary or description: the Chrome Web Store rejected that as keyword spam. Name Nebula and Floatplane and say "and more" for the rest.
 
 ### Description
 
 AMO supports basic formatting in this field: line breaks, bullet lists and links.
 
 ```
-Detour finds the YouTube video you're about to watch on a streaming service you already pay for, and takes you there.
+Detour finds the YouTube video you're about to watch on Nebula, Floatplane and more, the streaming services you already pay for, and takes you there.
 
 <b>On a video</b>
 A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
 
 <b>On a channel</b>
 A banner under the Subscribe button lets you know when the creator also has a channel on another platform. If you subscribe there, it links to their channel. If you don't, an "About" button opens the platform's homepage.
-
-ClockwiseTV is a curated video app for kids aged 8 to 12, on iPhone, iPad and Android. It has no web player, so Detour links to ClockwiseTV's creators page and never redirects there.
-
-2nd try (The Try Guys), WatcherTV (Watcher) and Beacon (Critical Role) are the creators' own streaming services. Detour links to them from the creator's channel, and never redirects there.
 
 <b>Settings</b>
 • Tick the services you subscribe to (for Floatplane, the creators you subscribe to)

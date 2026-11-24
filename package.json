@@ -2,7 +2,7 @@
   "name": "detour",
   "version": "0.8.1",
   "private": true,
-  "description": "Watch YouTube videos on Nebula or Floatplane instead, and find creators on the other streaming services you subscribe to.",
+  "description": "Watch YouTube videos on Nebula, Floatplane and more: the streaming services you already subscribe to.",
   "license": "MIT",
   "scripts": {
     "test": "node test/background.test.js && node test/build-known.test.js",

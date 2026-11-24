@@ -22,9 +22,9 @@ the same terms. Whenever a platform is added or changed, give it the full treatm
   generic ("Detour: YouTube videos where you subscribe") and doesn't list platforms.
 - **Store metadata is the exception:** the manifest's description (the store summary, max 132
   characters), `package.json`'s description and the store listings in `store/` must not list every
-  platform. The Chrome Web Store rejected that as keyword spam. Mention a new platform there in a
-  sentence that says what Detour does with it (like the ClockwiseTV and creator-service
-  paragraphs), and keep the store disclaimers generic ("any of the platforms it links to").
+  platform. The Chrome Web Store rejected that as keyword spam. They name Nebula and Floatplane and
+  say "and more" for the rest, so a new platform doesn't go there; keep the store disclaimers
+  generic ("any of the platforms it links to").
 - **Tests and images:** unit tests in `test/background.test.js` (and `test/build-known.test.js` for
   list changes), e2e checks in `test/e2e.js`, and regenerated store images
   (`PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1 node store/assets/make-store-images.js`).

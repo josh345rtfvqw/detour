@@ -19,27 +19,23 @@ The name comes from the manifest, so it's already set in the package. It's delib
 The dashboard takes this from the manifest's `description` field ("Summary from package"), so it's already set in the package. It can't be edited in the dashboard.
 
 ```
-Watch YouTube videos on Nebula or Floatplane instead, and find creators on the other streaming services you subscribe to.
+Watch YouTube videos on Nebula, Floatplane and more: the streaming services you already subscribe to.
 ```
 
-(121 characters)
+(101 characters)
 
-Don't list every platform here or in the description. In November 2026 Google rejected a submission for keyword spam ("Yellow Argon") over the list "Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon". Name platforms in sentences that say what Detour does with them, and keep the disclaimer generic.
+Don't list every platform here or in the description. In November 2026 Google rejected a submission for keyword spam ("Yellow Argon") over the list "Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon". Name Nebula and Floatplane, say "and more" for the rest, and keep the disclaimer generic.
 
 ### Description
 
 ```
-Detour finds the YouTube video you're about to watch on a streaming service you already pay for, and takes you there.
+Detour finds the YouTube video you're about to watch on Nebula, Floatplane and more, the streaming services you already pay for, and takes you there.
 
 ON A VIDEO
 A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
 
 ON A CHANNEL
 A banner under the Subscribe button lets you know when the creator also has a channel on another platform. If you subscribe there, it links to their channel. If you don't, an "About" button opens the platform's homepage.
-
-ClockwiseTV is a curated video app for kids aged 8 to 12, on iPhone, iPad and Android. It has no web player, so Detour links to ClockwiseTV's creators page and never redirects there.
-
-2nd try (The Try Guys), WatcherTV (Watcher) and Beacon (Critical Role) are the creators' own streaming services. Detour links to them from the creator's channel, and never redirects there.
 
 SETTINGS
 • Tick the services you subscribe to (for Floatplane, the creators you subscribe to)
