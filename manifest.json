@@ -3,7 +3,7 @@
   "name": "Detour: YouTube videos where you subscribe",
   "short_name": "Detour",
   "version": "0.8.1",
-  "description": "See when a YouTube video or channel is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon, and open it there.",
+  "description": "Watch YouTube videos on Nebula or Floatplane instead, and find creators on the other streaming services you subscribe to.",
   "permissions": [
     "storage",
     "declarativeNetRequestWithHostAccess"

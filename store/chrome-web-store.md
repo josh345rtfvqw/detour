@@ -12,35 +12,37 @@ Copy each field into the Chrome Web Store Developer Dashboard. Character limits 
 Detour: YouTube videos where you subscribe
 ```
 
-The name comes from the manifest, so it's already set in the package. It's deliberately generic: Detour works with six platforms (and counting), which don't fit in a name, so the summary and description name them instead. It fits Firefox Add-ons' 50-character limit too, as both stores use the manifest's name, and doesn't need changing when a platform is added. The description's last line says Detour isn't affiliated with any of the platforms. The toolbar and popup still say "Detour" (the manifest's `short_name`).
+The name comes from the manifest, so it's already set in the package. It's deliberately generic: Detour works with six platforms (and counting), which don't fit in a name. The description names them in context (see the Summary note on keyword spam). It fits Firefox Add-ons' 50-character limit too, as both stores use the manifest's name, and doesn't need changing when a platform is added. The description's last line says Detour isn't affiliated with any of the platforms it links to. The toolbar and popup still say "Detour" (the manifest's `short_name`).
 
 ### Summary (max 132)
 
 The dashboard takes this from the manifest's `description` field ("Summary from package"), so it's already set in the package. It can't be edited in the dashboard.
 
 ```
-See when a YouTube video or channel is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon, and open it there.
+Watch YouTube videos on Nebula or Floatplane instead, and find creators on the other streaming services you subscribe to.
 ```
 
-(128 characters)
+(121 characters)
+
+Don't list every platform here or in the description. In November 2026 Google rejected a submission for keyword spam ("Yellow Argon") over the list "Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon". Name platforms in sentences that say what Detour does with them, and keep the disclaimer generic.
 
 ### Description
 
 ```
-Detour shows when a YouTube video or channel is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon, and links to it there.
+Detour finds the YouTube video you're about to watch on a streaming service you already pay for, and takes you there.
 
 ON A VIDEO
-A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe to that platform, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
+A "Watch on Nebula" or "Watch on Floatplane" button appears next to the video's title. If you subscribe, Detour can take you there automatically, with a 3-second countdown and a "Stay on YouTube" option. Or you can choose to just show the button.
 
 ON A CHANNEL
-A banner under the Subscribe button lets you know the creator is also on Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon. If you subscribe there, it links to their channel. If you don't, an "About" button opens the platform's homepage.
+A banner under the Subscribe button lets you know when the creator also has a channel on another platform. If you subscribe there, it links to their channel. If you don't, an "About" button opens the platform's homepage.
 
 ClockwiseTV is a curated video app for kids aged 8 to 12, on iPhone, iPad and Android. It has no web player, so Detour links to ClockwiseTV's creators page and never redirects there.
 
 2nd try (The Try Guys), WatcherTV (Watcher) and Beacon (Critical Role) are the creators' own streaming services. Detour links to them from the creator's channel, and never redirects there.
 
 SETTINGS
-• Select the subscriptions you have: Nebula, ClockwiseTV, 2nd try, WatcherTV, Beacon, and the Floatplane creators you subscribe to
+• Tick the services you subscribe to (for Floatplane, the creators you subscribe to)
 • Choose between automatic redirects and a button
 • Open the other site in a new tab instead of leaving YouTube
 • Light and dark themes follow YouTube and your system
@@ -54,7 +56,7 @@ Detour sends requests to Nebula only for creators who are on Nebula. It never co
 SOURCE CODE
 https://github.com/josh345rtfvqw/detour
 
-Detour is an independent project and is not affiliated with or endorsed by YouTube, Google, Nebula, Floatplane, ClockwiseTV, 2nd try, WatcherTV or Beacon. All trademarks belong to their owners.
+Detour is an independent project and is not affiliated with or endorsed by YouTube, Google or any of the platforms it links to. All trademarks belong to their owners.
 ```
 
 ### Category
